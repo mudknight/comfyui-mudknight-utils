@@ -44,6 +44,130 @@ def get_ultralytics_model_list():
     return ["bbox/face_yolov8m.pt"]
 
 
+def process_segs(
+        image, model, vae,
+        positive, negative, seed, steps, cfg, sampler, scheduler,
+        denoise, upscale_method, upscale_model, threshold, feather,
+        edge_erosion, segs):
+    # We'll process each segment and collect the results
+    processed_crops = []
+    eroded_crops = []
+    bboxes = []
+
+    # Iterate through all detected segments
+    for seg in segs[1]:
+        # Create a temporary SEGS with just this segment
+        temp_segs = (segs[0], [seg])
+
+        # Step 2: Convert single SEG to mask
+        mask_node = common.Node("SegsToCombinedMask")
+        mask = mask_node.function(temp_segs)[0]
+
+        # Step 4: Crop image from mask
+        crop_node = common.Node("easy imageCropFromMask")
+        crop_result = crop_node.function(image, mask, 1, 1, 1)
+        crop_image = crop_result[0]
+        bbox = crop_result[2]
+
+        # Skip if cropped image is already 1MP
+        # Add a toggle for this, disable it for now
+        # if (crop_image.shape[1] * crop_image.shape[2] > 1_000_000):
+        #     continue
+
+        if upscale_model != "none":
+            # Step 4.5 Upscale cropped image with model
+            upscale_model_loader_node = common.Node("UpscaleModelLoader")
+            upscale_model_obj = upscale_model_loader_node.function(
+                    upscale_model)[0]
+
+            upscale_node = common.Node("ImageUpscaleWithModel")
+            upscaled_image = upscale_node.function(
+                    upscale_model_obj, crop_image)[0]
+        else:
+            upscaled_image = crop_image
+
+        # Step 5: Scale cropped image
+        scale_node = common.Node("ImageScaleToTotalPixels")
+        scaled_image = scale_node.function(
+                upscaled_image, upscale_method, 1)[0]
+
+        # Step 6: Encode to latent
+        vae_encode = nodes.VAEEncode()
+        latent = vae_encode.encode(vae, scaled_image)[0]
+
+        # Step 7: KSampler - Get sampler object
+        sampler_select = common.Node("KSamplerSelect")
+        sampler_obj = sampler_select.function(sampler)[0]
+
+        # Create scheduler (use AlignYourSteps if selected,
+        # otherwise BasicScheduler)
+        if scheduler == "align_your_steps":
+            # Detect model type based on latent channels
+            model_type = "SDXL"  # Default
+            try:
+                # Check model config for latent format
+                if hasattr(model.model, 'latent_format'):
+                    latent_channels = (
+                            model.model.
+                            latent_format.latent_channels)
+                    if latent_channels == 16:
+                        model_type = "SDXL"
+                    elif latent_channels == 4:
+                        # Check if it's SVD by looking at model structure
+                        if hasattr(model.model, 'is_temporal') \
+                                or 'svd' in str(type(model.model)).lower():
+                            model_type = "SVD"
+                        else:
+                            model_type = "SD1"
+            except:
+                # Fallback to SDXL if detection fails
+                model_type = "SDXL"
+
+            ays_scheduler = common.Node("AlignYourStepsScheduler")
+            sigmas = ays_scheduler.function(
+                model_type,
+                steps,
+                denoise
+            )[0]
+        else:
+            scheduler_node = common.Node("BasicScheduler")
+            sigmas = scheduler_node.function(
+                model, scheduler, steps, denoise)[0]
+
+        # Sample
+        sampler_custom = common.Node("SamplerCustom")
+        sampled_latent = sampler_custom.function(
+            model, True, seed, cfg, positive, negative,
+            sampler_obj, sigmas, latent
+        )[0]
+
+        # Step 8: Decode latent
+        vae_decode = nodes.VAEDecode()
+        decoded_image = vae_decode.decode(vae, sampled_latent)[0]
+
+        # Step 9: Get original crop size
+        orig_height = crop_image.shape[1]
+        orig_width = crop_image.shape[2]
+
+        # Step 10: Scale back to original crop size
+        image_scale = nodes.ImageScale()
+        resized_image = image_scale.upscale(
+            decoded_image, upscale_method,
+            orig_width, orig_height, "disabled"
+        )[0]
+
+        # Step 10.5: Create eroded mask to remove edge artifacts
+        bbox_inset_and_crop = common.Node("BBoxInsetAndCrop")
+        eroded_image, eroded_bbox = bbox_inset_and_crop.function(
+                resized_image, bbox, edge_erosion)
+
+        # Store the processed crop, bbox, and mask for later compositing
+        processed_crops.append(resized_image)
+        eroded_crops.append(eroded_image)
+        bboxes.append(eroded_bbox)
+        return (processed_crops, eroded_crops, bboxes)
+
+
 class DetailerNode:
     """Single node that handles detection,
     crop, detail, and uncrop operations."""
@@ -140,122 +264,12 @@ class DetailerNode:
         if not segs or len(segs[1]) == 0:
             return (image, placeholder)
 
-        # We'll process each segment and collect the results
-        processed_crops = []
-        eroded_crops = []
-        bboxes = []
-
-        # Iterate through all detected segments
-        for seg in segs[1]:
-            # Create a temporary SEGS with just this segment
-            temp_segs = (segs[0], [seg])
-
-            # Step 2: Convert single SEG to mask
-            mask_node = common.Node("SegsToCombinedMask")
-            mask = mask_node.function(temp_segs)[0]
-
-            # Step 4: Crop image from mask
-            crop_node = common.Node("easy imageCropFromMask")
-            crop_result = crop_node.function(image, mask, 1, 1, 1)
-            crop_image = crop_result[0]
-            bbox = crop_result[2]
-
-            # Skip if cropped image is already 1MP
-            # Add a toggle for this, disable it for now
-            # if (crop_image.shape[1] * crop_image.shape[2] > 1_000_000):
-            #     continue
-
-            if upscale_model != "none":
-                # Step 4.5 Upscale cropped image with model
-                upscale_model_loader_node = common.Node("UpscaleModelLoader")
-                upscale_model_obj = upscale_model_loader_node.function(
-                        upscale_model)[0]
-
-                upscale_node = common.Node("ImageUpscaleWithModel")
-                upscaled_image = upscale_node.function(
-                        upscale_model_obj, crop_image)[0]
-            else:
-                upscaled_image = crop_image
-
-            # Step 5: Scale cropped image
-            scale_node = common.Node("ImageScaleToTotalPixels")
-            scaled_image = scale_node.function(
-                    upscaled_image, upscale_method, 1)[0]
-
-            # Step 6: Encode to latent
-            vae_encode = nodes.VAEEncode()
-            latent = vae_encode.encode(vae, scaled_image)[0]
-
-            # Step 7: KSampler - Get sampler object
-            sampler_select = common.Node("KSamplerSelect")
-            sampler_obj = sampler_select.function(sampler)[0]
-
-            # Create scheduler (use AlignYourSteps if selected,
-            # otherwise BasicScheduler)
-            if scheduler == "align_your_steps":
-                # Detect model type based on latent channels
-                model_type = "SDXL"  # Default
-                try:
-                    # Check model config for latent format
-                    if hasattr(model.model, 'latent_format'):
-                        latent_channels = (
-                                model.model.
-                                latent_format.latent_channels)
-                        if latent_channels == 16:
-                            model_type = "SDXL"
-                        elif latent_channels == 4:
-                            # Check if it's SVD by looking at model structure
-                            if hasattr(model.model, 'is_temporal') \
-                                    or 'svd' in str(type(model.model)).lower():
-                                model_type = "SVD"
-                            else:
-                                model_type = "SD1"
-                except:
-                    # Fallback to SDXL if detection fails
-                    model_type = "SDXL"
-
-                ays_scheduler = common.Node("AlignYourStepsScheduler")
-                sigmas = ays_scheduler.function(
-                    model_type,
-                    steps,
-                    denoise
-                )[0]
-            else:
-                scheduler_node = common.Node("BasicScheduler")
-                sigmas = scheduler_node.function(
-                    model, scheduler, steps, denoise)[0]
-
-            # Sample
-            sampler_custom = common.Node("SamplerCustom")
-            sampled_latent = sampler_custom.function(
-                model, True, seed, cfg, positive, negative,
-                sampler_obj, sigmas, latent
-            )[0]
-
-            # Step 8: Decode latent
-            vae_decode = nodes.VAEDecode()
-            decoded_image = vae_decode.decode(vae, sampled_latent)[0]
-
-            # Step 9: Get original crop size
-            orig_height = crop_image.shape[1]
-            orig_width = crop_image.shape[2]
-
-            # Step 10: Scale back to original crop size
-            image_scale = nodes.ImageScale()
-            resized_image = image_scale.upscale(
-                decoded_image, upscale_method,
-                orig_width, orig_height, "disabled"
-            )[0]
-
-            # Step 10.5: Create eroded mask to remove edge artifacts
-            bbox_inset_and_crop = common.Node("BBoxInsetAndCrop")
-            eroded_image, eroded_bbox = bbox_inset_and_crop.function(
-                    resized_image, bbox, edge_erosion)
-
-            # Store the processed crop, bbox, and mask for later compositing
-            processed_crops.append(resized_image)
-            eroded_crops.append(eroded_image)
-            bboxes.append(eroded_bbox)
+        # Store the processed crop, bbox, and mask for later compositing
+        processed_crops, eroded_crops, bboxes = process_segs(
+            image, model, vae,
+            positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, threshold, feather,
+            edge_erosion, segs)
 
         if not processed_crops:
             return (image, placeholder)
@@ -367,117 +381,11 @@ class MaskDetailerNode:
         if not segs or len(segs[1]) == 0:
             return (image, None)
 
-        # We'll process each segment and collect the results
-        processed_crops = []
-        eroded_crops = []
-        bboxes = []
-
-        # Iterate through all detected segments
-        for seg in segs[1]:
-            # Create a temporary SEGS with just this segment
-            temp_segs = (segs[0], [seg])
-
-            # Step 2: Convert single SEG to mask
-            mask_node = common.Node("SegsToCombinedMask")
-            mask = mask_node.function(temp_segs)[0]
-
-            # Step 4: Crop image from mask
-            crop_node = common.Node("easy imageCropFromMask")
-            crop_result = crop_node.function(image, mask, 1, 1, 1)
-            crop_image = crop_result[0]
-            bbox = crop_result[2]
-
-            if upscale_model != "none":
-                # Step 4.5 Upscale cropped image with model
-                upscale_model_loader_node = common.Node("UpscaleModelLoader")
-                upscale_model_obj = upscale_model_loader_node.function(
-                        upscale_model)[0]
-
-                upscale_node = common.Node("ImageUpscaleWithModel")
-                upscaled_image = upscale_node.function(
-                        upscale_model_obj, crop_image)[0]
-            else:
-                upscaled_image = crop_image
-
-            # Step 5: Scale cropped image
-            scale_node = common.Node("ImageScaleToTotalPixels")
-            scaled_image = scale_node.function(
-                    upscaled_image, upscale_method, 1)[0]
-
-            # Step 6: Encode to latent
-            vae_encode = nodes.VAEEncode()
-            latent = vae_encode.encode(vae, scaled_image)[0]
-
-            # Step 7: KSampler - Get sampler object
-            sampler_select = common.Node("KSamplerSelect")
-            sampler_obj = sampler_select.function(sampler)[0]
-
-            # Create scheduler (use AlignYourSteps if selected,
-            # otherwise BasicScheduler)
-            if scheduler == "align_your_steps":
-                # Detect model type based on latent channels
-                model_type = "SDXL"  # Default
-                try:
-                    # Check model config for latent format
-                    if hasattr(model.model, 'latent_format'):
-                        latent_channels = (
-                                model.model.
-                                latent_format.latent_channels)
-                        if latent_channels == 16:
-                            model_type = "SDXL"
-                        elif latent_channels == 4:
-                            # Check if it's SVD by looking at model structure
-                            if hasattr(model.model, 'is_temporal') \
-                                    or 'svd' in str(type(model.model)).lower():
-                                model_type = "SVD"
-                            else:
-                                model_type = "SD1"
-                except:
-                    # Fallback to SDXL if detection fails
-                    model_type = "SDXL"
-
-                ays_scheduler = common.Node("AlignYourStepsScheduler")
-                sigmas = ays_scheduler.function(
-                    model_type,
-                    steps,
-                    denoise
-                )[0]
-            else:
-                scheduler_node = common.Node("BasicScheduler")
-                sigmas = scheduler_node.function(
-                    model, scheduler, steps, denoise)[0]
-
-            # Sample
-            sampler_custom = common.Node("SamplerCustom")
-            sampled_latent = sampler_custom.function(
-                model, True, seed, cfg, positive, negative,
-                sampler_obj, sigmas, latent
-            )[0]
-
-            # Step 8: Decode latent
-            vae_decode = nodes.VAEDecode()
-            decoded_image = vae_decode.decode(vae, sampled_latent)[0]
-
-            # Step 9: Get original crop size
-            orig_height = crop_image.shape[1]
-            orig_width = crop_image.shape[2]
-
-            # Step 10: Scale back to original crop size
-            image_scale = nodes.ImageScale()
-            resized_image = image_scale.upscale(
-                decoded_image, upscale_method,
-                orig_width, orig_height, "disabled"
-            )[0]
-
-            # Step 10.5: Create eroded mask to remove edge artifacts
-            bbox_inset_and_crop = common.Node("BBoxInsetAndCrop")
-            eroded_image, eroded_bbox = bbox_inset_and_crop.function(
-                    resized_image, bbox, edge_erosion)
-
-            # Store the processed crop, bbox, and mask for later compositing
-            processed_crops.append(resized_image)
-            eroded_crops.append(eroded_image)
-            bboxes.append(eroded_bbox)
+        processed_crops, eroded_crops, bboxes = process_segs(
+            image, model, vae,
+            positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, threshold, feather,
+            edge_erosion, segs)
 
         # Pad all crops to the same size so they can be batched
         if len(processed_crops) > 0:
