@@ -9,7 +9,7 @@ I designed these nodes as an alternative to the `comfyui-easy-use` pipe system. 
 I also designed FastDetailer as an alternative to FaceDetailer, with the self-explanatory goal of making a detailer that's faster.
 
 ## Dependencies
-This node back requires the following node packs:
+This node pack requires the following node packs:
 
 - [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use)
 - [ComfyUI-Impact-Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
@@ -71,6 +71,15 @@ Using `gotoh hitori` in the prompt will replace it with all of the `character` t
 ### Base (full-pipe)
 This is the base image generation node. By default it will use an empty latent with the dimensions defined by the node, but it also has an `image` input and `denoise` parameter for img2img generation.
 
+### Prompt from Presets (full-pipe)
+This is a combined positive and negative prompt box that lets you use pre-defined prompt text. Features include:
+- Accepts LoRA syntax
+- Ignores `#` commented lines
+- Auto-expands character tags that are defined in `config/characters.jsonc`, along with `top` and `bottom` to use the defined portions of their default outfit.
+- Lets you select between pre-defined style presets defined in `config/styles.jsonc`
+- Automatically applies quality tags and embeddings when enabled for model families as defined in `config/models.jsonc`
+- Splits quality tags+embeddings, style tags, character tags, and the main prompt into separate conditionings and then concatenates the conditionings.
+
 ### Upscale (full-pipe)
 This is an upscaling node that uses simple lanczos scaling and sampling. I've never found that an upscale model is necessary, so it's not included in the node.
 
@@ -83,3 +92,8 @@ These nodes currently depend on other nodes from impact-pack and easy-use. I'd l
 
 ### Save (full-pipe)
 This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node. This uses the `Image Saver` node internally.
+
+## Extensions
+
+### Character Editor
+The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing the `characters.jsonc` file used in the `Prompt from Presets (full-pipe)` node. This is a work-in-progress, and I'd like to include the other config files in the future and improve organization.
