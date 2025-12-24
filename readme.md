@@ -1,4 +1,3 @@
-t
 # ComfyUI mudknight utils
 
 Nodes to clean up your workflow.
@@ -8,6 +7,15 @@ Nodes to clean up your workflow.
 I designed these nodes as an alternative to the `comfyui-easy-use` pipe system. I like easy-use nodes in concept, but I don't like how long it takes to use `pipe-in`, which ruins their flexibility.
 
 I also designed FastDetailer as an alternative to FaceDetailer, with the self-explanatory goal of making a detailer that's faster.
+
+## Dependencies
+This node back requires the following node packs:
+
+- [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use)
+- [ComfyUI-Impact-Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
+- [ComfyUI-Impact-Subpack](https://github.com/ltdrdata/ComfyUI-Impact-Subpack)
+- [ComfyUI-Image-Saver](https://github.com/alexopus/ComfyUI-Image-Saver)
+- [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
 
 ## Nodes
 
@@ -74,4 +82,4 @@ The FastDetailer nodes are an alternative to FaceDetailer that are intended to b
 These nodes currently depend on other nodes from impact-pack and easy-use. I'd like to move away from these in the future, but I wanted to make this now to add SEGS iteration, which is a pain to set up with subgraphs.
 
 ### Save (full-pipe)
-This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node.
+This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node. This uses the `Image Saver` node internally.
