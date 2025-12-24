@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Character Editor</h1>
+
+        <div class="status" id="status"></div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" 
+                       placeholder="Search characters...">
+            </div>
+            <button onclick="showAddModal()">Add Character</button>
+        </div>
+
+        <div class="character-grid" id="characterGrid"></div>
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <p>No characters found</p>
+            <button onclick="showAddModal()">Add Your First Character</button>
+        </div>
+    </div>
+
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Character</div>
+            <div class="field-group">
+                <label>Character Name (key)</label>
+                <input type="text" id="newCharName" 
+                       placeholder="e.g., example_character">
+            </div>
+            <div class="modal-actions">
+                <button onclick="hideAddModal()">Cancel</button>
+                <button class="save" onclick="addCharacter()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="editCharName"></span>
+                <button class="delete" onclick="deleteCurrentCharacter()">
+                    Delete
+                </button>
+            </div>
+            <div class="field-group">
+                <label>Character Image</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" id="editImage" accept="image/*" 
+                           style="flex: 1;">
+                    <button onclick="removeImage()" class="delete" 
+                            style="padding: 8px 12px;">
+                        Remove
+                    </button>
+                </div>
+                <div id="imagePreview" 
+                     style="margin-top: 10px; display: none;">
+                    <img id="previewImg" 
+                         style="max-width: 200px; border-radius: 4px;">
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Character</label>
+                <textarea id="editCharacter"></textarea>
+            </div>
+            <div class="field-group">
+                <label>Top</label>
+                <input type="text" id="editTop">
+            </div>
+            <div class="field-group">
+                <label>Bottom</label>
+                <input type="text" id="editBottom">
+            </div>
+            <div class="field-group">
+                <label>Negative</label>
+                <input type="text" id="editNeg">
+            </div>
+            <div class="modal-actions">
+                <button onclick="hideEditModal()">Cancel</button>
+                <button class="save" onclick="saveCharacter()">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
