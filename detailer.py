@@ -56,11 +56,11 @@ class DetailerNode:
         return {
             "required": {
                 # Detection models at the top
-                "model": (model_list,),
+                "bbox_model": (model_list,),
                 "fallback_model": (fallback_list,),
                 # Core inputs
                 "image": ("IMAGE",),
-                "model_checkpoint": ("MODEL",),
+                "model": ("MODEL",),
                 "vae": ("VAE",),
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
@@ -70,7 +70,7 @@ class DetailerNode:
                 "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                 "cfg": ("FLOAT", {
                     "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler_name": (
+                "sampler": (
                     SAMPLER_NAMES,
                     {"default": "euler_ancestral_cfg_pp"}
                     ),
@@ -101,8 +101,8 @@ class DetailerNode:
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process(self, model, fallback_model, image, model_checkpoint, vae,
-                positive, negative, seed, steps, cfg, sampler_name, scheduler,
+    def process(self, bbox_model, fallback_model, image, model, vae,
+                positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
                 edge_erosion):
         """Main processing function."""
@@ -113,7 +113,7 @@ class DetailerNode:
 
         # Create the primary bbox detector
         ultralytics_provider = common.Node("UltralyticsDetectorProvider")
-        bbox_detector = ultralytics_provider.function(model)[0]
+        bbox_detector = ultralytics_provider.function(bbox_model)[0]
 
         # Create fallback detector if not "none"
         bbox_fallback = None
@@ -168,10 +168,12 @@ class DetailerNode:
             if upscale_model != "none":
                 # Step 4.5 Upscale cropped image with model
                 upscale_model_loader_node = common.Node("UpscaleModelLoader")
-                model = upscale_model_loader_node.function(upscale_model)[0]
+                upscale_model_obj = upscale_model_loader_node.function(
+                        upscale_model)[0]
 
                 upscale_node = common.Node("ImageUpscaleWithModel")
-                upscaled_image = upscale_node.function(model, crop_image)[0]
+                upscaled_image = upscale_node.function(
+                        upscale_model_obj, crop_image)[0]
             else:
                 upscaled_image = crop_image
 
@@ -186,7 +188,7 @@ class DetailerNode:
 
             # Step 7: KSampler - Get sampler object
             sampler_select = common.Node("KSamplerSelect")
-            sampler_obj = sampler_select.function(sampler_name)[0]
+            sampler_obj = sampler_select.function(sampler)[0]
 
             # Create scheduler (use AlignYourSteps if selected,
             # otherwise BasicScheduler)
@@ -197,13 +199,13 @@ class DetailerNode:
                     # Check model config for latent format
                     if hasattr(model.model, 'latent_format'):
                         latent_channels = (
-                                model_checkpoint.model.
+                                model.model.
                                 latent_format.latent_channels)
                         if latent_channels == 16:
                             model_type = "SDXL"
                         elif latent_channels == 4:
                             # Check if it's SVD by looking at model structure
-                            if hasattr(model_checkpoint.model, 'is_temporal') \
+                            if hasattr(model.model, 'is_temporal') \
                                     or 'svd' in str(type(model.model)).lower():
                                 model_type = "SVD"
                             else:
@@ -226,7 +228,7 @@ class DetailerNode:
             # Sample
             sampler_custom = common.Node("SamplerCustom")
             sampled_latent = sampler_custom.function(
-                model_checkpoint, True, seed, cfg, positive, negative,
+                model, True, seed, cfg, positive, negative,
                 sampler_obj, sigmas, latent
             )[0]
 
@@ -310,7 +312,7 @@ class MaskDetailerNode:
                 # Core inputs
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
-                "model_checkpoint": ("MODEL",),
+                "model": ("MODEL",),
                 "vae": ("VAE",),
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
@@ -320,7 +322,7 @@ class MaskDetailerNode:
                 "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                 "cfg": ("FLOAT", {
                     "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler_name": (
+                "sampler": (
                     SAMPLER_NAMES,
                     {"default": "euler_ancestral_cfg_pp"}
                     ),
@@ -351,8 +353,8 @@ class MaskDetailerNode:
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process(self, image, mask, model_checkpoint, vae,
-                positive, negative, seed, steps, cfg, sampler_name, scheduler,
+    def process(self, image, mask, model, vae,
+                positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
                 edge_erosion):
         """Main processing function."""
@@ -388,10 +390,12 @@ class MaskDetailerNode:
             if upscale_model != "none":
                 # Step 4.5 Upscale cropped image with model
                 upscale_model_loader_node = common.Node("UpscaleModelLoader")
-                model = upscale_model_loader_node.function(upscale_model)[0]
+                upscale_model_obj = upscale_model_loader_node.function(
+                        upscale_model)[0]
 
                 upscale_node = common.Node("ImageUpscaleWithModel")
-                upscaled_image = upscale_node.function(model, crop_image)[0]
+                upscaled_image = upscale_node.function(
+                        upscale_model_obj, crop_image)[0]
             else:
                 upscaled_image = crop_image
 
@@ -406,7 +410,7 @@ class MaskDetailerNode:
 
             # Step 7: KSampler - Get sampler object
             sampler_select = common.Node("KSamplerSelect")
-            sampler_obj = sampler_select.function(sampler_name)[0]
+            sampler_obj = sampler_select.function(sampler)[0]
 
             # Create scheduler (use AlignYourSteps if selected,
             # otherwise BasicScheduler)
@@ -417,13 +421,13 @@ class MaskDetailerNode:
                     # Check model config for latent format
                     if hasattr(model.model, 'latent_format'):
                         latent_channels = (
-                                model_checkpoint.model.
+                                model.model.
                                 latent_format.latent_channels)
                         if latent_channels == 16:
                             model_type = "SDXL"
                         elif latent_channels == 4:
                             # Check if it's SVD by looking at model structure
-                            if hasattr(model_checkpoint.model, 'is_temporal') \
+                            if hasattr(model.model, 'is_temporal') \
                                     or 'svd' in str(type(model.model)).lower():
                                 model_type = "SVD"
                             else:
@@ -446,7 +450,7 @@ class MaskDetailerNode:
             # Sample
             sampler_custom = common.Node("SamplerCustom")
             sampled_latent = sampler_custom.function(
-                model_checkpoint, True, seed, cfg, positive, negative,
+                model, True, seed, cfg, positive, negative,
                 sampler_obj, sigmas, latent
             )[0]
 
@@ -526,7 +530,7 @@ class DetailerPipeNode(DetailerNode):
         return {
             "required": {
                 # Detection models at the top
-                "model": (model_list,),
+                "bbox_model": (model_list,),
                 "fallback_model": (fallback_list,),
                 # Full pipe input
                 "full_pipe": ("FULL_PIPE",),
@@ -534,7 +538,7 @@ class DetailerPipeNode(DetailerNode):
                 "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                 "cfg": ("FLOAT", {
                     "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler_name": (
+                "sampler": (
                     SAMPLER_NAMES,
                     {"default": "euler_ancestral_cfg_pp"}
                     ),
@@ -565,8 +569,8 @@ class DetailerPipeNode(DetailerNode):
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process_pipe(self, model, fallback_model, full_pipe, steps, cfg,
-                     sampler_name, scheduler, denoise, upscale_method,
+    def process_pipe(self, bbox_model, fallback_model, full_pipe, steps, cfg,
+                     sampler, scheduler, denoise, upscale_method,
                      upscale_model, threshold, feather, edge_erosion):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
@@ -591,8 +595,8 @@ class DetailerPipeNode(DetailerNode):
 
         # Call parent class process method
         final_image, cropped_image = self.process(
-            model, fallback_model, image, model_checkpoint, vae, positive,
-            negative, seed, steps, cfg, sampler_name, scheduler, denoise,
+            bbox_model, fallback_model, image, model_checkpoint, vae, positive,
+            negative, seed, steps, cfg, sampler, scheduler, denoise,
             upscale_method, upscale_model, threshold, feather, edge_erosion
         )
 
@@ -618,7 +622,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
                 "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                 "cfg": ("FLOAT", {
                     "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler_name": (
+                "sampler": (
                     SAMPLER_NAMES,
                     {"default": "euler_ancestral_cfg_pp"}
                     ),
@@ -652,14 +656,14 @@ class MaskDetailerPipeNode(MaskDetailerNode):
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process_pipe(self, full_pipe, mask, steps, cfg, sampler_name,
+    def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
                      threshold, feather, edge_erosion, image=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         if image is None:
             image = full_pipe.get("image")
-        model_checkpoint = full_pipe.get("model")
+        model = full_pipe.get("model")
         vae = full_pipe.get("vae")
         positive = full_pipe.get("positive")
         negative = full_pipe.get("negative")
@@ -668,7 +672,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
         # Validate required fields
         if image is None:
             raise ValueError("full_pipe must contain 'image'")
-        if model_checkpoint is None:
+        if model is None:
             raise ValueError("full_pipe must contain 'model'")
         if vae is None:
             raise ValueError("full_pipe must contain 'vae'")
@@ -679,8 +683,8 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
         # Call parent class process method
         final_image, cropped_image = self.process(
-            image, mask, model_checkpoint, vae, positive,
-            negative, seed, steps, cfg, sampler_name, scheduler, denoise,
+            image, mask, model, vae, positive,
+            negative, seed, steps, cfg, sampler, scheduler, denoise,
             upscale_method, upscale_model, threshold, feather, edge_erosion
         )
 
