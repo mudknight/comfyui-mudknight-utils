@@ -57,17 +57,23 @@ class BaseNode:
             },
             "optional": {
                 "image": ("IMAGE",),
-            }
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+            },
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
     RETURN_NAMES = ("full_pipe", "image",)
+    OUTPUT_NODE = True
     FUNCTION = "generate"
     CATEGORY = "mudknight/custom"
 
     def generate(
             self, full_pipe, sampler_name,
-            scheduler, steps, cfg, denoise, resolution, portrait, image=None):
+            scheduler, steps, cfg, denoise, resolution, portrait, image=None,
+            prompt=None, extra_pnginfo=None):
 
         # Unpack full_pipe - it's a dictionary, so access directly
         model = full_pipe.get("model")
@@ -156,7 +162,13 @@ class BaseNode:
             image=decoded_image
         )[0]
 
-        return (result, decoded_image,)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(decoded_image)
+        print(preview_result)
+
+        return {
+                "ui": preview_result.get("ui", {}),
+                "result": (result, decoded_image,)}
 
 
 class UpscaleNode:
@@ -303,4 +315,11 @@ class UpscaleNode:
                 image=decoded_image
                 )[0]
 
-        return (result, decoded_image,)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(decoded_image)
+        print(preview_result)
+
+        return {
+                "ui": preview_result.get("ui", {}),
+                "result": (result, decoded_image,)}
+

@@ -210,11 +210,18 @@ class DetailerNode:
                 "upscale_model": (upscale_model_list,),
                 # Detection parameters
                 "threshold": ("FLOAT", {
-                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Detection threshold"}),
                 # Feather mask parameter (uniform)
-                "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
+                "feather": ("FLOAT", {
+                    "default": 0.25, "min": 0, "max": 1,
+                    "tooltip": ("Percentage of image to feather when "
+                                "uncropping")}),
                 # Edge erosion to remove artifacts
-                "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
+                "edge_erosion": ("INT", {
+                    "default": 10, "min": 0, "max": 100,
+                    "tooltip": ("Amount of pixels to remove from the edge of"
+                                " the detected region to remove noise")}),
             }
         }
 
@@ -311,7 +318,13 @@ class DetailerNode:
                 final_image, eroded_image, bbox, feather, True, None
             )[0]
 
-        return (final_image, eroded_samples_batch)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(eroded_samples_batch)
+
+        # return (final_image, eroded_samples_batch)
+        return {
+                "ui": preview_result.get("ui", {}),
+                "result": (final_image, eroded_samples_batch,)}
 
 
 class MaskDetailerNode:
@@ -424,7 +437,13 @@ class MaskDetailerNode:
                 final_image, eroded_image, bbox, feather, True, None
             )[0]
 
-        return (final_image, eroded_samples_batch)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(eroded_samples_batch)
+
+        # return (final_image, eroded_samples_batch)
+        return {
+                "ui": preview_result.get("ui", {}),
+                "result": (final_image, eroded_samples_batch,)}
 
 
 class DetailerPipeNode(DetailerNode):
@@ -502,17 +521,30 @@ class DetailerPipeNode(DetailerNode):
             raise ValueError("full_pipe must contain 'negative'")
 
         # Call parent class process method
-        final_image, cropped_image = self.process(
-            bbox_model, fallback_model, image, model_checkpoint, vae, positive,
-            negative, seed, steps, cfg, sampler, scheduler, denoise,
-            upscale_method, upscale_model, threshold, feather, edge_erosion
+        result = self.process(
+            bbox_model, fallback_model, image, model_checkpoint, vae,
+            positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, threshold, feather,
+            edge_erosion
         )
+
+        # Handle both dict (with preview) and tuple (no preview) returns
+        if isinstance(result, dict):
+            final_image, cropped_image = result["result"]
+        else:
+            final_image, cropped_image = result
 
         # Create updated pipe with new image
         new_pipe = full_pipe.copy()
         new_pipe["image"] = final_image
 
-        return (new_pipe, final_image, cropped_image)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(cropped_image)
+
+        return {
+            "ui": preview_result.get("ui", {}),
+            "result": (new_pipe, final_image, cropped_image)
+        }
 
 
 class MaskDetailerPipeNode(MaskDetailerNode):
@@ -590,17 +622,30 @@ class MaskDetailerPipeNode(MaskDetailerNode):
             raise ValueError("full_pipe must contain 'negative'")
 
         # Call parent class process method
-        final_image, cropped_image = self.process(
-            image, mask, model, vae, positive,
-            negative, seed, steps, cfg, sampler, scheduler, denoise,
-            upscale_method, upscale_model, threshold, feather, edge_erosion
+        result = self.process(
+            image, mask, model, vae,
+            positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, threshold, feather,
+            edge_erosion
         )
+
+        # Handle both dict (with preview) and tuple (no preview) returns
+        if isinstance(result, dict):
+            final_image, cropped_image = result["result"]
+        else:
+            final_image, cropped_image = result
 
         # Create updated pipe with new image
         new_pipe = full_pipe.copy()
         new_pipe["image"] = final_image
 
-        return (new_pipe, final_image, cropped_image)
+        preview = common.Node("PreviewImage")
+        preview_result = preview.function(cropped_image)
+
+        return {
+            "ui": preview_result.get("ui", {}),
+            "result": (new_pipe, final_image, cropped_image)
+        }
 
 
 NODE_CLASS_MAPPINGS = {
