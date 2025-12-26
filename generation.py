@@ -164,7 +164,6 @@ class BaseNode:
 
         preview = common.Node("PreviewImage")
         preview_result = preview.function(decoded_image)
-        print(preview_result)
 
         return {
                 "ui": preview_result.get("ui", {}),
@@ -317,9 +316,7 @@ class UpscaleNode:
 
         preview = common.Node("PreviewImage")
         preview_result = preview.function(decoded_image)
-        print(preview_result)
 
         return {
                 "ui": preview_result.get("ui", {}),
                 "result": (result, decoded_image,)}
-
