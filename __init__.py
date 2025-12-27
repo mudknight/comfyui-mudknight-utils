@@ -44,6 +44,7 @@ NODE_CLASS_MAPPINGS = {
     "ConditionalLoraFullPipe": ConditionalLoraFullPipe,
     "SaveFullPipe": SaveFullPipe,
     "LoaderFullPipe": LoaderFullPipe,
+    "SplitLoaderFullPipe": SplitLoaderFullPipe,
     "BBoxInsetAndCrop": BBoxInsetAndCrop,
 }
 
@@ -70,6 +71,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ConditionalLoraFullPipe": "Conditional Lora (full-pipe)",
     "SaveFullPipe": "Save (full-pipe)",
     "LoaderFullPipe": "Loader (full-pipe)",
+    "SplitLoaderFullPipe": "Split Loader (full-pipe)",
     "BBoxInsetAndCrop": "BBox Inset and Crop",
 }
 
