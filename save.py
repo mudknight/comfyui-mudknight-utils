@@ -42,8 +42,8 @@ class SaveFullPipe:
             },
         }
 
-    RETURN_TYPES = ()
-    RETURN_NAMES = ()
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
     OUTPUT_NODE = True
     FUNCTION = "save_image"
     CATEGORY = "custom/pipe"
@@ -124,5 +124,6 @@ class SaveFullPipe:
             )
 
         return {
-            "ui": save_result.get("ui", {})
+            "ui": save_result.get("ui", {}),
+            "result": (image,)
         }
