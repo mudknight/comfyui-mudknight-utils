@@ -138,6 +138,59 @@ async def delete_character(request):
         )
 
 
+@server.PromptServer.instance.routes.post('/character_editor/rename')
+async def rename_character(request):
+    """Rename a character and its image"""
+    try:
+        data = await request.json()
+        old_name = data.get('oldName')
+        new_name = data.get('newName')
+        char_data = data.get('data')
+
+        if not old_name or not new_name:
+            return web.json_response(
+                    {"error": "Missing old or new name"},
+                    status=400
+                    )
+
+        # Load current characters
+        characters = load_characters()
+
+        # Check if old name exists
+        if old_name not in characters:
+            return web.json_response(
+                    {"error": "Character not found"},
+                    status=404
+                    )
+
+        # Check if new name already exists
+        if new_name in characters and new_name != old_name:
+            return web.json_response(
+                    {"error": "Character with new name already exists"},
+                    status=400
+                    )
+
+        # Update character data
+        del characters[old_name]
+        characters[new_name] = char_data
+        save_characters(characters)
+
+        # Rename image if it exists
+        old_image_path = get_image_path(old_name)
+        if old_image_path.exists():
+            new_image_path = get_image_path(new_name)
+            old_image_path.rename(new_image_path)
+            print(f"Renamed image from {old_image_path} to {new_image_path}")
+
+        return web.json_response({"success": True})
+    except Exception as e:
+        print(f"Error renaming character: {e}")
+        return web.json_response(
+                {"error": str(e)},
+                status=500
+                )
+
+
 @server.PromptServer.instance.routes.get(
     '/character_editor/image/{name}'
 )

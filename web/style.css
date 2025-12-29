@@ -265,6 +265,23 @@ button.save:hover {
     overflow-y: auto;
 }
 
+.name-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 8px 12px;
+    margin-right: 10px;
+}
+
+.name-input:focus {
+    outline: none;
+    border-color: #4a9eff;
+}
+
 .modal-header {
     font-size: 20px;
     margin-bottom: 20px;
@@ -272,6 +289,7 @@ button.save:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
 }
 
 .field-group {
@@ -328,6 +346,7 @@ textarea {
 .tabs {
     display: flex;
     gap: 5px;
+    margin-right: auto;
     margin-bottom: 20px;
     border-bottom: 2px solid #3a3a3a;
 }
@@ -337,6 +356,7 @@ textarea {
     background: transparent;
     color: #888;
     border: none;
+    border-radius: 0px;
     border-bottom: 2px solid transparent;
     cursor: pointer;
     font-size: 14px;

@@ -3,6 +3,7 @@ let models = {};
 let styles = {};
 let currentEditName = null;
 let currentEditType = null;
+let currentOriginalName = null; // Add this
 let currentAddType = null;
 let searchTerms = {
 	character: '',
@@ -653,7 +654,8 @@ function showEditModal(type, name) {
 
 	if (type === 'character') {
 		const data = characters[name];
-		document.getElementById('editCharName').textContent = name;
+		currentOriginalName = name; // Store original name
+		document.getElementById('editCharNameInput').value = name;
 		document.getElementById('editCharacter').value = 
 			data.character || '';
 		document.getElementById('editTop').value = data.top || '';
@@ -735,6 +737,7 @@ function hideEditModal(type) {
 	}
 	currentEditName = null;
 	currentEditType = null;
+	currentOriginalName = null; // Clear original name
 }
 
 async function saveItem(type) {
@@ -969,9 +972,22 @@ async function removeImage(type = 'character') {
 }
 
 async function saveCharacter() {
-	if (!currentEditName) return;
+	if (!currentOriginalName) return;
 
-	characters[currentEditName] = {
+	const newName = document.getElementById('editCharNameInput').value.trim();
+	
+	if (!newName) {
+		alert('Character name cannot be empty');
+		return;
+	}
+	
+	// Check if name changed and new name already exists
+	if (newName !== currentOriginalName && characters[newName]) {
+		alert('A character with this name already exists');
+		return;
+	}
+
+	const characterData = {
 		character: document.getElementById('editCharacter').value,
 		top: document.getElementById('editTop').value,
 		bottom: document.getElementById('editBottom').value,
@@ -979,27 +995,67 @@ async function saveCharacter() {
 		categories: document.getElementById('editCategories').value
 	};
 
+	// Handle image upload first if there is one
 	const fileInput = document.getElementById('editImage');
 	if (fileInput.files.length > 0) {
-		await processImage(fileInput.files[0], currentEditName);
+		await processImage(fileInput.files[0], currentOriginalName);
 	}
 
-	try {
-		const response = await fetch('/character_editor', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(characters)
-		});
+	// If name changed, use rename endpoint
+	if (newName !== currentOriginalName) {
+		try {
+			const response = await fetch('/character_editor/rename', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					oldName: currentOriginalName,
+					newName: newName,
+					data: characterData
+				})
+			});
 
-		if (response.ok) {
-			showStatus('Character saved successfully!', 'success');
-			renderAll(); // Changed from renderCharacters() to update categories
-			hideEditModal('character');
-		} else {
-			throw new Error('Failed to save');
+			if (response.ok) {
+				// Update local data
+				delete characters[currentOriginalName];
+				characters[newName] = characterData;
+				
+				// Update image tracking
+				if (characterImages[currentOriginalName]) {
+					characterImages[newName] = true;
+					delete characterImages[currentOriginalName];
+				}
+				
+				showStatus('Character renamed successfully!', 'success');
+				renderAll();
+				hideEditModal('character');
+			} else {
+				const error = await response.json();
+				throw new Error(error.error || 'Failed to rename');
+			}
+		} catch (error) {
+			showStatus('Error renaming character: ' + error.message, 'error');
 		}
-	} catch (error) {
-		showStatus('Error saving character: ' + error.message, 'error');
+	} else {
+		// Just update the data
+		characters[currentOriginalName] = characterData;
+
+		try {
+			const response = await fetch('/character_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(characters)
+			});
+
+			if (response.ok) {
+				showStatus('Character saved successfully!', 'success');
+				renderAll();
+				hideEditModal('character');
+			} else {
+				throw new Error('Failed to save');
+			}
+		} catch (error) {
+			showStatus('Error saving character: ' + error.message, 'error');
+		}
 	}
 }
 
