@@ -1024,7 +1024,21 @@ function showStatus(message, type) {
 	const status = document.getElementById('status');
 	status.textContent = message;
 	status.className = `status ${type} show`;
-	setTimeout(() => status.classList.remove('show'), 3000);
+	
+	// Clear any existing timeout
+	if (status.hideTimeout) {
+		clearTimeout(status.hideTimeout);
+	}
+	
+	// Set timeout to start slide-out animation
+	status.hideTimeout = setTimeout(() => {
+		status.classList.add('hiding');
+		
+		// Remove after animation completes
+		setTimeout(() => {
+			status.classList.remove('show', 'hiding');
+		}, 300); // Match animation duration
+	}, 3000);
 }
 
 // Event listeners
