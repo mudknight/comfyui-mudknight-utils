@@ -525,7 +525,9 @@ function renderCharacters() {
 	const addCard = document.createElement('div');
 	addCard.className = 'character-card add-card';
 	addCard.innerHTML = '+';
-	addCard.onclick = () => showAddModal('character');
+	addCard.onclick = () => {
+		showEditModal('character', ''); // Pass empty string for new
+	};
 	grid.appendChild(addCard);
 
 	const sortedNames = getSortedNames(characters);
@@ -586,7 +588,9 @@ function renderModels() {
 	const addCard = document.createElement('div');
 	addCard.className = 'preset-card preset-add-card';
 	addCard.innerHTML = '+';
-	addCard.onclick = () => showAddModal('model');
+	addCard.onclick = () => {
+		showEditModal('model', ''); // Pass empty string for new
+	};
 	grid.appendChild(addCard);
 
 	const sortedNames = getSortedNames(models);
@@ -629,7 +633,9 @@ function renderStyles() {
 	const addCard = document.createElement('div');
 	addCard.className = 'character-card add-card';
 	addCard.innerHTML = '+';
-	addCard.onclick = () => showAddModal('style');
+	addCard.onclick = () => {
+		showEditModal('style', ''); // Pass empty string for new
+	};
 	grid.appendChild(addCard);
 
 	const sortedNames = getSortedNames(styles);
@@ -740,20 +746,25 @@ function showEditModal(type, name) {
 	currentEditType = type;
 
 	if (type === 'character') {
-		const data = characters[name];
-		currentOriginalName = name; // Store original name
+		const data = characters[name] || {
+			character: '',
+			top: '',
+			bottom: '',
+			neg: '',
+			categories: ''
+		};
+		
+		currentOriginalName = name;
 		document.getElementById('editCharNameInput').value = name;
-		document.getElementById('editCharacter').value = 
-			data.character || '';
+		document.getElementById('editCharacter').value = data.character || '';
 		document.getElementById('editTop').value = data.top || '';
 		document.getElementById('editBottom').value = data.bottom || '';
 		document.getElementById('editNeg').value = data.neg || '';
-		document.getElementById('editCategories').value = 
-			data.categories || '';
+		document.getElementById('editCategories').value = data.categories || '';
 
 		const preview = document.getElementById('imagePreview');
 		const previewImg = document.getElementById('previewImg');
-		if (characterImages[name]) {
+		if (name && characterImages[name]) {
 			previewImg.src = getImageUrl(name);
 			preview.style.display = 'block';
 		} else {
@@ -766,11 +777,22 @@ function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editBottom'));
 		setupAutocomplete(document.getElementById('editNeg'));
 		setupAutocomplete(document.getElementById('editCategories'));
+		setupAutocomplete(document.getElementById('editCharNameInput'));
+
+		// Setup drag and drop for modal
+		if (name) {
+			setupModalDragAndDrop('editModal', name, 'character');
+		}
 
 		document.getElementById('editModal').classList.add('show');
 	} else if (type === 'model') {
-		const data = models[name];
-		document.getElementById('editModelName').textContent = name;
+		const data = models[name] || {
+			quality: { positive: '', negative: '' },
+			embeddings: { positive: '', negative: '' }
+		};
+
+		currentOriginalName = name; // Add this line
+		document.getElementById('editModelNameInput').value = name; // Changed from textContent
 		document.getElementById('editModelQualityPos').value = 
 			data.quality?.positive || '';
 		document.getElementById('editModelQualityNeg').value = 
@@ -788,16 +810,19 @@ function showEditModal(type, name) {
 
 		document.getElementById('modelEditModal').classList.add('show');
 	} else if (type === 'style') {
-		const data = styles[name];
-		document.getElementById('editStyleName').textContent = name;
-		document.getElementById('editStylePos').value = 
-			data.positive || '';
-		document.getElementById('editStyleNeg').value = 
-			data.negative || '';
+		const data = styles[name] || {
+			positive: '',
+			negative: ''
+		};
+
+		currentOriginalName = name; // Add this line
+		document.getElementById('editStyleNameInput').value = name; // Changed from textContent
+		document.getElementById('editStylePos').value = data.positive || '';
+		document.getElementById('editStyleNeg').value = data.negative || '';
 
 		const preview = document.getElementById('styleImagePreview');
 		const previewImg = document.getElementById('stylePreviewImg');
-		if (styleImages[name]) {
+		if (name && styleImages[name]) {
 			previewImg.src = getImageUrl(name, 'style');
 			preview.style.display = 'block';
 		} else {
@@ -808,8 +833,60 @@ function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editStylePos'));
 		setupAutocomplete(document.getElementById('editStyleNeg'));
 
+		// Setup drag and drop for modal
+		if (name) {
+			setupModalDragAndDrop('styleEditModal', name, 'style');
+		}
+
 		document.getElementById('styleEditModal').classList.add('show');
 	}
+}
+
+function setupModalDragAndDrop(modalId, name, type = 'character') {
+	const modal = document.getElementById(modalId);
+	const modalContent = modal.querySelector('.modal-content');
+	
+	// Remove any existing listeners
+	const newModalContent = modalContent.cloneNode(true);
+	modalContent.parentNode.replaceChild(newModalContent, modalContent);
+	
+	newModalContent.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		newModalContent.classList.add('drag-over');
+	});
+
+	newModalContent.addEventListener('dragleave', (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (e.target === newModalContent) {
+			newModalContent.classList.remove('drag-over');
+		}
+	});
+
+	newModalContent.addEventListener('drop', async (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		newModalContent.classList.remove('drag-over');
+
+		const files = e.dataTransfer.files;
+		if (files.length > 0 && files[0].type.startsWith('image/')) {
+			await processImage(files[0], name, type);
+			
+			// Update preview
+			if (type === 'character') {
+				const preview = document.getElementById('imagePreview');
+				const previewImg = document.getElementById('previewImg');
+				previewImg.src = getImageUrl(name);
+				preview.style.display = 'block';
+			} else if (type === 'style') {
+				const preview = document.getElementById('styleImagePreview');
+				const previewImg = document.getElementById('stylePreviewImg');
+				previewImg.src = getImageUrl(name, 'style');
+				preview.style.display = 'block';
+			}
+		}
+	});
 }
 
 function hideEditModal(type) {
@@ -828,25 +905,50 @@ function hideEditModal(type) {
 }
 
 async function saveItem(type) {
-	if (!currentEditName) return;
+	if (!currentEditName && currentEditName !== '') return;
 
 	if (type === 'character') {
 		await saveCharacter();
 	} else if (type === 'model') {
-		models[currentEditName] = {
+		const newName = document.getElementById('editModelNameInput').value.trim();
+		
+		if (!newName) {
+			alert('Model name cannot be empty');
+			return;
+		}
+		
+		// Check if name changed and new name already exists
+		if (newName !== currentOriginalName && currentOriginalName && models[newName]) {
+			alert('A model with this name already exists');
+			return;
+		}
+		
+		const modelData = {
 			quality: {
-				positive: document.getElementById(
-					'editModelQualityPos').value,
-				negative: document.getElementById(
-					'editModelQualityNeg').value
+				positive: document.getElementById('editModelQualityPos').value,
+				negative: document.getElementById('editModelQualityNeg').value
 			},
 			embeddings: {
-				positive: document.getElementById(
-					'editModelEmbedPos').value,
-				negative: document.getElementById(
-					'editModelEmbedNeg').value
+				positive: document.getElementById('editModelEmbedPos').value,
+				negative: document.getElementById('editModelEmbedNeg').value
 			}
 		};
+
+		// If this is a new model (no original name)
+		if (!currentOriginalName) {
+			if (models[newName]) {
+				alert('A model with this name already exists');
+				return;
+			}
+			models[newName] = modelData;
+		} else if (newName !== currentOriginalName) {
+			// Rename: delete old, add new
+			delete models[currentOriginalName];
+			models[newName] = modelData;
+		} else {
+			// Just update existing
+			models[currentOriginalName] = modelData;
+		}
 
 		try {
 			const response = await fetch('/model_editor', {
@@ -866,14 +968,50 @@ async function saveItem(type) {
 			showStatus('Error saving model: ' + error.message, 'error');
 		}
 	} else if (type === 'style') {
-		styles[currentEditName] = {
+		const newName = document.getElementById('editStyleNameInput').value.trim();
+		
+		if (!newName) {
+			alert('Style name cannot be empty');
+			return;
+		}
+		
+		// Check if name changed and new name already exists
+		if (newName !== currentOriginalName && currentOriginalName && styles[newName]) {
+			alert('A style with this name already exists');
+			return;
+		}
+		
+		const styleData = {
 			positive: document.getElementById('editStylePos').value,
 			negative: document.getElementById('editStyleNeg').value
 		};
 
+		// Handle image upload first if there is one
 		const fileInput = document.getElementById('editStyleImage');
 		if (fileInput.files.length > 0) {
-			await processImage(fileInput.files[0], currentEditName, 'style');
+			await processImage(fileInput.files[0], currentOriginalName || newName, 'style');
+		}
+
+		// If this is a new style (no original name)
+		if (!currentOriginalName) {
+			if (styles[newName]) {
+				alert('A style with this name already exists');
+				return;
+			}
+			styles[newName] = styleData;
+		} else if (newName !== currentOriginalName) {
+			// Rename: delete old, add new
+			delete styles[currentOriginalName];
+			styles[newName] = styleData;
+			
+			// Update image tracking if renaming
+			if (styleImages[currentOriginalName]) {
+				styleImages[newName] = true;
+				delete styleImages[currentOriginalName];
+			}
+		} else {
+			// Just update existing
+			styles[currentOriginalName] = styleData;
 		}
 
 		try {
@@ -1059,8 +1197,6 @@ async function removeImage(type = 'character') {
 }
 
 async function saveCharacter() {
-	if (!currentOriginalName) return;
-
 	const newName = document.getElementById('editCharNameInput').value.trim();
 	
 	if (!newName) {
@@ -1069,7 +1205,7 @@ async function saveCharacter() {
 	}
 	
 	// Check if name changed and new name already exists
-	if (newName !== currentOriginalName && characters[newName]) {
+	if (newName !== currentOriginalName && currentOriginalName && characters[newName]) {
 		alert('A character with this name already exists');
 		return;
 	}
@@ -1085,7 +1221,38 @@ async function saveCharacter() {
 	// Handle image upload first if there is one
 	const fileInput = document.getElementById('editImage');
 	if (fileInput.files.length > 0) {
-		await processImage(fileInput.files[0], currentOriginalName);
+		await processImage(fileInput.files[0], currentOriginalName || newName);
+	}
+
+	// If this is a new character (no original name)
+	if (!currentOriginalName) {
+		if (characters[newName]) {
+			alert('A character with this name already exists');
+			return;
+		}
+		
+		characters[newName] = characterData;
+
+		try {
+			const response = await fetch('/character_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(characters)
+			});
+
+			if (response.ok) {
+				showStatus('Character created successfully!', 'success');
+				renderAll();
+				hideEditModal('character');
+			} else {
+				throw new Error('Failed to save');
+			}
+		} catch (error) {
+			showStatus('Error creating character: ' + error.message, 'error');
+			// Remove the character if save failed
+			delete characters[newName];
+		}
+		return;
 	}
 
 	// If name changed, use rename endpoint
@@ -1215,10 +1382,6 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 	if (activeTab === 'characters') renderCharacters();
 	else if (activeTab === 'models') renderModels();
 	else if (activeTab === 'styles') renderStyles();
-});
-
-document.getElementById('addModal').addEventListener('click', (e) => {
-	if (e.target.id === 'addModal') hideAddModal();
 });
 
 document.getElementById('editModal').addEventListener('click', (e) => {

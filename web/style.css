@@ -261,6 +261,11 @@ button.save:hover {
     overflow-y: auto;
 }
 
+.modal-content.drag-over {
+    border: 2px solid #2ecc71;
+    background: rgba(46, 204, 113, 0.05);
+}
+
 .name-input {
     flex: 1;
     background: #1a1a1a;
