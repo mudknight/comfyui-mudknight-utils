@@ -74,7 +74,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SplitLoaderFullPipe": "Split Loader (full-pipe)",
     "BBoxInsetAndCrop": "BBox Inset and Crop",
 }
-
-
-def init(app):
-    setup_routes(app)
