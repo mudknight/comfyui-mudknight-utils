@@ -76,7 +76,7 @@
                     <button onclick="showAddModal('style')">Add Style</button>
                 </div>
 
-                <div class="preset-grid" id="styleGrid"></div>
+                <div class="character-grid" id="styleGrid"></div>
                 <div class="empty-state" id="styleEmptyState" 
                                          style="display: none;">
                     <p>No styles found</p>
@@ -197,6 +197,22 @@
                     </button>
                 </div>
                 <div class="field-group">
+                    <label>Style Image</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="editStyleImage" accept="image/*" 
+                                                               style="flex: 1;">
+                        <button onclick="removeImage('style')" class="delete" 
+                                                               style="padding: 8px 12px;">
+                            Remove
+                        </button>
+                    </div>
+                    <div id="styleImagePreview" 
+                         style="margin-top: 10px; display: none;">
+                        <img id="stylePreviewImg" 
+                             style="max-width: 200px; border-radius: 4px;">
+                    </div>
+                </div>
+                <div class="field-group">
                     <label>Positive Tags</label>
                     <textarea id="editStylePos"></textarea>
                 </div>
@@ -212,6 +228,7 @@
                 </div>
             </div>
         </div>
+
 
         <script src="script.js"></script>
     </body>

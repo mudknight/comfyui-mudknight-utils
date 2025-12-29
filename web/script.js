@@ -10,6 +10,7 @@ let searchTerms = {
 	style: ''
 };
 let characterImages = {};
+let styleImages = {};
 let activeTab = 'characters';
 
 function encodeName(name) {
@@ -42,7 +43,7 @@ async function loadData() {
 		const charResponse = await fetch('/character_editor');
 		if (charResponse.ok) {
 			characters = await charResponse.json();
-			await checkImages();
+			await checkImages('character');
 		}
 		
 		// Load models
@@ -55,6 +56,7 @@ async function loadData() {
 		const styleResponse = await fetch('/style_editor');
 		if (styleResponse.ok) {
 			styles = await styleResponse.json();
+			await checkImages('style');
 		}
 		
 		renderAll();
@@ -64,17 +66,30 @@ async function loadData() {
 	}
 }
 
-async function checkImages() {
-	for (const name of Object.keys(characters)) {
+async function checkImages(type) {
+	const dataMap = {
+		character: characters,
+		style: styles
+	};
+	const imageMap = {
+		character: characterImages,
+		style: styleImages
+	};
+	const endpoint = type === 'character' ? 
+		'/character_editor/image/' : '/style_editor/image/';
+
+	for (const name of Object.keys(dataMap[type])) {
 		const response = await fetch(
-			`/character_editor/image/${encodeName(name)}`
+			`${endpoint}${encodeName(name)}`
 		);
-		characterImages[name] = response.ok;
+		imageMap[type][name] = response.ok;
 	}
 }
 
-function getImageUrl(name) {
-	return `/character_editor/image/${encodeName(name)}?t=${Date.now()}`;
+function getImageUrl(name, type = 'character') {
+	const endpoint = type === 'character' ? 
+		'/character_editor/image/' : '/style_editor/image/';
+	return `${endpoint}${encodeName(name)}?t=${Date.now()}`;
 }
 
 function getSortedNames(obj) {
@@ -186,16 +201,23 @@ function renderStyles() {
 	emptyState.style.display = 'none';
 
 	for (const name of filteredNames) {
-		const style = styles[name];
 		const card = document.createElement('div');
-		card.className = 'preset-card';
+		card.className = 'character-card';
+		const hasImage = styleImages[name];
+		if (hasImage) {
+			card.classList.add('has-image');
+			card.style.backgroundImage = `url(${getImageUrl(name, 'style')})`;
+		}
+
 		card.onclick = () => showEditModal('style', name);
 
 		card.innerHTML = `
-			<div class="preset-card-name">${name}</div>
-			<div class="preset-card-content">${style.positive || ''}</div>
+			${!hasImage ? '<div class="character-card-placeholder"></div>' : ''}
+			<div class="upload-hint">Drop image here</div>
+			<div class="character-card-name">${name}</div>
 		`;
 
+		setupDragAndDrop(card, name, 'style');
 		grid.appendChild(card);
 	}
 }
@@ -311,6 +333,15 @@ function showEditModal(type, name) {
 		document.getElementById('editStyleNeg').value = 
 			data.negative || '';
 
+		const preview = document.getElementById('styleImagePreview');
+		const previewImg = document.getElementById('stylePreviewImg');
+		if (styleImages[name]) {
+			previewImg.src = getImageUrl(name, 'style');
+			preview.style.display = 'block';
+		} else {
+			preview.style.display = 'none';
+		}
+
 		document.getElementById('styleEditModal').classList.add('show');
 	}
 }
@@ -370,6 +401,11 @@ async function saveItem(type) {
 			positive: document.getElementById('editStylePos').value,
 			negative: document.getElementById('editStyleNeg').value
 		};
+
+		const fileInput = document.getElementById('editStyleImage');
+		if (fileInput.files.length > 0) {
+			await processImage(fileInput.files[0], currentEditName, 'style');
+		}
 
 		try {
 			const response = await fetch('/style_editor', {
@@ -448,7 +484,7 @@ async function deleteCurrentItem(type) {
 }
 
 // Keep existing character-specific functions
-function setupDragAndDrop(card, name) {
+function setupDragAndDrop(card, name, type = 'character') {
 	card.addEventListener('dragover', (e) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -468,18 +504,20 @@ function setupDragAndDrop(card, name) {
 
 		const files = e.dataTransfer.files;
 		if (files.length > 0 && files[0].type.startsWith('image/')) {
-			await processImage(files[0], name);
+			await processImage(files[0], name, type);
 		}
 	});
 }
 
-async function processImage(file, name) {
+async function processImage(file, name, type = 'character') {
 	return new Promise((resolve) => {
 		const reader = new FileReader();
 		reader.onload = async (e) => {
 			try {
+				const endpoint = type === 'character' ? 
+					'/character_editor/image/' : '/style_editor/image/';
 				const response = await fetch(
-					`/character_editor/image/${encodeName(name)}`,
+					`${endpoint}${encodeName(name)}`,
 					{
 						method: 'POST',
 						headers: {
@@ -492,8 +530,13 @@ async function processImage(file, name) {
 				);
 
 				if (response.ok) {
-					characterImages[name] = true;
-					renderCharacters();
+					if (type === 'character') {
+						characterImages[name] = true;
+						renderCharacters();
+					} else {
+						styleImages[name] = true;
+						renderStyles();
+					}
 					showStatus('Image updated!', 'success');
 				} else {
 					throw new Error('Failed to upload image');
@@ -509,23 +552,34 @@ async function processImage(file, name) {
 	});
 }
 
-async function removeImage() {
+async function removeImage(type = 'character') {
 	if (!currentEditName) return;
 
-	if (!confirm('Remove image from this character?')) return;
+	const typeLabel = type === 'character' ? 'character' : 'style';
+	if (!confirm(`Remove image from this ${typeLabel}?`)) return;
 
 	try {
+		const endpoint = type === 'character' ? 
+			'/character_editor/image/' : '/style_editor/image/';
 		const response = await fetch(
-			`/character_editor/image/${encodeName(currentEditName)}`,
+			`${endpoint}${encodeName(currentEditName)}`,
 			{
 				method: 'DELETE'
 			}
 		);
 
 		if (response.ok || response.status === 404) {
-			characterImages[currentEditName] = false;
-			document.getElementById('imagePreview').style.display = 'none';
-			renderCharacters();
+			if (type === 'character') {
+				characterImages[currentEditName] = false;
+				document.getElementById('imagePreview').style.display = 
+					'none';
+				renderCharacters();
+			} else {
+				styleImages[currentEditName] = false;
+				document.getElementById('styleImagePreview').style.display = 
+					'none';
+				renderStyles();
+			}
 			showStatus('Image removed!', 'success');
 		} else {
 			throw new Error('Failed to delete image');

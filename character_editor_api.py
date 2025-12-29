@@ -19,6 +19,8 @@ import server
 CONFIG_DIR = Path(__file__).parent / "config"
 CHARACTERS_FILE = CONFIG_DIR / "characters.jsonc"
 IMAGES_DIR = CONFIG_DIR / "character_images"
+STYLE_IMAGES_DIR = CONFIG_DIR / "style_images"
+STYLE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 print(f"Character Editor: Config dir: {CONFIG_DIR}")
 print(f"Character Editor: Characters file: {CHARACTERS_FILE}")
@@ -70,6 +72,14 @@ def get_image_path(character_name):
         character_name.encode('utf-8')
     ).decode('ascii')
     return IMAGES_DIR / f"{safe_name}.jpg"
+
+
+def get_style_image_path(style_name):
+    """Get the image path for a style"""
+    safe_name = base64.urlsafe_b64encode(
+        style_name.encode('utf-8')
+    ).decode('ascii')
+    return STYLE_IMAGES_DIR / f"{safe_name}.jpg"
 
 
 @server.PromptServer.instance.routes.get('/character_editor')
@@ -225,6 +235,84 @@ async def delete_character_image(request):
             {"error": str(e)},
             status=500
         )
+
+
+@server.PromptServer.instance.routes.get('/style_editor/image/{name}')
+async def get_style_image(request):
+    """Get style image"""
+    try:
+        name = decode_name(request.match_info['name'])
+        image_path = get_style_image_path(name)
+
+        if not image_path.exists():
+            return web.Response(status=404)
+
+        return web.FileResponse(image_path)
+    except Exception as e:
+        print(f"Error getting style image: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post('/style_editor/image/{name}')
+async def upload_style_image(request):
+    """Upload style image"""
+    try:
+        name = decode_name(request.match_info['name'])
+        print(f"Uploading image for style: {repr(name)}")
+        data = await request.json()
+
+        # Extract base64 image data
+        image_data = data.get('image', '')
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',', 1)[1]
+
+        # Decode and process image
+        image_bytes = base64.b64decode(image_data)
+        img = Image.open(BytesIO(image_bytes))
+
+        # Resize to 256x256 with center crop
+        size = 256
+        img = img.convert('RGB')
+
+        # Calculate crop dimensions
+        width, height = img.size
+        if width > height:
+            left = (width - height) / 2
+            img = img.crop((left, 0, left + height, height))
+        else:
+            top = (height - width) / 2
+            img = img.crop((0, top, width, top + width))
+
+        # Resize
+        img = img.resize((size, size), Image.Resampling.LANCZOS)
+
+        # Save as JPEG
+        image_path = get_style_image_path(name)
+        print(f"Saving style image to: {image_path}")
+        img.save(image_path, 'JPEG', quality=85, optimize=True)
+
+        return web.json_response({"success": True})
+    except Exception as e:
+        print(f"Error uploading style image: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.delete('/style_editor/image/{name}')
+async def delete_style_image(request):
+    """Delete style image"""
+    try:
+        name = decode_name(request.match_info['name'])
+        print(f"Deleting image for style: {repr(name)}")
+        image_path = get_style_image_path(name)
+
+        if image_path.exists():
+            image_path.unlink()
+            return web.json_response({"success": True})
+        else:
+            return web.Response(status=404)
+    except Exception as e:
+        print(f"Error deleting style image: {e}")
+        return web.json_response({"error": str(e)}, status=500)
 
 
 # Model editor endpoints
