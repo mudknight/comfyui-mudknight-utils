@@ -8,34 +8,30 @@
     </head>
     <body>
         <div class="container">
-            <h1>Preset Editor</h1>
+            <!-- New Navigation Bar -->
+            <div class="navbar">
+                <h1>Preset Editor</h1>
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('characters')">
+                        Characters
+                    </button>
+                    <button class="tab-button" onclick="switchTab('models')">
+                        Models
+                    </button>
+                    <button class="tab-button" onclick="switchTab('styles')">
+                        Styles
+                    </button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search...">
+                    <button class="clear-search" id="clearSearch" onclick="clearSearch()" style="display: none;">×</button>
+                </div>
+            </div>
 
             <div class="status" id="status"></div>
 
-            <!-- Tab Navigation -->
-            <div class="tabs">
-                <button class="tab-button active" onclick="switchTab('characters')">
-                    Characters
-                </button>
-                <button class="tab-button" onclick="switchTab('models')">
-                    Models
-                </button>
-                <button class="tab-button" onclick="switchTab('styles')">
-                    Styles
-                </button>
-            </div>
-
             <!-- Characters Tab -->
             <div class="tab-content active" id="charactersTab">
-                <div class="controls">
-                    <div class="search-box">
-                        <input type="text" id="searchInput" 
-                               placeholder="Search characters...">
-                    </div>
-                    <button onclick="showAddModal('character')">
-                        Add Character
-                    </button>
-                </div>
 
                 <div class="content-with-sidebar">
                     <div class="sidebar">
@@ -62,13 +58,6 @@
 
             <!-- Models Tab -->
             <div class="tab-content" id="modelsTab">
-                <div class="controls">
-                    <div class="search-box">
-                        <input type="text" id="modelSearchInput" 
-                                           placeholder="Search models...">
-                    </div>
-                    <button onclick="showAddModal('model')">Add Model</button>
-                </div>
 
                 <div class="preset-grid" id="modelGrid"></div>
                 <div class="empty-state" id="modelEmptyState" 
@@ -82,13 +71,6 @@
 
             <!-- Styles Tab -->
             <div class="tab-content" id="stylesTab">
-                <div class="controls">
-                    <div class="search-box">
-                        <input type="text" id="styleSearchInput" 
-                                           placeholder="Search styles...">
-                    </div>
-                    <button onclick="showAddModal('style')">Add Style</button>
-                </div>
 
                 <div class="character-grid" id="styleGrid"></div>
                 <div class="empty-state" id="styleEmptyState" 

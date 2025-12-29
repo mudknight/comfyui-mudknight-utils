@@ -32,11 +32,7 @@ h1 {
 }
 
 .controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-shrink: 0;
+    display: none; /* Hide old controls */
 }
 
 .search-box {
@@ -346,9 +342,7 @@ textarea {
 .tabs {
     display: flex;
     gap: 5px;
-    margin-right: auto;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #3a3a3a;
+    border: none;
 }
 
 .tab-button {
@@ -618,4 +612,99 @@ textarea {
 
 .autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
     background: #5a5a5a;
+}
+
+/* New Navbar */
+.navbar {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #3a3a3a;
+    flex-shrink: 0;
+}
+
+.navbar h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.navbar .tabs {
+    margin: 0;
+    border: none;
+    flex: 0 0 auto;
+}
+
+.navbar .tab-button {
+    padding: 8px 20px;
+    font-size: 13px;
+}
+
+.navbar .search-box {
+    margin-left: auto;
+    position: relative;
+}
+
+.clear-search {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: #888;
+    border: none;
+    padding: 4px 8px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.clear-search:hover {
+    background: #3a3a3a;
+    color: #fff;
+}
+
+/* Add button card */
+.add-card {
+    background: #2a2a2a;
+    border-radius: 8px;
+    border: 2px dashed #4a4a4a;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    color: #4a4a4a;
+}
+
+.add-card:hover {
+    border-color: #4a9eff;
+    color: #4a9eff;
+    transform: translateY(-2px);
+}
+
+.preset-add-card {
+    background: #2a2a2a;
+    border-radius: 8px;
+    border: 2px dashed #4a4a4a;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 20px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: #4a4a4a;
+}
+
+.preset-add-card:hover {
+    border-color: #4a9eff;
+    color: #4a9eff;
+    transform: translateY(-2px);
 }

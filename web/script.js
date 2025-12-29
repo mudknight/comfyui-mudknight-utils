@@ -24,6 +24,12 @@ let autocompleteState = {
 	filteredTags: []
 };
 
+let savedSearches = {
+	character: '',
+	model: '',
+	style: ''
+};
+
 // Autocomplete
 async function loadAutocompleteTags() {
 	try {
@@ -364,19 +370,79 @@ function decodeName(b64) {
 }
 
 function switchTab(tabName) {
+	// Map tab names to search term keys
+	const tabMap = {
+		characters: 'character',
+		models: 'model',
+		styles: 'style'
+	};
+	
+	// Save current search
+	const searchInput = document.getElementById('searchInput');
+	const currentKey = tabMap[activeTab];
+	savedSearches[currentKey] = searchInput.value;
+	searchTerms[currentKey] = searchInput.value;
+	
 	activeTab = tabName;
+	
+	// Restore saved search for new tab
+	const newKey = tabMap[tabName];
+	searchInput.value = savedSearches[newKey] || '';
+	searchTerms[newKey] = searchInput.value;
+	
+	// Update placeholder
+	const placeholders = {
+		characters: 'Search characters...',
+		models: 'Search models...',
+		styles: 'Search styles...'
+	};
+	searchInput.placeholder = placeholders[tabName];
+	
+	// Show/hide clear button
+	document.getElementById('clearSearch').style.display = 
+		searchInput.value ? 'block' : 'none';
 	
 	// Update tab buttons
 	document.querySelectorAll('.tab-button').forEach(btn => {
 		btn.classList.remove('active');
+		if (btn.textContent.trim().toLowerCase() === tabName) {
+			btn.classList.add('active');
+		}
 	});
-	event.target.classList.add('active');
 	
 	// Update tab content
 	document.querySelectorAll('.tab-content').forEach(content => {
 		content.classList.remove('active');
 	});
 	document.getElementById(`${tabName}Tab`).classList.add('active');
+	
+	// Render current tab
+	if (tabName === 'characters') renderCharacters();
+	else if (tabName === 'models') renderModels();
+	else if (tabName === 'styles') renderStyles();
+}
+
+function clearSearch() {
+	// Map tab names to search term keys
+	const tabMap = {
+		characters: 'character',
+		models: 'model',
+		styles: 'style'
+	};
+	
+	const searchInput = document.getElementById('searchInput');
+	const currentKey = tabMap[activeTab];
+	
+	searchInput.value = '';
+	searchTerms[currentKey] = '';
+	savedSearches[currentKey] = '';
+	document.getElementById('clearSearch').style.display = 'none';
+	
+	if (activeTab === 'characters') renderCharacters();
+	else if (activeTab === 'models') renderModels();
+	else if (activeTab === 'styles') renderStyles();
+	
+	searchInput.focus();
 }
 
 async function loadData() {
@@ -455,6 +521,13 @@ function renderCharacters() {
 	const emptyState = document.getElementById('emptyState');
 	grid.innerHTML = '';
 
+	// Add the "Add" card first
+	const addCard = document.createElement('div');
+	addCard.className = 'character-card add-card';
+	addCard.innerHTML = '+';
+	addCard.onclick = () => showAddModal('character');
+	grid.appendChild(addCard);
+
 	const sortedNames = getSortedNames(characters);
 	const filteredNames = sortedNames.filter(name => {
 		const char = characters[name];
@@ -509,6 +582,13 @@ function renderModels() {
 	const emptyState = document.getElementById('modelEmptyState');
 	grid.innerHTML = '';
 
+	// Add the "Add" card first
+	const addCard = document.createElement('div');
+	addCard.className = 'preset-card preset-add-card';
+	addCard.innerHTML = '+';
+	addCard.onclick = () => showAddModal('model');
+	grid.appendChild(addCard);
+
 	const sortedNames = getSortedNames(models);
 	const filteredNames = sortedNames.filter(name =>
 		name.toLowerCase().includes(searchTerms.model.toLowerCase())
@@ -544,6 +624,13 @@ function renderStyles() {
 	const grid = document.getElementById('styleGrid');
 	const emptyState = document.getElementById('styleEmptyState');
 	grid.innerHTML = '';
+
+	// Add the "Add" card first
+	const addCard = document.createElement('div');
+	addCard.className = 'character-card add-card';
+	addCard.innerHTML = '+';
+	addCard.onclick = () => showAddModal('style');
+	grid.appendChild(addCard);
 
 	const sortedNames = getSortedNames(styles);
 	const filteredNames = sortedNames.filter(name =>
@@ -1108,23 +1195,27 @@ function showStatus(message, type) {
 
 // Event listeners
 document.getElementById('searchInput').addEventListener('input', (e) => {
-	searchTerms.character = e.target.value;
-	renderCharacters();
+	// Map tab names to search term keys
+	const tabMap = {
+		characters: 'character',
+		models: 'model',
+		styles: 'style'
+	};
+	
+	const value = e.target.value;
+	const currentKey = tabMap[activeTab];
+	
+	searchTerms[currentKey] = value;
+	savedSearches[currentKey] = value;
+	
+	// Show/hide clear button
+	document.getElementById('clearSearch').style.display = 
+		value ? 'block' : 'none';
+	
+	if (activeTab === 'characters') renderCharacters();
+	else if (activeTab === 'models') renderModels();
+	else if (activeTab === 'styles') renderStyles();
 });
-
-document.getElementById('modelSearchInput').addEventListener('input', 
-	(e) => {
-		searchTerms.model = e.target.value;
-		renderModels();
-	}
-);
-
-document.getElementById('styleSearchInput').addEventListener('input', 
-	(e) => {
-		searchTerms.style = e.target.value;
-		renderStyles();
-	}
-);
 
 document.getElementById('addModal').addEventListener('click', (e) => {
 	if (e.target.id === 'addModal') hideAddModal();
