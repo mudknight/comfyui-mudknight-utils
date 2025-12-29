@@ -14,6 +14,259 @@ let styleImages = {};
 let activeTab = 'characters';
 let selectedCategory = 'all';
 
+let autocompleteTags = [];
+let autocompleteState = {
+	activeElement: null,
+	selectedIndex: -1,
+	currentWord: '',
+	wordStart: 0,
+	filteredTags: []
+};
+
+// Autocomplete
+async function loadAutocompleteTags() {
+	try {
+		const response = await fetch('autocomplete.txt');
+		if (!response.ok) {
+			console.log('Autocomplete file not found');
+			return;
+		}
+		
+		const text = await response.text();
+		const lines = text.split('\n');
+		
+		autocompleteTags = lines
+			.map(line => {
+				const parts = line.trim().split(',');
+				if (parts.length >= 2) {
+					return {
+						tag: parts[0].trim(),
+						count: parseInt(parts[1]) || 0
+					};
+				}
+				return null;
+			})
+			.filter(Boolean)
+			.sort((a, b) => b.count - a.count); // Sort by usage count
+		
+		console.log(`Loaded ${autocompleteTags.length} autocomplete tags`);
+	} catch (error) {
+		console.error('Error loading autocomplete tags:', error);
+	}
+}
+
+async function loadAutocompleteTags() {
+	try {
+		const response = await fetch('autocomplete.txt');
+		if (!response.ok) {
+			console.log('Autocomplete file not found');
+			return;
+		}
+		
+		const text = await response.text();
+		const lines = text.split('\n');
+		
+		autocompleteTags = lines
+			.map(line => {
+				const parts = line.trim().split(',');
+				if (parts.length >= 2) {
+					return {
+						tag: parts[0].trim(),
+						count: parseInt(parts[1]) || 0
+					};
+				}
+				return null;
+			})
+			.filter(Boolean)
+			.sort((a, b) => b.count - a.count); // Sort by usage count
+		
+		console.log(`Loaded ${autocompleteTags.length} autocomplete tags`);
+	} catch (error) {
+		console.error('Error loading autocomplete tags:', error);
+	}
+}
+
+function getCurrentWord(input) {
+	const cursorPos = input.selectionStart;
+	const text = input.value;
+	
+	// Find the start of the current word (after last comma or start)
+	let start = text.lastIndexOf(',', cursorPos - 1) + 1;
+	
+	// Skip any whitespace after the comma to find actual word start
+	while (start < cursorPos && text[start] === ' ') {
+		start++;
+	}
+	
+	// Find the end of the current word (next comma or end)
+	let end = text.indexOf(',', cursorPos);
+	if (end === -1) end = text.length;
+	
+	const word = text.substring(start, end).trim();
+	
+	return {
+		word: word,
+		start: start,
+		end: end
+	};
+}
+
+function showAutocomplete(input, word, startPos) {
+	if (!word || word.length < 2) {
+		hideAutocomplete();
+		return;
+	}
+	
+	const searchWord = word.toLowerCase();
+	const filtered = autocompleteTags
+		.filter(item => item.tag.toLowerCase().includes(searchWord))
+		.slice(0, 10); // Limit to 10 suggestions
+	
+	if (filtered.length === 0) {
+		hideAutocomplete();
+		return;
+	}
+	
+	autocompleteState.filteredTags = filtered;
+	autocompleteState.selectedIndex = 0; // Changed from -1 to 0
+	autocompleteState.activeElement = input;
+	autocompleteState.currentWord = word;
+	autocompleteState.wordStart = startPos;
+	
+	const dropdown = document.getElementById('autocompleteDropdown');
+	dropdown.innerHTML = '';
+	
+	filtered.forEach((item, index) => {
+		const div = document.createElement('div');
+		div.className = 'autocomplete-item';
+		if (index === 0) {
+			div.classList.add('selected'); // Add selected class to first item
+		}
+		div.innerHTML = `
+			<span class="autocomplete-tag">${item.tag}</span>
+			<span class="autocomplete-count">${item.count}</span>
+		`;
+		
+		div.onclick = () => selectAutocomplete(index);
+		dropdown.appendChild(div);
+	});
+	
+	// Position the dropdown
+	const rect = input.getBoundingClientRect();
+	dropdown.style.left = rect.left + 'px';
+	dropdown.style.top = (rect.bottom + 5) + 'px';
+	dropdown.style.width = rect.width + 'px';
+	dropdown.style.display = 'block';
+}
+
+function hideAutocomplete() {
+	const dropdown = document.getElementById('autocompleteDropdown');
+	dropdown.style.display = 'none';
+	autocompleteState.activeElement = null;
+	autocompleteState.selectedIndex = -1;
+	autocompleteState.filteredTags = [];
+}
+
+function selectAutocomplete(index) {
+	if (!autocompleteState.activeElement || 
+	    index < 0 || 
+	    index >= autocompleteState.filteredTags.length) {
+		return;
+	}
+	
+	const input = autocompleteState.activeElement;
+	let selectedTag = autocompleteState.filteredTags[index].tag;
+	
+	// Replace underscores with spaces
+	selectedTag = selectedTag.replace(/_/g, ' ');
+	
+	// Escape parentheses
+	selectedTag = selectedTag.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+	
+	const text = input.value;
+	
+	// Find the current word boundaries
+	const info = getCurrentWord(input);
+	
+	// Replace the current word with the selected tag
+	const before = text.substring(0, info.start);
+	const after = text.substring(info.end);
+	
+	// Build new text - keep existing content before, just replace the word
+	const newText = before + selectedTag + ', ' + after.trimStart();
+	
+	input.value = newText;
+	
+	// Set cursor position after the inserted tag and comma
+	const newCursorPos = before.length + selectedTag.length + 2;
+	input.setSelectionRange(newCursorPos, newCursorPos);
+	
+	hideAutocomplete();
+	input.focus();
+}
+
+function handleAutocompleteKeydown(e, input) {
+	const dropdown = document.getElementById('autocompleteDropdown');
+	
+	if (dropdown.style.display !== 'block') {
+		return;
+	}
+	
+	if (e.key === 'ArrowDown') {
+		e.preventDefault();
+		if (autocompleteState.selectedIndex < autocompleteState.filteredTags.length - 1) {
+			autocompleteState.selectedIndex++;
+			updateAutocompleteSelection();
+		}
+	} else if (e.key === 'ArrowUp') {
+		e.preventDefault();
+		if (autocompleteState.selectedIndex > 0) {
+			autocompleteState.selectedIndex--;
+			updateAutocompleteSelection();
+		}
+	} else if (e.key === 'Enter' || e.key === 'Tab') {
+		if (autocompleteState.selectedIndex >= 0) {
+			e.preventDefault();
+			selectAutocomplete(autocompleteState.selectedIndex);
+		}
+	} else if (e.key === 'Escape') {
+		e.preventDefault();
+		hideAutocomplete();
+	}
+}
+
+function updateAutocompleteSelection() {
+	const items = document.querySelectorAll('.autocomplete-item');
+	items.forEach((item, index) => {
+		if (index === autocompleteState.selectedIndex) {
+			item.classList.add('selected');
+			item.scrollIntoView({ block: 'nearest' });
+		} else {
+			item.classList.remove('selected');
+		}
+	});
+}
+
+function setupAutocomplete(input) {
+	input.addEventListener('input', (e) => {
+		const info = getCurrentWord(input);
+		showAutocomplete(input, info.word, info.start);
+	});
+	
+	input.addEventListener('keydown', (e) => {
+		handleAutocompleteKeydown(e, input);
+	});
+	
+	input.addEventListener('blur', (e) => {
+		// Delay hiding to allow click on dropdown
+		setTimeout(() => {
+			if (autocompleteState.activeElement === input) {
+				hideAutocomplete();
+			}
+		}, 200);
+	});
+}
+
 // Categories
 function getAllCategories() {
 	const categorySet = new Set();
@@ -127,6 +380,9 @@ function switchTab(tabName) {
 
 async function loadData() {
 	try {
+		// Load autocomplete tags first
+		await loadAutocompleteTags();
+		
 		// Load characters
 		const charResponse = await fetch('/character_editor');
 		if (charResponse.ok) {
@@ -406,6 +662,13 @@ function showEditModal(type, name) {
 			preview.style.display = 'none';
 		}
 
+		// Setup autocomplete for tag fields
+		setupAutocomplete(document.getElementById('editCharacter'));
+		setupAutocomplete(document.getElementById('editTop'));
+		setupAutocomplete(document.getElementById('editBottom'));
+		setupAutocomplete(document.getElementById('editNeg'));
+		setupAutocomplete(document.getElementById('editCategories'));
+
 		document.getElementById('editModal').classList.add('show');
 	} else if (type === 'model') {
 		const data = models[name];
@@ -418,6 +681,12 @@ function showEditModal(type, name) {
 			data.embeddings?.positive || '';
 		document.getElementById('editModelEmbedNeg').value = 
 			data.embeddings?.negative || '';
+
+		// Setup autocomplete for model fields
+		setupAutocomplete(document.getElementById('editModelQualityPos'));
+		setupAutocomplete(document.getElementById('editModelQualityNeg'));
+		setupAutocomplete(document.getElementById('editModelEmbedPos'));
+		setupAutocomplete(document.getElementById('editModelEmbedNeg'));
 
 		document.getElementById('modelEditModal').classList.add('show');
 	} else if (type === 'style') {
@@ -437,16 +706,22 @@ function showEditModal(type, name) {
 			preview.style.display = 'none';
 		}
 
+		// Setup autocomplete for style fields
+		setupAutocomplete(document.getElementById('editStylePos'));
+		setupAutocomplete(document.getElementById('editStyleNeg'));
+
 		document.getElementById('styleEditModal').classList.add('show');
 	}
 }
 
 function hideEditModal(type) {
-	if (type === 'character') {
+	if (type === 'character' || !type) {
 		document.getElementById('editModal').classList.remove('show');
-	} else if (type === 'model') {
+	}
+	if (type === 'model') {
 		document.getElementById('modelEditModal').classList.remove('show');
-	} else if (type === 'style') {
+	}
+	if (type === 'style') {
 		document.getElementById('styleEditModal').classList.remove('show');
 	}
 	currentEditName = null;
@@ -791,5 +1066,15 @@ document.getElementById('styleEditModal').addEventListener('click',
 		if (e.target.id === 'styleEditModal') hideEditModal('style');
 	}
 );
+
+document.addEventListener('click', (e) => {
+	const dropdown = document.getElementById('autocompleteDropdown');
+	if (dropdown && 
+	    dropdown.style.display === 'block' && 
+	    !dropdown.contains(e.target) && 
+	    e.target !== autocompleteState.activeElement) {
+		hideAutocomplete();
+	}
+});
 
 loadData();
