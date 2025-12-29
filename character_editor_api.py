@@ -227,4 +227,67 @@ async def delete_character_image(request):
         )
 
 
+# Model editor endpoints
+@server.PromptServer.instance.routes.get('/model_editor')
+async def get_models(request):
+    """Get all models"""
+    try:
+        models_file = CONFIG_DIR / "models.jsonc"
+        if not models_file.exists():
+            return web.json_response({})
+        
+        content = models_file.read_text(encoding='utf-8')
+        clean_content = strip_jsonc_comments(content)
+        models = json.loads(clean_content)
+        return web.json_response(models)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post('/model_editor')
+async def update_models(request):
+    """Update models"""
+    try:
+        data = await request.json()
+        models_file = CONFIG_DIR / "models.jsonc"
+        content = json.dumps(data, indent=4, ensure_ascii=False)
+        models_file.write_text(content, encoding='utf-8')
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# Style editor endpoints
+@server.PromptServer.instance.routes.get('/style_editor')
+async def get_styles(request):
+    """Get all styles"""
+    try:
+        styles_file = CONFIG_DIR / "styles.jsonc"
+        if not styles_file.exists():
+            return web.json_response({})
+
+        content = styles_file.read_text(encoding='utf-8')
+        clean_content = strip_jsonc_comments(content)
+        styles = json.loads(clean_content)
+        return web.json_response(styles)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post('/style_editor')
+async def update_styles(request):
+    """Update styles"""
+    try:
+        data = await request.json()
+        styles_file = CONFIG_DIR / "styles.jsonc"
+        content = json.dumps(data, indent=4, ensure_ascii=False)
+        styles_file.write_text(content, encoding='utf-8')
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+print("Model and Style Editor API routes registered")
+
+
 print("Character Editor API routes registered")

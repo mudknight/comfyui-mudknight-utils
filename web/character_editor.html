@@ -1,96 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Character Editor</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Character Editor</h1>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Character Editor</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Preset Editor</h1>
 
-        <div class="status" id="status"></div>
+            <div class="status" id="status"></div>
 
-        <div class="controls">
-            <div class="search-box">
-                <input type="text" id="searchInput" 
-                       placeholder="Search characters...">
-            </div>
-            <button onclick="showAddModal()">Add Character</button>
-        </div>
-
-        <div class="character-grid" id="characterGrid"></div>
-        <div class="empty-state" id="emptyState" style="display: none;">
-            <p>No characters found</p>
-            <button onclick="showAddModal()">Add Your First Character</button>
-        </div>
-    </div>
-
-    <div class="modal" id="addModal">
-        <div class="modal-content">
-            <div class="modal-header">Add New Character</div>
-            <div class="field-group">
-                <label>Character Name (key)</label>
-                <input type="text" id="newCharName" 
-                       placeholder="e.g., example_character">
-            </div>
-            <div class="modal-actions">
-                <button onclick="hideAddModal()">Cancel</button>
-                <button class="save" onclick="addCharacter()">Add</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="editModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span id="editCharName"></span>
-                <button class="delete" onclick="deleteCurrentCharacter()">
-                    Delete
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('characters')">
+                    Characters
+                </button>
+                <button class="tab-button" onclick="switchTab('models')">
+                    Models
+                </button>
+                <button class="tab-button" onclick="switchTab('styles')">
+                    Styles
                 </button>
             </div>
-            <div class="field-group">
-                <label>Character Image</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="file" id="editImage" accept="image/*" 
-                           style="flex: 1;">
-                    <button onclick="removeImage()" class="delete" 
-                            style="padding: 8px 12px;">
-                        Remove
+
+            <!-- Characters Tab -->
+            <div class="tab-content active" id="charactersTab">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" 
+                                           placeholder="Search characters...">
+                    </div>
+                    <button onclick="showAddModal('character')">
+                        Add Character
                     </button>
                 </div>
-                <div id="imagePreview" 
-                     style="margin-top: 10px; display: none;">
-                    <img id="previewImg" 
-                         style="max-width: 200px; border-radius: 4px;">
+
+                <div class="character-grid" id="characterGrid"></div>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <p>No characters found</p>
+                    <button onclick="showAddModal('character')">
+                        Add Your First Character
+                    </button>
                 </div>
             </div>
-            <div class="field-group">
-                <label>Character</label>
-                <textarea id="editCharacter"></textarea>
+
+            <!-- Models Tab -->
+            <div class="tab-content" id="modelsTab">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="modelSearchInput" 
+                                           placeholder="Search models...">
+                    </div>
+                    <button onclick="showAddModal('model')">Add Model</button>
+                </div>
+
+                <div class="preset-grid" id="modelGrid"></div>
+                <div class="empty-state" id="modelEmptyState" 
+                                         style="display: none;">
+                    <p>No models found</p>
+                    <button onclick="showAddModal('model')">
+                        Add Your First Model
+                    </button>
+                </div>
             </div>
-            <div class="field-group">
-                <label>Top</label>
-                <input type="text" id="editTop">
-            </div>
-            <div class="field-group">
-                <label>Bottom</label>
-                <input type="text" id="editBottom">
-            </div>
-            <div class="field-group">
-                <label>Negative</label>
-                <input type="text" id="editNeg">
-            </div>
-            <div class="modal-actions">
-                <button onclick="hideEditModal()">Cancel</button>
-                <button class="save" onclick="saveCharacter()">
-                    Save Changes
-                </button>
+
+            <!-- Styles Tab -->
+            <div class="tab-content" id="stylesTab">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="styleSearchInput" 
+                                           placeholder="Search styles...">
+                    </div>
+                    <button onclick="showAddModal('style')">Add Style</button>
+                </div>
+
+                <div class="preset-grid" id="styleGrid"></div>
+                <div class="empty-state" id="styleEmptyState" 
+                                         style="display: none;">
+                    <p>No styles found</p>
+                    <button onclick="showAddModal('style')">
+                        Add Your First Style
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <script src="script.js"></script>
-</body>
+        <div class="modal" id="addModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span id="addModalTitle">Add New Item</span>
+                </div>
+                <div class="field-group">
+                    <label id="addModalLabel">Name</label>
+                    <input type="text" id="newItemName" placeholder="e.g., example">
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideAddModal()">Cancel</button>
+                    <button class="save" onclick="addItem()">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="editModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span id="editCharName"></span>
+                    <button class="delete" onclick="deleteCurrentCharacter()">
+                        Delete
+                    </button>
+                </div>
+                <div class="field-group">
+                    <label>Character Image</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="editImage" accept="image/*" 
+                                                          style="flex: 1;">
+                        <button onclick="removeImage()" class="delete" 
+                                                        style="padding: 8px 12px;">
+                            Remove
+                        </button>
+                    </div>
+                    <div id="imagePreview" 
+                         style="margin-top: 10px; display: none;">
+                        <img id="previewImg" 
+                             style="max-width: 200px; border-radius: 4px;">
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Character</label>
+                    <textarea id="editCharacter"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Top</label>
+                    <input type="text" id="editTop">
+                </div>
+                <div class="field-group">
+                    <label>Bottom</label>
+                    <input type="text" id="editBottom">
+                </div>
+                <div class="field-group">
+                    <label>Negative</label>
+                    <input type="text" id="editNeg">
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideEditModal()">Cancel</button>
+                    <button class="save" onclick="saveCharacter()">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Model Edit Modal -->
+        <div class="modal" id="modelEditModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span id="editModelName"></span>
+                    <button class="delete" onclick="deleteCurrentItem('model')">
+                        Delete
+                    </button>
+                </div>
+                <div class="field-group">
+                    <label>Quality Positive</label>
+                    <textarea id="editModelQualityPos"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Quality Negative</label>
+                    <textarea id="editModelQualityNeg"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Embeddings Positive</label>
+                    <input type="text" id="editModelEmbedPos">
+                </div>
+                <div class="field-group">
+                    <label>Embeddings Negative</label>
+                    <input type="text" id="editModelEmbedNeg">
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideEditModal('model')">Cancel</button>
+                    <button class="save" onclick="saveItem('model')">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Style Edit Modal -->
+        <div class="modal" id="styleEditModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span id="editStyleName"></span>
+                    <button class="delete" onclick="deleteCurrentItem('style')">
+                        Delete
+                    </button>
+                </div>
+                <div class="field-group">
+                    <label>Positive Tags</label>
+                    <textarea id="editStylePos"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Negative Tags</label>
+                    <textarea id="editStyleNeg"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button onclick="hideEditModal('style')">Cancel</button>
+                    <button class="save" onclick="saveItem('style')">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script src="script.js"></script>
+    </body>
 </html>

@@ -1,37 +1,66 @@
 let characters = {};
+let models = {};
+let styles = {};
 let currentEditName = null;
-let searchTerm = '';
+let currentEditType = null;
+let currentAddType = null;
+let searchTerms = {
+	character: '',
+	model: '',
+	style: ''
+};
 let characterImages = {};
+let activeTab = 'characters';
 
 function encodeName(name) {
-    return btoa(unescape(encodeURIComponent(name)));
+	return btoa(unescape(encodeURIComponent(name)));
 }
 
 function decodeName(b64) {
-    return decodeURIComponent(escape(atob(b64)));
+	return decodeURIComponent(escape(atob(b64)));
 }
 
-async function loadCharacters() {
+function switchTab(tabName) {
+	activeTab = tabName;
+	
+	// Update tab buttons
+	document.querySelectorAll('.tab-button').forEach(btn => {
+		btn.classList.remove('active');
+	});
+	event.target.classList.add('active');
+	
+	// Update tab content
+	document.querySelectorAll('.tab-content').forEach(content => {
+		content.classList.remove('active');
+	});
+	document.getElementById(`${tabName}Tab`).classList.add('active');
+}
+
+async function loadData() {
 	try {
-		const response = await fetch('/character_editor');
-		console.log('Response status:', response.status);
-
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
+		// Load characters
+		const charResponse = await fetch('/character_editor');
+		if (charResponse.ok) {
+			characters = await charResponse.json();
+			await checkImages();
 		}
-
-		const data = await response.json();
-		console.log('Loaded characters:', data);
-		characters = data;
-
-		// Load image availability
-		await checkImages();
-
-		renderCharacters();
+		
+		// Load models
+		const modelResponse = await fetch('/model_editor');
+		if (modelResponse.ok) {
+			models = await modelResponse.json();
+		}
+		
+		// Load styles
+		const styleResponse = await fetch('/style_editor');
+		if (styleResponse.ok) {
+			styles = await styleResponse.json();
+		}
+		
+		renderAll();
 	} catch (error) {
 		console.error('Load error:', error);
-		showStatus('Error loading characters: ' + error.message, 
-			'error');
+		showStatus('Error loading data: ' + error.message, 'error');
 	}
 }
 
@@ -45,14 +74,19 @@ async function checkImages() {
 }
 
 function getImageUrl(name) {
-	return `/character_editor/image/${encodeName(name)}` +
-		`?t=${Date.now()}`;
+	return `/character_editor/image/${encodeName(name)}?t=${Date.now()}`;
 }
 
-function getSortedCharacterNames() {
-	return Object.keys(characters).sort((a, b) => 
+function getSortedNames(obj) {
+	return Object.keys(obj).sort((a, b) => 
 		a.toLowerCase().localeCompare(b.toLowerCase())
 	);
+}
+
+function renderAll() {
+	renderCharacters();
+	renderModels();
+	renderStyles();
 }
 
 function renderCharacters() {
@@ -60,9 +94,9 @@ function renderCharacters() {
 	const emptyState = document.getElementById('emptyState');
 	grid.innerHTML = '';
 
-	const sortedNames = getSortedCharacterNames();
+	const sortedNames = getSortedNames(characters);
 	const filteredNames = sortedNames.filter(name =>
-		name.toLowerCase().includes(searchTerm.toLowerCase())
+		name.toLowerCase().includes(searchTerms.character.toLowerCase())
 	);
 
 	if (filteredNames.length === 0) {
@@ -83,44 +117,337 @@ function renderCharacters() {
 			card.style.backgroundImage = `url(${getImageUrl(name)})`;
 		}
 
-		card.onclick = (e) => {
-			showEditModal(name);
-		};
+		card.onclick = () => showEditModal('character', name);
 
 		card.innerHTML = `
-	    ${!hasImage ? '<div class="character-card-placeholder"></div>' : ''}
-	    <div class="upload-hint">Drop image here</div>
-	    <div class="character-card-name">${name}</div>
-	`;
+			${!hasImage ? '<div class="character-card-placeholder"></div>' : ''}
+			<div class="upload-hint">Drop image here</div>
+			<div class="character-card-name">${name}</div>
+		`;
 
 		setupDragAndDrop(card, name);
 		grid.appendChild(card);
 	}
 }
 
-function showEditModal(name) {
-	currentEditName = name;
-	const data = characters[name];
+function renderModels() {
+	const grid = document.getElementById('modelGrid');
+	const emptyState = document.getElementById('modelEmptyState');
+	grid.innerHTML = '';
 
-	document.getElementById('editCharName').textContent = name;
-	document.getElementById('editCharacter').value = 
-		data.character || '';
-	document.getElementById('editTop').value = data.top || '';
-	document.getElementById('editBottom').value = data.bottom || '';
-	document.getElementById('editNeg').value = data.neg || '';
+	const sortedNames = getSortedNames(models);
+	const filteredNames = sortedNames.filter(name =>
+		name.toLowerCase().includes(searchTerms.model.toLowerCase())
+	);
 
-	const preview = document.getElementById('imagePreview');
-	const previewImg = document.getElementById('previewImg');
-	if (characterImages[name]) {
-		previewImg.src = getImageUrl(name);
-		preview.style.display = 'block';
-	} else {
-		preview.style.display = 'none';
+	if (filteredNames.length === 0) {
+		grid.style.display = 'none';
+		emptyState.style.display = 'block';
+		return;
 	}
 
-	document.getElementById('editModal').classList.add('show');
+	grid.style.display = 'grid';
+	emptyState.style.display = 'none';
+
+	for (const name of filteredNames) {
+		const model = models[name];
+		const card = document.createElement('div');
+		card.className = 'preset-card';
+		card.onclick = () => showEditModal('model', name);
+
+		const preview = model.quality?.positive || 
+			model.embeddings?.positive || '';
+		card.innerHTML = `
+			<div class="preset-card-name">${name}</div>
+			<div class="preset-card-content">${preview}</div>
+		`;
+
+		grid.appendChild(card);
+	}
 }
 
+function renderStyles() {
+	const grid = document.getElementById('styleGrid');
+	const emptyState = document.getElementById('styleEmptyState');
+	grid.innerHTML = '';
+
+	const sortedNames = getSortedNames(styles);
+	const filteredNames = sortedNames.filter(name =>
+		name.toLowerCase().includes(searchTerms.style.toLowerCase())
+	);
+
+	if (filteredNames.length === 0) {
+		grid.style.display = 'none';
+		emptyState.style.display = 'block';
+		return;
+	}
+
+	grid.style.display = 'grid';
+	emptyState.style.display = 'none';
+
+	for (const name of filteredNames) {
+		const style = styles[name];
+		const card = document.createElement('div');
+		card.className = 'preset-card';
+		card.onclick = () => showEditModal('style', name);
+
+		card.innerHTML = `
+			<div class="preset-card-name">${name}</div>
+			<div class="preset-card-content">${style.positive || ''}</div>
+		`;
+
+		grid.appendChild(card);
+	}
+}
+
+function showAddModal(type) {
+	currentAddType = type;
+	const modal = document.getElementById('addModal');
+	const title = document.getElementById('addModalTitle');
+	const label = document.getElementById('addModalLabel');
+	
+	const typeNames = {
+		character: 'Character',
+		model: 'Model',
+		style: 'Style'
+	};
+	
+	title.textContent = `Add New ${typeNames[type]}`;
+	label.textContent = `${typeNames[type]} Name`;
+	document.getElementById('newItemName').value = '';
+	modal.classList.add('show');
+}
+
+function hideAddModal() {
+	document.getElementById('addModal').classList.remove('show');
+	currentAddType = null;
+}
+
+function addItem() {
+	const name = document.getElementById('newItemName').value.trim();
+
+	if (!name) {
+		alert('Please enter a name');
+		return;
+	}
+
+	const dataMap = {
+		character: characters,
+		model: models,
+		style: styles
+	};
+
+	if (dataMap[currentAddType][name]) {
+		alert('Item already exists');
+		return;
+	}
+
+	// Create default data based on type
+	if (currentAddType === 'character') {
+		characters[name] = {
+			character: '',
+			top: '',
+			bottom: '',
+			neg: ''
+		};
+	} else if (currentAddType === 'model') {
+		models[name] = {
+			quality: { positive: '', negative: '' },
+			embeddings: { positive: '', negative: '' }
+		};
+	} else if (currentAddType === 'style') {
+		styles[name] = {
+			positive: '',
+			negative: ''
+		};
+	}
+
+	renderAll();
+	hideAddModal();
+	showEditModal(currentAddType, name);
+}
+
+function showEditModal(type, name) {
+	currentEditName = name;
+	currentEditType = type;
+
+	if (type === 'character') {
+		const data = characters[name];
+		document.getElementById('editCharName').textContent = name;
+		document.getElementById('editCharacter').value = 
+			data.character || '';
+		document.getElementById('editTop').value = data.top || '';
+		document.getElementById('editBottom').value = data.bottom || '';
+		document.getElementById('editNeg').value = data.neg || '';
+
+		const preview = document.getElementById('imagePreview');
+		const previewImg = document.getElementById('previewImg');
+		if (characterImages[name]) {
+			previewImg.src = getImageUrl(name);
+			preview.style.display = 'block';
+		} else {
+			preview.style.display = 'none';
+		}
+
+		document.getElementById('editModal').classList.add('show');
+	} else if (type === 'model') {
+		const data = models[name];
+		document.getElementById('editModelName').textContent = name;
+		document.getElementById('editModelQualityPos').value = 
+			data.quality?.positive || '';
+		document.getElementById('editModelQualityNeg').value = 
+			data.quality?.negative || '';
+		document.getElementById('editModelEmbedPos').value = 
+			data.embeddings?.positive || '';
+		document.getElementById('editModelEmbedNeg').value = 
+			data.embeddings?.negative || '';
+
+		document.getElementById('modelEditModal').classList.add('show');
+	} else if (type === 'style') {
+		const data = styles[name];
+		document.getElementById('editStyleName').textContent = name;
+		document.getElementById('editStylePos').value = 
+			data.positive || '';
+		document.getElementById('editStyleNeg').value = 
+			data.negative || '';
+
+		document.getElementById('styleEditModal').classList.add('show');
+	}
+}
+
+function hideEditModal(type) {
+	if (type === 'character') {
+		document.getElementById('editModal').classList.remove('show');
+	} else if (type === 'model') {
+		document.getElementById('modelEditModal').classList.remove('show');
+	} else if (type === 'style') {
+		document.getElementById('styleEditModal').classList.remove('show');
+	}
+	currentEditName = null;
+	currentEditType = null;
+}
+
+async function saveItem(type) {
+	if (!currentEditName) return;
+
+	if (type === 'character') {
+		await saveCharacter();
+	} else if (type === 'model') {
+		models[currentEditName] = {
+			quality: {
+				positive: document.getElementById(
+					'editModelQualityPos').value,
+				negative: document.getElementById(
+					'editModelQualityNeg').value
+			},
+			embeddings: {
+				positive: document.getElementById(
+					'editModelEmbedPos').value,
+				negative: document.getElementById(
+					'editModelEmbedNeg').value
+			}
+		};
+
+		try {
+			const response = await fetch('/model_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(models)
+			});
+
+			if (response.ok) {
+				showStatus('Model saved successfully!', 'success');
+				renderModels();
+				hideEditModal('model');
+			} else {
+				throw new Error('Failed to save');
+			}
+		} catch (error) {
+			showStatus('Error saving model: ' + error.message, 'error');
+		}
+	} else if (type === 'style') {
+		styles[currentEditName] = {
+			positive: document.getElementById('editStylePos').value,
+			negative: document.getElementById('editStyleNeg').value
+		};
+
+		try {
+			const response = await fetch('/style_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(styles)
+			});
+
+			if (response.ok) {
+				showStatus('Style saved successfully!', 'success');
+				renderStyles();
+				hideEditModal('style');
+			} else {
+				throw new Error('Failed to save');
+			}
+		} catch (error) {
+			showStatus('Error saving style: ' + error.message, 'error');
+		}
+	}
+}
+
+async function deleteCurrentItem(type) {
+	if (!currentEditName) return;
+
+	const typeNames = {
+		character: 'character',
+		model: 'model',
+		style: 'style'
+	};
+
+	if (!confirm(`Delete ${typeNames[type]} "${currentEditName}"?`)) return;
+
+	if (type === 'character') {
+		await deleteCurrentCharacter();
+	} else if (type === 'model') {
+		delete models[currentEditName];
+
+		try {
+			const response = await fetch('/model_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(models)
+			});
+
+			if (response.ok) {
+				showStatus('Model deleted successfully!', 'success');
+				renderModels();
+				hideEditModal('model');
+			} else {
+				throw new Error('Failed to delete');
+			}
+		} catch (error) {
+			showStatus('Error deleting model: ' + error.message, 'error');
+		}
+	} else if (type === 'style') {
+		delete styles[currentEditName];
+
+		try {
+			const response = await fetch('/style_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(styles)
+			});
+
+			if (response.ok) {
+				showStatus('Style deleted successfully!', 'success');
+				renderStyles();
+				hideEditModal('style');
+			} else {
+				throw new Error('Failed to delete');
+			}
+		} catch (error) {
+			showStatus('Error deleting style: ' + error.message, 'error');
+		}
+	}
+}
+
+// Keep existing character-specific functions
 function setupDragAndDrop(card, name) {
 	card.addEventListener('dragover', (e) => {
 		e.preventDefault();
@@ -152,8 +479,7 @@ async function processImage(file, name) {
 		reader.onload = async (e) => {
 			try {
 				const response = await fetch(
-					`/character_editor/image/` +
-					`${encodeName(name)}`,
+					`/character_editor/image/${encodeName(name)}`,
 					{
 						method: 'POST',
 						headers: {
@@ -174,29 +500,13 @@ async function processImage(file, name) {
 				}
 				resolve();
 			} catch (error) {
-				showStatus('Error uploading image: ' + 
-					error.message, 'error');
+				showStatus('Error uploading image: ' + error.message, 
+					'error');
 				resolve();
 			}
 		};
 		reader.readAsDataURL(file);
 	});
-}
-
-async function saveCharacterData(name) {
-	try {
-		const response = await fetch('/character_editor', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(characters)
-		});
-
-		if (!response.ok) {
-			throw new Error('Failed to save');
-		}
-	} catch (error) {
-		showStatus('Error saving: ' + error.message, 'error');
-	}
 }
 
 async function removeImage() {
@@ -206,8 +516,7 @@ async function removeImage() {
 
 	try {
 		const response = await fetch(
-			`/character_editor/image/` +
-			`${encodeName(currentEditName)}`,
+			`/character_editor/image/${encodeName(currentEditName)}`,
 			{
 				method: 'DELETE'
 			}
@@ -215,22 +524,15 @@ async function removeImage() {
 
 		if (response.ok || response.status === 404) {
 			characterImages[currentEditName] = false;
-			document.getElementById('imagePreview').style.display = 
-				'none';
+			document.getElementById('imagePreview').style.display = 'none';
 			renderCharacters();
 			showStatus('Image removed!', 'success');
 		} else {
 			throw new Error('Failed to delete image');
 		}
 	} catch (error) {
-		showStatus('Error removing image: ' + error.message, 
-			'error');
+		showStatus('Error removing image: ' + error.message, 'error');
 	}
-}
-
-function hideEditModal() {
-	document.getElementById('editModal').classList.remove('show');
-	currentEditName = null;
 }
 
 async function saveCharacter() {
@@ -258,13 +560,12 @@ async function saveCharacter() {
 		if (response.ok) {
 			showStatus('Character saved successfully!', 'success');
 			renderCharacters();
-			hideEditModal();
+			hideEditModal('character');
 		} else {
 			throw new Error('Failed to save');
 		}
 	} catch (error) {
-		showStatus('Error saving character: ' + error.message, 
-			'error');
+		showStatus('Error saving character: ' + error.message, 'error');
 	}
 }
 
@@ -285,48 +586,13 @@ async function deleteCurrentCharacter() {
 		if (response.ok) {
 			showStatus('Character deleted successfully!', 'success');
 			renderCharacters();
-			hideEditModal();
+			hideEditModal('character');
 		} else {
 			throw new Error('Failed to delete');
 		}
 	} catch (error) {
-		showStatus('Error deleting character: ' + error.message, 
-			'error');
+		showStatus('Error deleting character: ' + error.message, 'error');
 	}
-}
-
-function showAddModal() {
-	document.getElementById('addModal').classList.add('show');
-	document.getElementById('newCharName').value = '';
-}
-
-function hideAddModal() {
-	document.getElementById('addModal').classList.remove('show');
-}
-
-function addCharacter() {
-	const name = document.getElementById('newCharName').value.trim();
-
-	if (!name) {
-		alert('Please enter a character name');
-		return;
-	}
-
-	if (characters[name]) {
-		alert('Character already exists');
-		return;
-	}
-
-	characters[name] = {
-		character: '',
-		top: '',
-		bottom: '',
-		neg: ''
-	};
-
-	renderCharacters();
-	hideAddModal();
-	showEditModal(name);
 }
 
 function showStatus(message, type) {
@@ -336,10 +602,23 @@ function showStatus(message, type) {
 	setTimeout(() => status.classList.remove('show'), 3000);
 }
 
-document.getElementById('searchInput').addEventListener('input', 
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', (e) => {
+	searchTerms.character = e.target.value;
+	renderCharacters();
+});
+
+document.getElementById('modelSearchInput').addEventListener('input', 
 	(e) => {
-		searchTerm = e.target.value;
-		renderCharacters();
+		searchTerms.model = e.target.value;
+		renderModels();
+	}
+);
+
+document.getElementById('styleSearchInput').addEventListener('input', 
+	(e) => {
+		searchTerms.style = e.target.value;
+		renderStyles();
 	}
 );
 
@@ -347,10 +626,20 @@ document.getElementById('addModal').addEventListener('click', (e) => {
 	if (e.target.id === 'addModal') hideAddModal();
 });
 
-document.getElementById('editModal').addEventListener('click', 
+document.getElementById('editModal').addEventListener('click', (e) => {
+	if (e.target.id === 'editModal') hideEditModal('character');
+});
+
+document.getElementById('modelEditModal').addEventListener('click', 
 	(e) => {
-		if (e.target.id === 'editModal') hideEditModal();
+		if (e.target.id === 'modelEditModal') hideEditModal('model');
 	}
 );
 
-loadCharacters();
+document.getElementById('styleEditModal').addEventListener('click', 
+	(e) => {
+		if (e.target.id === 'styleEditModal') hideEditModal('style');
+	}
+);
+
+loadData();

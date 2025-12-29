@@ -23,7 +23,7 @@ app.registerExtension({
             const editorButton = document.createElement("button");
             // editorButton.innerHTML = '<i class="mdi mdi-account"></i>';
             const icon = document.createElement("i");
-            icon.className = "mdi mdi-account";
+            icon.className = "mdi mdi-alpha-m-box";
             editorButton.appendChild(icon);
 
             editorButton.id = "character-editor-button";
