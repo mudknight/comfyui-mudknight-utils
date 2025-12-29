@@ -36,6 +36,16 @@ DEFAULT_MODELS = {
             "positive": "",
             "negative": ""
         }
+    },
+    "waiIllustriousSDXL_v160.safetensors": {
+        "quality": {
+            "positive": "",
+            "negative": "",
+        },
+        "embeddings": {
+            "positive": "",
+            "negative": "",
+        }
     }
 }
 
@@ -452,20 +462,24 @@ class ModelPresetNode:
         Returns:
             A tuple containing the positive tags and negative tags
         """
-        # Parse model type from checkpoint path
-        if not ckpt_name or '/' not in ckpt_name:
+        if not ckpt_name:
             return ("", "")
 
-        model = ckpt_name.split('/')[0].lower()
+        # Parse model type from checkpoint path
+        model = ckpt_name.split('/')[-1]
+        family = ckpt_name.split('/')[0]
 
         # Load config
         config = load_cached_data(
                 self.JSON_PATH, self.__class__._cache, 'mtime', DEFAULT_MODELS)
 
-        if model not in config:
+        # Use family if the full model name isn't used.
+        if model in config:
+            model_config = config[model]
+        elif family in config:
+            model_config = config[family]
+        else:
             return ("", "")
-
-        model_config = config[model]
 
         # Build positive prompt
         positive_parts = []
