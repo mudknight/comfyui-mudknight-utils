@@ -456,11 +456,20 @@ function renderCharacters() {
 
 	const sortedNames = getSortedNames(characters);
 	const filteredNames = sortedNames.filter(name => {
-		const matchesSearch = name.toLowerCase().includes(
-			searchTerms.character.toLowerCase()
-		);
-		const matchesCategory = characterMatchesCategory(name, selectedCategory);
-		return matchesSearch && matchesCategory;
+		const char = characters[name];
+		const searchLower = searchTerms.character.toLowerCase();
+		
+		// Check if name matches search
+		const matchesName = name.toLowerCase().includes(searchLower);
+		
+		// Check if any category matches search
+		const categories = char.categories || '';
+		const matchesCategorySearch = categories.toLowerCase().includes(searchLower);
+		
+		const matchesSearch = matchesName || matchesCategorySearch;
+		const matchesCategoryFilter = characterMatchesCategory(name, selectedCategory);
+		
+		return matchesSearch && matchesCategoryFilter;
 	});
 
 	if (filteredNames.length === 0) {
