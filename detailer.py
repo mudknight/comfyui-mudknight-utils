@@ -48,8 +48,8 @@ def process_segs(
         image, model, vae,
         positive, negative, seed, steps, cfg, sampler, scheduler,
         denoise, upscale_method, upscale_model, threshold, feather,
-        edge_erosion, segs):
-    # We'll process each segment and collect the results
+        edge_erosion, context_padding_pixels, segs):
+    """Process segments with optional context padding via inset mask."""
     processed_crops = []
     eroded_crops = []
     bboxes = []
@@ -63,19 +63,14 @@ def process_segs(
         mask_node = common.Node("SegsToCombinedMask")
         mask = mask_node.function(temp_segs)[0]
 
-        # Step 4: Crop image from mask
+        # Step 3: Crop image from mask
         crop_node = common.Node("easy imageCropFromMask")
         crop_result = crop_node.function(image, mask, 1, 1, 1)
         crop_image = crop_result[0]
         bbox = crop_result[2]
 
-        # Skip if cropped image is already 1MP
-        # Add a toggle for this, disable it for now
-        # if (crop_image.shape[1] * crop_image.shape[2] > 1_000_000):
-        #     continue
-
         if upscale_model != "none":
-            # Step 4.5 Upscale cropped image with model
+            # Step 4: Upscale cropped image with model
             upscale_model_loader_node = common.Node("UpscaleModelLoader")
             upscale_model_obj = upscale_model_loader_node.function(
                     upscale_model)[0]
@@ -95,17 +90,40 @@ def process_segs(
         vae_encode = nodes.VAEEncode()
         latent = vae_encode.encode(vae, scaled_image)[0]
 
+        # Step 6.5: Apply inset latent noise mask if context padding > 0
+        if context_padding_pixels > 0:
+            # Get dimensions of scaled image
+            img_height = scaled_image.shape[1]
+            img_width = scaled_image.shape[2]
+
+            # Calculate inset amount (can't exceed half the dimension)
+            inset_x = min(context_padding_pixels, img_width // 2)
+            inset_y = min(context_padding_pixels, img_height // 2)
+
+            # Create inset mask - only the center region gets sampled
+            inset_mask = torch.zeros(
+                (1, img_height, img_width),
+                dtype=torch.float32,
+                device=image.device
+            )
+            inset_mask[
+                :,
+                inset_y:img_height - inset_y,
+                inset_x:img_width - inset_x
+            ] = 1.0
+
+            # Set the noise mask on the latent
+            set_mask_node = common.Node("SetLatentNoiseMask")
+            latent = set_mask_node.function(latent, inset_mask)[0]
+
         # Step 7: KSampler - Get sampler object
         sampler_select = common.Node("KSamplerSelect")
         sampler_obj = sampler_select.function(sampler)[0]
 
-        # Create scheduler (use AlignYourSteps if selected,
-        # otherwise BasicScheduler)
+        # Create scheduler
         if scheduler == "align_your_steps":
-            # Detect model type based on latent channels
-            model_type = "SDXL"  # Default
+            model_type = "SDXL"
             try:
-                # Check model config for latent format
                 if hasattr(model.model, 'latent_format'):
                     latent_channels = (
                             model.model.
@@ -113,14 +131,13 @@ def process_segs(
                     if latent_channels == 16:
                         model_type = "SDXL"
                     elif latent_channels == 4:
-                        # Check if it's SVD by looking at model structure
                         if hasattr(model.model, 'is_temporal') \
-                                or 'svd' in str(type(model.model)).lower():
+                                or 'svd' in str(
+                                    type(model.model)).lower():
                             model_type = "SVD"
                         else:
                             model_type = "SD1"
             except:
-                # Fallback to SDXL if detection fails
                 model_type = "SDXL"
 
             ays_scheduler = common.Node("AlignYourStepsScheduler")
@@ -161,11 +178,12 @@ def process_segs(
         eroded_image, eroded_bbox = bbox_inset_and_crop.function(
                 resized_image, bbox, edge_erosion)
 
-        # Store the processed crop, bbox, and mask for later compositing
+        # Store the processed crop, bbox, and mask
         processed_crops.append(resized_image)
         eroded_crops.append(eroded_image)
         bboxes.append(eroded_bbox)
-        return (processed_crops, eroded_crops, bboxes)
+
+    return (processed_crops, eroded_crops, bboxes)
 
 
 class DetailerNode:
@@ -222,6 +240,12 @@ class DetailerNode:
                     "default": 10, "min": 0, "max": 100,
                     "tooltip": ("Amount of pixels to remove from the edge of"
                                 " the detected region to remove noise")}),
+                "context_padding": ("INT", {
+                    "default": 0, "min": 0, "max": 512, "step": 8,
+                    "tooltip": ("Inset pixels from crop to use for context. "
+                                "0 = no context (faster), "
+                                "32 = minimal context (SD-WebUI default), "
+                                "64-128 = recommended for better blending")}),
             }
         }
 
@@ -235,7 +259,7 @@ class DetailerNode:
     def process(self, bbox_model, fallback_model, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion):
+                edge_erosion, context_padding):
         """Main processing function."""
 
         # Create placeholder for early returns
@@ -276,7 +300,7 @@ class DetailerNode:
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion, segs)
+            edge_erosion, context_padding, segs)
 
         if not processed_crops:
             return (image, placeholder)
@@ -370,6 +394,12 @@ class MaskDetailerNode:
                 "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
                 # Edge erosion to remove artifacts
                 "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
+                "context_padding": ("INT", {
+                    "default": 0, "min": 0, "max": 512, "step": 8,
+                    "tooltip": ("Inset pixels from crop to use for context. "
+                                "0 = no context (faster), "
+                                "32 = minimal context (SD-WebUI default), "
+                                "64-128 = recommended for better blending")}),
             }
         }
 
@@ -383,7 +413,7 @@ class MaskDetailerNode:
     def process(self, image, mask, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion):
+                edge_erosion, context_padding):
         """Main processing function."""
 
         # Generate SEGS from mask
@@ -398,7 +428,7 @@ class MaskDetailerNode:
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion, segs)
+            edge_erosion, context_padding, segs)
 
         # Pad all crops to the same size so they can be batched
         if len(processed_crops) > 0:
@@ -486,6 +516,13 @@ class DetailerPipeNode(DetailerNode):
                 "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
                 # Edge erosion to remove artifacts
                 "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
+                "context_padding": ("INT", {
+                    "default": 0, "min": 0, "max": 512, "step": 8,
+                    "tooltip": ("Inset pixels from crop to use for context. "
+                                "0 = no context (faster), "
+                                "32 = minimal context (SD-WebUI default), "
+                                "64-128 = recommended for better blending")}),
+
             }
         }
 
@@ -498,7 +535,8 @@ class DetailerPipeNode(DetailerNode):
 
     def process_pipe(self, bbox_model, fallback_model, full_pipe, steps, cfg,
                      sampler, scheduler, denoise, upscale_method,
-                     upscale_model, threshold, feather, edge_erosion):
+                     upscale_model, threshold, feather, edge_erosion,
+                     context_padding):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         image = full_pipe.get("image")
@@ -525,7 +563,7 @@ class DetailerPipeNode(DetailerNode):
             bbox_model, fallback_model, image, model_checkpoint, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion
+            edge_erosion, context_padding
         )
 
         # Handle both dict (with preview) and tuple (no preview) returns
@@ -583,6 +621,12 @@ class MaskDetailerPipeNode(MaskDetailerNode):
                 "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
                 # Edge erosion to remove artifacts
                 "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
+                "context_padding": ("INT", {
+                    "default": 0, "min": 0, "max": 512, "step": 8,
+                    "tooltip": ("Inset pixels from crop to use for context. "
+                                "0 = no context (faster), "
+                                "32 = minimal context (SD-WebUI default), "
+                                "64-128 = recommended for better blending")}),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -598,7 +642,8 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
     def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
-                     threshold, feather, edge_erosion, image=None):
+                     threshold, feather, edge_erosion, context_padding,
+                     image=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         if image is None:
@@ -626,7 +671,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
             image, mask, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion
+            context_padding, edge_erosion
         )
 
         # Handle both dict (with preview) and tuple (no preview) returns
