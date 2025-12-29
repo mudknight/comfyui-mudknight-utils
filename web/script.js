@@ -12,6 +12,94 @@ let searchTerms = {
 let characterImages = {};
 let styleImages = {};
 let activeTab = 'characters';
+let selectedCategory = 'all';
+
+// Categories
+function getAllCategories() {
+	const categorySet = new Set();
+	
+	for (const name of Object.keys(characters)) {
+		const char = characters[name];
+		const categories = char.categories || '';
+		
+		if (categories.trim()) {
+			const cats = categories.split(',').map(c => c.trim()).filter(Boolean);
+			cats.forEach(cat => categorySet.add(cat));
+		}
+	}
+	
+	return Array.from(categorySet).sort((a, b) => 
+		a.toLowerCase().localeCompare(b.toLowerCase())
+	);
+}
+
+function getCategoryCounts() {
+	const counts = { all: 0 };
+	
+	for (const name of Object.keys(characters)) {
+		counts.all++;
+		
+		const char = characters[name];
+		const categories = char.categories || '';
+		
+		if (categories.trim()) {
+			const cats = categories.split(',').map(c => c.trim()).filter(Boolean);
+			cats.forEach(cat => {
+				counts[cat] = (counts[cat] || 0) + 1;
+			});
+		}
+	}
+	
+	return counts;
+}
+
+function characterMatchesCategory(name, category) {
+	if (category === 'all') return true;
+	
+	const char = characters[name];
+	const categories = char.categories || '';
+	
+	if (!categories.trim()) return false;
+	
+	const cats = categories.split(',').map(c => c.trim()).filter(Boolean);
+	return cats.includes(category);
+}
+
+function renderCategories() {
+	const categoryList = document.getElementById('categoryList');
+	const allCategories = getAllCategories();
+	const counts = getCategoryCounts();
+	
+	// Clear existing (except "All")
+	categoryList.innerHTML = `
+		<div class="category-item ${selectedCategory === 'all' ? 'active' : ''}" 
+		     data-category="all" onclick="selectCategory('all')">
+			<span class="category-name">All Characters</span>
+			<span class="category-count">${counts.all}</span>
+		</div>
+	`;
+	
+	// Add category items
+	for (const category of allCategories) {
+		const item = document.createElement('div');
+		item.className = `category-item ${selectedCategory === category ? 'active' : ''}`;
+		item.setAttribute('data-category', category);
+		item.onclick = () => selectCategory(category);
+		
+		item.innerHTML = `
+			<span class="category-name">${category}</span>
+			<span class="category-count">${counts[category] || 0}</span>
+		`;
+		
+		categoryList.appendChild(item);
+	}
+}
+
+function selectCategory(category) {
+	selectedCategory = category;
+	renderCategories();
+	renderCharacters();
+}
 
 function encodeName(name) {
 	return btoa(unescape(encodeURIComponent(name)));
@@ -99,6 +187,7 @@ function getSortedNames(obj) {
 }
 
 function renderAll() {
+	renderCategories();
 	renderCharacters();
 	renderModels();
 	renderStyles();
@@ -110,9 +199,13 @@ function renderCharacters() {
 	grid.innerHTML = '';
 
 	const sortedNames = getSortedNames(characters);
-	const filteredNames = sortedNames.filter(name =>
-		name.toLowerCase().includes(searchTerms.character.toLowerCase())
-	);
+	const filteredNames = sortedNames.filter(name => {
+		const matchesSearch = name.toLowerCase().includes(
+			searchTerms.character.toLowerCase()
+		);
+		const matchesCategory = characterMatchesCategory(name, selectedCategory);
+		return matchesSearch && matchesCategory;
+	});
 
 	if (filteredNames.length === 0) {
 		grid.style.display = 'none';
@@ -140,7 +233,7 @@ function renderCharacters() {
 			<div class="character-card-name">${name}</div>
 		`;
 
-		setupDragAndDrop(card, name);
+		setupDragAndDrop(card, name, 'character');
 		grid.appendChild(card);
 	}
 }
@@ -301,6 +394,8 @@ function showEditModal(type, name) {
 		document.getElementById('editTop').value = data.top || '';
 		document.getElementById('editBottom').value = data.bottom || '';
 		document.getElementById('editNeg').value = data.neg || '';
+		document.getElementById('editCategories').value = 
+			data.categories || '';
 
 		const preview = document.getElementById('imagePreview');
 		const previewImg = document.getElementById('previewImg');
@@ -596,7 +691,8 @@ async function saveCharacter() {
 		character: document.getElementById('editCharacter').value,
 		top: document.getElementById('editTop').value,
 		bottom: document.getElementById('editBottom').value,
-		neg: document.getElementById('editNeg').value
+		neg: document.getElementById('editNeg').value,
+		categories: document.getElementById('editCategories').value
 	};
 
 	const fileInput = document.getElementById('editImage');
@@ -613,7 +709,7 @@ async function saveCharacter() {
 
 		if (response.ok) {
 			showStatus('Character saved successfully!', 'success');
-			renderCharacters();
+			renderAll(); // Changed from renderCharacters() to update categories
 			hideEditModal('character');
 		} else {
 			throw new Error('Failed to save');
@@ -639,7 +735,7 @@ async function deleteCurrentCharacter() {
 
 		if (response.ok) {
 			showStatus('Character deleted successfully!', 'success');
-			renderCharacters();
+			renderAll(); // Changed from renderCharacters() to update categories
 			hideEditModal('character');
 		} else {
 			throw new Error('Failed to delete');

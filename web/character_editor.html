@@ -30,19 +30,33 @@
                 <div class="controls">
                     <div class="search-box">
                         <input type="text" id="searchInput" 
-                                           placeholder="Search characters...">
+                               placeholder="Search characters...">
                     </div>
                     <button onclick="showAddModal('character')">
                         Add Character
                     </button>
                 </div>
 
-                <div class="character-grid" id="characterGrid"></div>
-                <div class="empty-state" id="emptyState" style="display: none;">
-                    <p>No characters found</p>
-                    <button onclick="showAddModal('character')">
-                        Add Your First Character
-                    </button>
+                <div class="content-with-sidebar">
+                    <div class="sidebar">
+                        <div class="sidebar-header">Categories</div>
+                        <div class="category-list" id="categoryList">
+                            <div class="category-item active" data-category="all">
+                                <span class="category-name">All Characters</span>
+                                <span class="category-count" id="countAll">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="main-content">
+                        <div class="character-grid" id="characterGrid"></div>
+                        <div class="empty-state" id="emptyState" style="display: none;">
+                            <p>No characters found</p>
+                            <button onclick="showAddModal('character')">
+                                Add Your First Character
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -142,6 +156,11 @@
                 <div class="field-group">
                     <label>Negative</label>
                     <input type="text" id="editNeg">
+                </div>
+                <div class="field-group">
+                    <label>Categories (comma-separated)</label>
+                    <input type="text" id="editCategories"
+                                       placeholder="e.g., idolmaster, blue archive, genshin impact">
                 </div>
                 <div class="modal-actions">
                     <button onclick="hideEditModal()">Cancel</button>
