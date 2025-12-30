@@ -526,7 +526,7 @@ function renderCharacters() {
 	addCard.className = 'character-card add-card';
 	addCard.innerHTML = '+';
 	addCard.onclick = () => {
-		showEditModal('character', ''); // Pass empty string for new
+		showEditModal('character', '');
 	};
 	grid.appendChild(addCard);
 
@@ -535,10 +535,7 @@ function renderCharacters() {
 		const char = characters[name];
 		const searchLower = searchTerms.character.toLowerCase();
 		
-		// Check if name matches search
 		const matchesName = name.toLowerCase().includes(searchLower);
-		
-		// Check if any category matches search
 		const categories = char.categories || '';
 		const matchesCategorySearch = categories.toLowerCase().includes(searchLower);
 		
@@ -548,14 +545,7 @@ function renderCharacters() {
 		return matchesSearch && matchesCategoryFilter;
 	});
 
-	if (filteredNames.length === 0) {
-		grid.style.display = 'none';
-		emptyState.style.display = 'block';
-		return;
-	}
-
-	grid.style.display = 'grid';
-	emptyState.style.display = 'none';
+	emptyState.style.display = filteredNames.length === 0 ? 'block' : 'none';
 
 	for (const name of filteredNames) {
 		const card = document.createElement('div');
@@ -589,7 +579,7 @@ function renderModels() {
 	addCard.className = 'preset-card preset-add-card';
 	addCard.innerHTML = '+';
 	addCard.onclick = () => {
-		showEditModal('model', ''); // Pass empty string for new
+		showEditModal('model', '');
 	};
 	grid.appendChild(addCard);
 
@@ -598,14 +588,7 @@ function renderModels() {
 		name.toLowerCase().includes(searchTerms.model.toLowerCase())
 	);
 
-	if (filteredNames.length === 0) {
-		grid.style.display = 'none';
-		emptyState.style.display = 'block';
-		return;
-	}
-
-	grid.style.display = 'grid';
-	emptyState.style.display = 'none';
+	emptyState.style.display = filteredNames.length === 0 ? 'block' : 'none';
 
 	for (const name of filteredNames) {
 		const model = models[name];
@@ -634,7 +617,7 @@ function renderStyles() {
 	addCard.className = 'character-card add-card';
 	addCard.innerHTML = '+';
 	addCard.onclick = () => {
-		showEditModal('style', ''); // Pass empty string for new
+		showEditModal('style', '');
 	};
 	grid.appendChild(addCard);
 
@@ -643,14 +626,7 @@ function renderStyles() {
 		name.toLowerCase().includes(searchTerms.style.toLowerCase())
 	);
 
-	if (filteredNames.length === 0) {
-		grid.style.display = 'none';
-		emptyState.style.display = 'block';
-		return;
-	}
-
-	grid.style.display = 'grid';
-	emptyState.style.display = 'none';
+	emptyState.style.display = filteredNames.length === 0 ? 'block' : 'none';
 
 	for (const name of filteredNames) {
 		const card = document.createElement('div');

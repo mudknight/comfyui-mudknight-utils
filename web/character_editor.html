@@ -3,14 +3,14 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Character Editor</title>
+        <title>Preset Manager</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div class="container">
             <!-- New Navigation Bar -->
             <div class="navbar">
-                <h1>Preset Editor</h1>
+                <h1>Preset Manager</h1>
                 <div class="tabs">
                     <button class="tab-button active" onclick="switchTab('characters')">
                         Characters
@@ -47,10 +47,7 @@
                     <div class="main-content">
                         <div class="character-grid" id="characterGrid"></div>
                         <div class="empty-state" id="emptyState" style="display: none;">
-                            <p>No characters found</p>
-                            <button onclick="showAddModal('character')">
-                                Add Your First Character
-                            </button>
+                            <p>No characters found. Click the + card above to add one.</p>
                         </div>
                     </div>
                 </div>
@@ -62,10 +59,7 @@
                 <div class="preset-grid" id="modelGrid"></div>
                 <div class="empty-state" id="modelEmptyState" 
                                          style="display: none;">
-                    <p>No models found</p>
-                    <button onclick="showAddModal('model')">
-                        Add Your First Model
-                    </button>
+                    <p>No models found. Click the + card above to add one.</p>
                 </div>
             </div>
 
@@ -75,16 +69,12 @@
                 <div class="character-grid" id="styleGrid"></div>
                 <div class="empty-state" id="styleEmptyState" 
                                          style="display: none;">
-                    <p>No styles found</p>
-                    <button onclick="showAddModal('style')">
-                        Add Your First Style
-                    </button>
+                    <p>No styles found. Click the + card above to add one.</p>
                 </div>
             </div>
         </div>
 
 
-        <!-- Character Modal -->
         <div class="modal" id="editModal">
             <div class="modal-content">
                 <div class="modal-header">
@@ -118,15 +108,15 @@
                 </div>
                 <div class="field-group">
                     <label>Top</label>
-                    <textarea id="editTop"></textarea>
+                    <input type="text" id="editTop">
                 </div>
                 <div class="field-group">
                     <label>Bottom</label>
-                    <textarea id="editBottom"></textarea>
+                    <input type="text" id="editBottom">
                 </div>
                 <div class="field-group">
                     <label>Negative</label>
-                    <textarea id="editNeg"></textarea>
+                    <input type="text" id="editNeg">
                 </div>
                 <div class="field-group">
                     <label>Categories (comma-separated)</label>
