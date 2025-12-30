@@ -73,6 +73,7 @@ button:hover {
 
 button.delete {
     background: #e74c3c;
+    margin-right: auto;
 }
 
 button.delete:hover {
@@ -264,23 +265,6 @@ button.save:hover {
 .modal-content.drag-over {
     border: 2px solid #2ecc71;
     background: rgba(46, 204, 113, 0.05);
-}
-
-.name-input {
-    flex: 1;
-    background: #1a1a1a;
-    border: 1px solid #3a3a3a;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 18px;
-    font-weight: 600;
-    padding: 8px 12px;
-    margin-right: 10px;
-}
-
-.name-input:focus {
-    outline: none;
-    border-color: #4a9eff;
 }
 
 .modal-header {
@@ -554,14 +538,18 @@ textarea {
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .content-with-sidebar {
-        flex-direction: column;
+        flex-direction: row; /* Keep it horizontal */
     }
-    
+
     .sidebar {
-        width: 100%;
-        position: static;
+        display: none; /* Hide sidebar on narrow viewports */
+    }
+
+    .main-content {
+        width: 100%; /* Main content takes full width */
     }
 }
+
 /* Autocomplete */
 .autocomplete-dropdown {
     position: absolute;

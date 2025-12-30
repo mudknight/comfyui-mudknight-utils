@@ -82,9 +82,6 @@
                         <label style="display: block; margin-bottom: 5px;">Character Name</label>
                         <input type="text" id="editCharNameInput" class="name-input" style="margin: 0;" />
                     </div>
-                    <button class="delete" onclick="deleteCurrentCharacter()">
-                        Delete
-                    </button>
                 </div>
                 <div class="field-group">
                     <label>Character Image</label>
@@ -108,15 +105,15 @@
                 </div>
                 <div class="field-group">
                     <label>Top</label>
-                    <input type="text" id="editTop">
+                    <textarea id="editTop"></textarea>
                 </div>
                 <div class="field-group">
                     <label>Bottom</label>
-                    <input type="text" id="editBottom">
+                    <textarea id="editBottom"></textarea>
                 </div>
                 <div class="field-group">
                     <label>Negative</label>
-                    <input type="text" id="editNeg">
+                    <textarea id="editNeg"></textarea>
                 </div>
                 <div class="field-group">
                     <label>Categories (comma-separated)</label>
@@ -124,6 +121,9 @@
                                        placeholder="e.g., idolmaster, blue archive, genshin impact">
                 </div>
                 <div class="modal-actions">
+                    <button class="delete" onclick="deleteCurrentCharacter()">
+                        Delete
+                    </button>
                     <button onclick="hideEditModal()">Cancel</button>
                     <button class="save" onclick="saveCharacter()">
                         Save Changes
@@ -141,9 +141,6 @@
                         <label style="display: block; margin-bottom: 5px;">Model Name</label>
                         <input type="text" id="editModelNameInput" class="name-input" style="margin: 0;" />
                     </div>
-                    <button class="delete" onclick="deleteCurrentItem('model')">
-                        Delete
-                    </button>
                 </div>
                 <div class="field-group">
                     <label>Quality Positive</label>
@@ -162,6 +159,9 @@
                     <input type="text" id="editModelEmbedNeg">
                 </div>
                 <div class="modal-actions">
+                    <button class="delete" onclick="deleteCurrentItem('model')">
+                        Delete
+                    </button>
                     <button onclick="hideEditModal('model')">Cancel</button>
                     <button class="save" onclick="saveItem('model')">
                         Save Changes
@@ -178,9 +178,6 @@
                         <label style="display: block; margin-bottom: 5px;">Style Name</label>
                         <input type="text" id="editStyleNameInput" class="name-input" style="margin: 0;" />
                     </div>
-                    <button class="delete" onclick="deleteCurrentItem('style')">
-                        Delete
-                    </button>
                 </div>
                 <div class="field-group">
                     <label>Style Image</label>
@@ -207,6 +204,9 @@
                     <textarea id="editStyleNeg"></textarea>
                 </div>
                 <div class="modal-actions">
+                    <button class="delete" onclick="deleteCurrentItem('style')">
+                        Delete
+                    </button>
                     <button onclick="hideEditModal('style')">Cancel</button>
                     <button class="save" onclick="saveItem('style')">
                         Save Changes
