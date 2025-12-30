@@ -84,7 +84,7 @@ def process_segs(
         # Step 5: Scale cropped image
         scale_node = common.Node("ImageScaleToTotalPixels")
         scaled_image = scale_node.function(
-                upscaled_image, upscale_method, 1)[0]
+                upscaled_image, upscale_method, 1, 1)[0]
 
         # Step 6: Encode to latent
         vae_encode = nodes.VAEEncode()
