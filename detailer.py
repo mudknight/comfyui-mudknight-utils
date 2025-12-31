@@ -27,6 +27,67 @@ UPSCALE_METHODS = [
 
 upscale_model_list = common.get_upscale_model_list()
 
+CORE_INPUTS = {
+    # Core inputs
+    "image": ("IMAGE",),
+    "model": ("MODEL",),
+    "vae": ("VAE",),
+    "positive": ("CONDITIONING",),
+    "negative": ("CONDITIONING",),
+}
+
+SEED_INPUT = {
+    "seed": ("INT", {
+        "default": 0, "min": 0, "max": 0xffffffffffffffff}),
+}
+
+KSAMPLER_INPUTS = {
+    # KSampler parameters
+    "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
+    "cfg": ("FLOAT", {
+        "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
+    "sampler": (
+        SAMPLER_NAMES,
+        {"default": "euler_ancestral_cfg_pp"}
+        ),
+    "scheduler": (
+        SCHEDULER_NAMES,
+        {"default": "align_your_steps"}
+        ),
+    "denoise": ("FLOAT", {
+        "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
+}
+
+UPSCALER_INPUTS = {
+    # Upscale method
+    "upscale_method": (UPSCALE_METHODS,),
+    # Upscale model
+    "upscale_model": (upscale_model_list,),
+}
+
+DETAILER_INPUTS = {
+    # Detection parameters (MOVE THIS)
+    "threshold": ("FLOAT", {
+        "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
+        "tooltip": "Detection threshold"}),
+    # Feather mask parameter (uniform)
+    "feather": ("FLOAT", {
+        "default": 0.25, "min": 0, "max": 1,
+        "tooltip": ("Percentage of image to feather when "
+                    "uncropping")}),
+    # Edge erosion to remove artifacts
+    "edge_erosion": ("INT", {
+        "default": 10, "min": 0, "max": 100,
+        "tooltip": ("Amount of pixels to remove from the edge of"
+                    " the detected region to remove noise")}),
+    "context_padding": ("INT", {
+        "default": 0, "min": 0, "max": 512, "step": 8,
+        "tooltip": ("Inset pixels from crop to use for context. "
+                    "0 = no context (faster), "
+                    "32 = minimal context (SD-WebUI default), "
+                    "64-128 = recommended for better blending")}),
+}
+
 
 def get_ultralytics_model_list():
     """Get list of available Ultralytics models."""
@@ -47,7 +108,7 @@ def get_ultralytics_model_list():
 def process_segs(
         image, model, vae,
         positive, negative, seed, steps, cfg, sampler, scheduler,
-        denoise, upscale_method, upscale_model, threshold, feather,
+        denoise, upscale_method, upscale_model, feather,
         edge_erosion, context_padding_pixels, segs):
     """Process segments with optional context padding via inset mask."""
     processed_crops = []
@@ -201,51 +262,14 @@ class DetailerNode:
                 "bbox_model": (model_list,),
                 "fallback_model": (fallback_list,),
                 # Core inputs
-                "image": ("IMAGE",),
-                "model": ("MODEL",),
-                "vae": ("VAE",),
-                "positive": ("CONDITIONING",),
-                "negative": ("CONDITIONING",),
+                **CORE_INPUTS,
                 # KSampler parameters
-                "seed": ("INT", {
-                    "default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                "cfg": ("FLOAT", {
-                    "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler": (
-                    SAMPLER_NAMES,
-                    {"default": "euler_ancestral_cfg_pp"}
-                    ),
-                "scheduler": (
-                    SCHEDULER_NAMES,
-                    {"default": "align_your_steps"}
-                    ),
-                "denoise": ("FLOAT", {
-                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
-                # Upscale method
-                "upscale_method": (UPSCALE_METHODS,),
-                # Upscale model
-                "upscale_model": (upscale_model_list,),
+                **SEED_INPUT,
+                **KSAMPLER_INPUTS,
+                # Upscale parameters
+                **UPSCALER_INPUTS,
                 # Detection parameters
-                "threshold": ("FLOAT", {
-                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
-                    "tooltip": "Detection threshold"}),
-                # Feather mask parameter (uniform)
-                "feather": ("FLOAT", {
-                    "default": 0.25, "min": 0, "max": 1,
-                    "tooltip": ("Percentage of image to feather when "
-                                "uncropping")}),
-                # Edge erosion to remove artifacts
-                "edge_erosion": ("INT", {
-                    "default": 10, "min": 0, "max": 100,
-                    "tooltip": ("Amount of pixels to remove from the edge of"
-                                " the detected region to remove noise")}),
-                "context_padding": ("INT", {
-                    "default": 0, "min": 0, "max": 512, "step": 8,
-                    "tooltip": ("Inset pixels from crop to use for context. "
-                                "0 = no context (faster), "
-                                "32 = minimal context (SD-WebUI default), "
-                                "64-128 = recommended for better blending")}),
+                **DETAILER_INPUTS,
             }
         }
 
@@ -299,7 +323,7 @@ class DetailerNode:
         processed_crops, eroded_crops, bboxes = process_segs(
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, threshold, feather,
+            denoise, upscale_method, upscale_model, feather,
             edge_erosion, context_padding, segs)
 
         if not processed_crops:
@@ -361,45 +385,14 @@ class MaskDetailerNode:
         return {
             "required": {
                 # Core inputs
-                "image": ("IMAGE",),
-                "mask": ("MASK",),
-                "model": ("MODEL",),
-                "vae": ("VAE",),
-                "positive": ("CONDITIONING",),
-                "negative": ("CONDITIONING",),
+                **CORE_INPUTS,
                 # KSampler parameters
-                "seed": ("INT", {
-                    "default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                "cfg": ("FLOAT", {
-                    "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler": (
-                    SAMPLER_NAMES,
-                    {"default": "euler_ancestral_cfg_pp"}
-                    ),
-                "scheduler": (
-                    SCHEDULER_NAMES,
-                    {"default": "align_your_steps"}
-                    ),
-                "denoise": ("FLOAT", {
-                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
+                **SEED_INPUT,
+                **KSAMPLER_INPUTS,
                 # Upscale method
-                "upscale_method": (UPSCALE_METHODS,),
-                # Upscale model
-                "upscale_model": (upscale_model_list,),
+                **UPSCALER_INPUTS,
                 # Detection parameters
-                "threshold": ("FLOAT", {
-                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
-                # Feather mask parameter (uniform)
-                "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
-                # Edge erosion to remove artifacts
-                "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
-                "context_padding": ("INT", {
-                    "default": 0, "min": 0, "max": 512, "step": 8,
-                    "tooltip": ("Inset pixels from crop to use for context. "
-                                "0 = no context (faster), "
-                                "32 = minimal context (SD-WebUI default), "
-                                "64-128 = recommended for better blending")}),
+                **DETAILER_INPUTS,
             }
         }
 
@@ -427,7 +420,7 @@ class MaskDetailerNode:
         processed_crops, eroded_crops, bboxes = process_segs(
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, threshold, feather,
+            denoise, upscale_method, upscale_model, feather,
             edge_erosion, context_padding, segs)
 
         # Pad all crops to the same size so they can be batched
@@ -492,37 +485,11 @@ class DetailerPipeNode(DetailerNode):
                 # Full pipe input
                 "full_pipe": ("FULL_PIPE",),
                 # KSampler parameters
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                "cfg": ("FLOAT", {
-                    "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler": (
-                    SAMPLER_NAMES,
-                    {"default": "euler_ancestral_cfg_pp"}
-                    ),
-                "scheduler": (
-                    SCHEDULER_NAMES,
-                    {"default": "align_your_steps"}
-                    ),
-                "denoise": ("FLOAT", {
-                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
+                **KSAMPLER_INPUTS,
                 # Upscale method
-                "upscale_method": (UPSCALE_METHODS,),
-                # Upscale model
-                "upscale_model": (upscale_model_list,),
+                **UPSCALER_INPUTS,
                 # Detection parameters
-                "threshold": ("FLOAT", {
-                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
-                # Feather mask parameter (uniform)
-                "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
-                # Edge erosion to remove artifacts
-                "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
-                "context_padding": ("INT", {
-                    "default": 0, "min": 0, "max": 512, "step": 8,
-                    "tooltip": ("Inset pixels from crop to use for context. "
-                                "0 = no context (faster), "
-                                "32 = minimal context (SD-WebUI default), "
-                                "64-128 = recommended for better blending")}),
-
+                **DETAILER_INPUTS,
             }
         }
 
@@ -597,36 +564,11 @@ class MaskDetailerPipeNode(MaskDetailerNode):
                 "full_pipe": ("FULL_PIPE",),
                 "mask": ("MASK",),
                 # KSampler parameters
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                "cfg": ("FLOAT", {
-                    "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler": (
-                    SAMPLER_NAMES,
-                    {"default": "euler_ancestral_cfg_pp"}
-                    ),
-                "scheduler": (
-                    SCHEDULER_NAMES,
-                    {"default": "align_your_steps"}
-                    ),
-                "denoise": ("FLOAT", {
-                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
+                **KSAMPLER_INPUTS,
                 # Upscale method
-                "upscale_method": (UPSCALE_METHODS,),
-                # Upscale model
-                "upscale_model": (upscale_model_list,),
+                **UPSCALER_INPUTS,
                 # Detection parameters
-                "threshold": ("FLOAT", {
-                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
-                # Feather mask parameter (uniform)
-                "feather": ("FLOAT", {"default": 0.25, "min": 0, "max": 1}),
-                # Edge erosion to remove artifacts
-                "edge_erosion": ("INT", {"default": 10, "min": 0, "max": 100}),
-                "context_padding": ("INT", {
-                    "default": 0, "min": 0, "max": 512, "step": 8,
-                    "tooltip": ("Inset pixels from crop to use for context. "
-                                "0 = no context (faster), "
-                                "32 = minimal context (SD-WebUI default), "
-                                "64-128 = recommended for better blending")}),
+                **DETAILER_INPUTS,
             },
             "optional": {
                 "image": ("IMAGE",),
