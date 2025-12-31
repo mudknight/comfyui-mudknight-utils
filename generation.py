@@ -35,58 +35,6 @@ KSAMPLER_INPUTS = {
 }
 
 
-def detect_model_type(model):
-    """ Detect model type (SDXL, SD1, SVD) based on latent channels. """
-    model_type = "SDXL"  # Default
-
-    try:
-        if hasattr(model.model, 'latent_format'):
-            latent_channels = model.model.latent_format.latent_channels
-            if latent_channels == 16:
-                model_type = "SDXL"
-            elif latent_channels == 4:
-                # Check if it's SVD by looking at model structure
-                if (hasattr(model.model, 'is_temporal') or
-                        'svd' in str(type(model.model)).lower()):
-                    model_type = "SVD"
-                else:
-                    model_type = "SD1"
-    except Exception:
-        # Fallback to SDXL if detection fails
-        pass
-
-    return model_type
-
-
-def sample_latent(
-        model, positive, negative, seed, sampler_name,
-        scheduler, steps, cfg, denoise, latent):
-    """ Sample a latent using the specified parameters. """
-
-    # Create sampler
-    sampler_select = common.Node("KSamplerSelect")
-    sampler = sampler_select.function(sampler_name)[0]
-
-    # Create scheduler
-    if scheduler == "align_your_steps":
-        model_type = detect_model_type(model)
-        ays_scheduler = common.Node("AlignYourStepsScheduler")
-        sigmas = ays_scheduler.function(model_type, steps, denoise)[0]
-    else:
-        scheduler_node = common.Node("BasicScheduler")
-        sigmas = scheduler_node.function(
-            model, scheduler, steps, denoise)[0]
-
-    # Sample
-    sampler_custom = common.Node("SamplerCustom")
-    sampled_latent = sampler_custom.function(
-        model, True, seed, cfg, positive, negative,
-        sampler, sigmas, latent
-    )[0]
-
-    return sampled_latent
-
-
 class BaseNode:
     """
     Custom base generation node that creates images from either empty
@@ -159,7 +107,7 @@ class BaseNode:
             denoise = 1.0
 
         # Sample latent
-        sampled_latent = sample_latent(
+        sampled_latent = common.sample_latent(
             model, positive, negative, seed, sampler_name,
             scheduler, steps, cfg, denoise, latent
         )
@@ -247,7 +195,7 @@ class UpscaleNode:
         latent = vae_encode.function(vae, scaled_image)[0]
 
         # Sample latent
-        sampled_latent = sample_latent(
+        sampled_latent = common.sample_latent(
             model, positive, negative, seed, sampler_name,
             scheduler, steps, cfg, denoise, latent
         )

@@ -6,20 +6,9 @@ Combines bbox detection, cropping, upscaling, and inpainting into a single
 node.
 """
 import comfy.samplers
-import folder_paths
 import nodes
 import torch
-import os
 from . import common
-
-UPSCALE_DIR = os.path.join(folder_paths.models_dir, "upscale_models")
-
-
-# Global lists for input types
-SAMPLER_NAMES = comfy.samplers.KSampler.SAMPLERS
-
-SCHEDULER_NAMES = list(comfy.samplers.KSampler.SCHEDULERS)
-SCHEDULER_NAMES.append("align_your_steps")
 
 UPSCALE_METHODS = [
     "lanczos", "bilinear", "bicubic", "area", "nearest-exact"
@@ -36,6 +25,8 @@ CORE_INPUTS = {
     "negative": ("CONDITIONING",),
 }
 
+# The seed is broken out here for convenience, since the pipe nodes don't
+# have a seed parameter.
 SEED_INPUT = {
     "seed": ("INT", {
         "default": 0, "min": 0, "max": 0xffffffffffffffff}),
@@ -47,11 +38,11 @@ KSAMPLER_INPUTS = {
     "cfg": ("FLOAT", {
         "default": 1.5, "min": 0.0, "max": 100.0, "step": 0.1}),
     "sampler": (
-        SAMPLER_NAMES,
+        comfy.samplers.KSampler.SAMPLERS,
         {"default": "euler_ancestral_cfg_pp"}
         ),
     "scheduler": (
-        SCHEDULER_NAMES,
+        list(comfy.samplers.KSampler.SCHEDULERS) + ["align_your_steps"],
         {"default": "align_your_steps"}
         ),
     "denoise": ("FLOAT", {
@@ -178,46 +169,9 @@ def process_segs(
             latent = set_mask_node.function(latent, inset_mask)[0]
 
         # Step 7: KSampler - Get sampler object
-        sampler_select = common.Node("KSamplerSelect")
-        sampler_obj = sampler_select.function(sampler)[0]
-
-        # Create scheduler
-        if scheduler == "align_your_steps":
-            model_type = "SDXL"
-            try:
-                if hasattr(model.model, 'latent_format'):
-                    latent_channels = (
-                            model.model.
-                            latent_format.latent_channels)
-                    if latent_channels == 16:
-                        model_type = "SDXL"
-                    elif latent_channels == 4:
-                        if hasattr(model.model, 'is_temporal') \
-                                or 'svd' in str(
-                                    type(model.model)).lower():
-                            model_type = "SVD"
-                        else:
-                            model_type = "SD1"
-            except:
-                model_type = "SDXL"
-
-            ays_scheduler = common.Node("AlignYourStepsScheduler")
-            sigmas = ays_scheduler.function(
-                model_type,
-                steps,
-                denoise
-            )[0]
-        else:
-            scheduler_node = common.Node("BasicScheduler")
-            sigmas = scheduler_node.function(
-                model, scheduler, steps, denoise)[0]
-
-        # Sample
-        sampler_custom = common.Node("SamplerCustom")
-        sampled_latent = sampler_custom.function(
-            model, True, seed, cfg, positive, negative,
-            sampler_obj, sigmas, latent
-        )[0]
+        sampled_latent = common.sample_latent(
+            model, positive, negative, seed, sampler,
+            scheduler, steps, cfg, denoise, latent)
 
         # Step 8: Decode latent
         vae_decode = nodes.VAEDecode()
