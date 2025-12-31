@@ -5,6 +5,35 @@ import comfy.samplers
 import comfy.sample
 from . import common
 
+KSAMPLER_INPUTS = {
+    "sampler_name": (
+        comfy.samplers.KSampler.SAMPLERS,
+        {"default": "euler_ancestral_cfg_pp"}
+        ),
+    "scheduler": (
+        list(comfy.samplers.KSampler.SCHEDULERS) + ["align_your_steps"],
+        {"default": "karras"}
+        ),
+    "steps": ("INT", {
+        "default": 20,
+        "min": 1,
+        "max": 10000
+        }),
+    "cfg": ("FLOAT", {
+        "default": 1.5,
+        "min": 0.0,
+        "max": 100.0,
+        "step": 0.1,
+        "round": 0.01
+        }),
+    "denoise": ("FLOAT", {
+        "default": 1.0,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01
+        }),
+}
+
 
 class BaseNode:
     """
@@ -15,39 +44,11 @@ class BaseNode:
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Get standard schedulers and add custom option
-        schedulers = list(comfy.samplers.KSampler.SCHEDULERS)
-        schedulers.append("align_your_steps")
 
         return {
             "required": {
                 "full_pipe": ("FULL_PIPE",),
-                "sampler_name": (
-                    comfy.samplers.KSampler.SAMPLERS,
-                    {"default": "euler_ancestral_cfg_pp"}
-                    ),
-                "scheduler": (
-                    schedulers,
-                    {"default": "karras"}
-                    ),
-                "steps": ("INT", {
-                    "default": 20,
-                    "min": 1,
-                    "max": 10000
-                }),
-                "cfg": ("FLOAT", {
-                    "default": 1.5,
-                    "min": 0.0,
-                    "max": 100.0,
-                    "step": 0.1,
-                    "round": 0.01
-                }),
-                "denoise": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.01
-                }),
+                **KSAMPLER_INPUTS,
                 "resolution": (
                     list(nodes.NODE_CLASS_MAPPINGS[
                         "ResolutionSelector"].RESOLUTIONS.keys()),
@@ -94,7 +95,7 @@ class BaseNode:
             scale_node = nodes.NODE_CLASS_MAPPINGS[
                 "ImageScaleToTotalPixels"]()
             scaled_image = scale_node.execute(
-                image, "lanczos", 1)[0]
+                image, "lanczos", 1, 1)[0]
 
             # Encode to latent
             vae_encode = nodes.NODE_CLASS_MAPPINGS["VAEEncode"]()
@@ -179,39 +180,14 @@ class UpscaleNode:
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Get standard schedulers and add custom option
-        schedulers = list(comfy.samplers.KSampler.SCHEDULERS)
-        schedulers.insert(0, "align_your_steps")
 
         return {
             "required": {
                 "full_pipe": ("FULL_PIPE",),
-                "sampler_name": (
-                    comfy.samplers.KSampler.SAMPLERS,
-                    {"default": "euler_ancestral_cfg_pp"}
-                ),
+                **KSAMPLER_INPUTS,
                 "scheduler": (
-                    schedulers,
-                    {"default": "align_your_steps"}
-                ),
-                "steps": ("INT", {
-                    "default": 10,
-                    "min": 1,
-                    "max": 10000
-                }),
-                "cfg": ("FLOAT", {
-                    "default": 1.5,
-                    "min": 0.0,
-                    "max": 100.0,
-                    "step": 0.1,
-                    "round": 0.01
-                }),
-                "denoise": ("FLOAT", {
-                    "default": 0.3,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.01
-                }),
+                    KSAMPLER_INPUTS["scheduler"][0],
+                    {"default": "align_your_steps"}),
                 "upscale_model": (common.get_upscale_model_list(),),
                 "scale_by": ("FLOAT", {
                     "default": 2.0,
