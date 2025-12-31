@@ -780,6 +780,11 @@ function showEditModal(type, name) {
 			preview.style.display = 'none';
 		}
 
+		// Setup drag and drop for modal
+		if (name) {
+			setupModalDragAndDrop('editModal', name, 'character');
+		}
+
 		// Setup autocomplete for tag fields
 		setupAutocomplete(document.getElementById('editCharacter'));
 		setupAutocomplete(document.getElementById('editTop'));
@@ -787,11 +792,6 @@ function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editNeg'));
 		setupAutocomplete(document.getElementById('editCategories'));
 		setupAutocomplete(document.getElementById('editCharNameInput'));
-
-		// Setup drag and drop for modal
-		if (name) {
-			setupModalDragAndDrop('editModal', name, 'character');
-		}
 
 		document.getElementById('editModal').classList.add('show');
 	} else if (type === 'model') {
@@ -838,14 +838,14 @@ function showEditModal(type, name) {
 			preview.style.display = 'none';
 		}
 
-		// Setup autocomplete for style fields
-		setupAutocomplete(document.getElementById('editStylePos'));
-		setupAutocomplete(document.getElementById('editStyleNeg'));
-
 		// Setup drag and drop for modal
 		if (name) {
 			setupModalDragAndDrop('styleEditModal', name, 'style');
 		}
+
+		// Setup autocomplete for style fields
+		setupAutocomplete(document.getElementById('editStylePos'));
+		setupAutocomplete(document.getElementById('editStyleNeg'));
 
 		document.getElementById('styleEditModal').classList.add('show');
 	}
