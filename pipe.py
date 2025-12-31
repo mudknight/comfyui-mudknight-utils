@@ -106,3 +106,16 @@ class FullPipeIn:
                 new_pipe[key] = value
 
         return (new_pipe,)
+
+
+NODE_CLASS_MAPPINGS = {
+    "FullPipeLoader": FullPipeLoader,
+    "FullPipeOut": FullPipeOut,
+    "FullPipeIn": FullPipeIn,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "FullPipeLoader": "Full Pipe Loader",
+    "FullPipeOut": "Full Pipe Out",
+    "FullPipeIn": "Full Pipe In",
+}

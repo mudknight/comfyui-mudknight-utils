@@ -33,7 +33,7 @@ class SeedWithOverride:
         # If override is provided, use it
         if override_seed is not None:
             return (override_seed,)
-        
+
         # Otherwise return the seed (ComfyUI handles control_after_generate)
         return (seed,)
 

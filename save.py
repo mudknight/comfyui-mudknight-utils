@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Custom ComfyUI node for saving images from a pipe with preview.
-"""
-
-from nodes import NODE_CLASS_MAPPINGS
 
 
 class SaveFullPipe:
@@ -17,12 +11,18 @@ class SaveFullPipe:
                 "filename_prefix": (
                     "STRING", {
                         "default": "%time_%seed",
-                        "tooltip": "filename (available variables: %date, %time, %model, %width, %height, %seed, %counter, %sampler_name, %steps, %cfg, %scheduler, %basemodelname, %denoise, %clip_skip)"
+                        "tooltip": (
+                            "filename (available variables: %date, %time, "
+                            "%model, %width, %height, %seed, %counter, "
+                            "%sampler_name, %steps, %cfg, %scheduler, "
+                            "%basemodelname, %denoise, %clip_skip)")
                         }
                 ),
                 "path": ("STRING", {
                     "default": "%date",
-                    "tooltip": "path to save the images (under Comfy's save directory)"
+                    "tooltip": (
+                        "path to save the images "
+                        "(under Comfy's save directory)")
                     }),
                 "extension": (["png", "jpg", "jpeg", "webp", "tiff"], {
                     "tooltip": "file extension/type to save image as"
@@ -73,11 +73,11 @@ class SaveFullPipe:
         seed = full_pipe.get("seed", 0) if a1111_metadata else 0
 
         # Get image dimensions
-        batch_size = image.shape[0]
         height = image.shape[1]
         width = image.shape[2]
 
         # Get Image Saver node class
+        from nodes import NODE_CLASS_MAPPINGS
         image_saver_class = NODE_CLASS_MAPPINGS.get("Image Saver")
         if image_saver_class is None:
             return {"ui": {"text": ["Image Saver node not found"]}}
@@ -127,3 +127,12 @@ class SaveFullPipe:
             "ui": save_result.get("ui", {}),
             "result": (image,)
         }
+
+
+NODE_CLASS_MAPPINGS = {
+    "SaveFullPipe": SaveFullPipe,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "SaveFullPipe": "Save (full-pipe)",
+}

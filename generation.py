@@ -216,3 +216,14 @@ class UpscaleNode:
             "ui": preview_result.get("ui", {}),
             "result": (result, decoded_image,)
         }
+
+
+NODE_CLASS_MAPPINGS = {
+    "UpscaleNode": UpscaleNode,
+    "BaseNode": BaseNode,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "UpscaleNode": "Upscale (full-pipe)",
+    "BaseNode": "Base (full-pipe)",
+}

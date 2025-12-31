@@ -58,9 +58,7 @@ def sample_latent(
 
 
 def strip_comments(text):
-    """
-    Strip lines that start with # but preserve lines starting with \\#.
-    """
+    """ Strip lines that start with # unless escaped. """
     lines = text.split('\n')
     filtered_lines = []
 

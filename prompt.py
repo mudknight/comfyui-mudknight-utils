@@ -10,60 +10,58 @@ from . import common
 def extract_loras(prompt):
     """
     Extract LoRA syntax from prompt and return cleaned prompt.
-    
     Preserves complete LoRA syntax including filenames and weights.
-    
+
     Args:
         prompt: Prompt string potentially containing LoRA syntax
-        
+
     Returns:
         Tuple of (cleaned_prompt, lora_syntax_string)
     """
     if not prompt:
         return "", ""
-    
+
     # Match LoRA syntax like <lora:filename.safetensors:weight>
     lora_pattern = r'<lora:[^>]+>'
     loras = re.findall(lora_pattern, prompt)
-    
+
     # Remove LoRAs from prompt (but keep spacing clean)
     cleaned = re.sub(lora_pattern, '', prompt)
     # Clean up any double commas or spaces left behind
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
-    
+
     # Join LoRAs with commas (no spaces needed, exact preservation)
     lora_syntax = ','.join(loras) if loras else ""
-    
+
     return cleaned.strip(), lora_syntax
 
 
 def extract_embeddings(prompt):
     """
     Extract embedding syntax from prompt and return cleaned prompt.
-    
     Preserves complete embedding syntax including capitalization.
     Embeddings can be in format: embedding:name or (embedding:name)
-    
+
     Args:
         prompt: Prompt string potentially containing embedding syntax
-        
+
     Returns:
         Tuple of (cleaned_prompt, list_of_embeddings)
     """
     if not prompt:
         return "", []
-    
+
     # Match embedding syntax like embedding:Name or (embedding:Name)
     embedding_pattern = r'\(?embedding:([^,)]+)\)?'
     embeddings = re.findall(embedding_pattern, prompt)
-    
+
     # Remove embeddings from prompt (but keep spacing clean)
     cleaned = re.sub(embedding_pattern, '', prompt)
     # Clean up any double commas or spaces left behind
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
-    
+
     # Return embeddings as list, preserving capitalization
     return cleaned.strip(), embeddings
 
@@ -71,31 +69,31 @@ def extract_embeddings(prompt):
 def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     """
     Parse prompt string into dictionary of {tag: weight}.
-    
+
     Handles multiple tags in one weight group like (tag1, tag2:1.3).
-    
+
     Args:
         prompt: Comma-separated prompt string
         preserve_embeddings: List of embedding names to preserve casing
-        
+
     Returns:
         Dictionary mapping base tag names to their weight strings
     """
     if not prompt:
         return {}
-    
+
     tag_dict = {}
     preserve_set = set()
-    
+
     # Build set of lowercase embeddings for comparison
     if preserve_embeddings:
         preserve_set = {emb.lower() for emb in preserve_embeddings}
-    
+
     # Split by commas, but we need to handle nested parentheses
     parts = []
     current = ""
     paren_depth = 0
-    
+
     for char in prompt:
         if char == '(':
             paren_depth += 1
@@ -108,22 +106,22 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
             current = ""
         else:
             current += char
-    
+
     if current.strip():
         parts.append(current.strip())
-    
+
     # Process each part
     for part in parts:
         if not part:
             continue
-            
+
         # Check if it's a weighted group like (tag1, tag2:1.3)
         match = re.match(r'\(+([^)]+):([0-9.]+)\)+', part)
         if match:
             # Multiple tags with shared weight
             inner_tags = match.group(1)
             weight = match.group(2)
-            
+
             # Split inner tags by comma
             for inner_tag in inner_tags.split(','):
                 tag_name = inner_tag.strip()
@@ -156,53 +154,53 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
                     tag_name = tag_lower
                 if tag_name:
                     tag_dict[tag_name] = "1.0"
-    
+
     return tag_dict
 
 
 def reconstruct_prompt_from_dict(tag_dict):
     """
     Reconstruct prompt string from tag dictionary.
-    
+
     Args:
         tag_dict: Dictionary mapping tag names to weights
-        
+
     Returns:
         Comma-separated prompt string with weighted tags
     """
     if not tag_dict:
         return ""
-    
+
     parts = []
     for tag, weight in tag_dict.items():
         if weight == "1.0":
             parts.append(tag)
         else:
             parts.append(f"({tag}:{weight})")
-    
+
     return ", ".join(parts)
 
 
 def deduplicate_negative_dicts(positive_tags, negative_dicts):
     """
     Remove tags from negative dicts if they appear in positive tags.
-    
+
     Args:
         positive_tags: Set of positive tag names (lowercase)
         negative_dicts: List of tag dictionaries for negative prompts
-        
+
     Returns:
         List of deduplicated tag dictionaries
     """
     deduplicated = []
-    
+
     for neg_dict in negative_dicts:
         filtered_dict = {
             tag: weight for tag, weight in neg_dict.items()
             if tag.lower() not in positive_tags
         }
         deduplicated.append(filtered_dict)
-    
+
     return deduplicated
 
 
@@ -298,7 +296,7 @@ class PromptConditioningNode:
         # Validate all required nodes are available
         if not all([
             NODE_CLASS_MAPPINGS.get("LoRA Text Loader (LoraManager)")
-        ]):
+            ]):
             raise RuntimeError(
                 "Required custom nodes not found. Ensure "
                 "comfyui-lora-manager "
@@ -401,6 +399,7 @@ class PromptConditioningNode:
             'char_pos',
             'prompt_pos'
         ]
+
         all_positive_tags = set()
         for key in positive_keys:
             all_positive_tags.update(
@@ -415,13 +414,13 @@ class PromptConditioningNode:
                 'char_neg',
                 'prompt_neg'
             ]
-            
+
             negative_dicts = [tag_dicts[key] for key in negative_keys]
             deduped_neg_dicts = deduplicate_negative_dicts(
                 all_positive_tags,
                 negative_dicts
             )
-            
+
             # Update tag_dicts with deduplicated versions
             for key, deduped_dict in zip(negative_keys, deduped_neg_dicts):
                 tag_dicts[key] = deduped_dict
