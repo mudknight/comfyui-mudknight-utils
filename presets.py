@@ -665,11 +665,15 @@ class WildcardNode:
 NODE_CLASS_MAPPINGS = {
     "ModelPresetNode": ModelPresetNode,
     "StylePresetNode": StylePresetNode,
-    "CharacterPresetNode": CharacterPresetNode
+    "CharacterPresetNode": CharacterPresetNode,
+    "TagReplacementNode": TagReplacementNode,
+    "WildcardNode": WildcardNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ModelPresetNode": "Model Preset",
     "StylePresetNode": "Style Preset",
-    "CharacterPresetNode": "Character Preset"
+    "CharacterPresetNode": "Character Preset",
+    "TagReplacementNode": "Tag Replace",
+    "WildcardNode": "Wildcard passthrough",
 }

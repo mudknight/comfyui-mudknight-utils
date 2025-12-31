@@ -187,7 +187,7 @@ class SplitLoaderFullPipe:
                 ),
                 "shift": (
                     "FLOAT", {
-                        "default": 1.73, "min": 0.0, "max": 10.0,
+                        "default": 3, "min": 0.0, "max": 10.0,
                         "step": 0.01, "tooltip": "AuraFlow shift"}
                 ),
                 "seed": (

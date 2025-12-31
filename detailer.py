@@ -591,10 +591,14 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
 NODE_CLASS_MAPPINGS = {
     "DetailerNode": DetailerNode,
-    "DetailerPipeNode": DetailerPipeNode
+    "DetailerPipeNode": DetailerPipeNode,
+    "MaskDetailerNode": MaskDetailerNode,
+    "MaskDetailerPipeNode": MaskDetailerPipeNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "DetailerNode": "Detailer (All-in-One)",
-    "DetailerPipeNode": "Detailer (Pipe)"
+    "DetailerNode": "FastDetailer",
+    "DetailerPipeNode": "FastDetailer (full-pipe)",
+    "MaskDetailerNode": "MaskDetailer",
+    "MaskDetailerPipeNode": "MaskDetailer (full-pipe)",
 }
