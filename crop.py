@@ -36,15 +36,10 @@ class BBoxInsetAndCrop:
         """
         Inset the bbox and crop the edges of crop_image.
 
-        Args:
-            crop_image: Tensor of shape (B, H, W, C)
-            bbox: Tuple of (x, y, width, height) or nested structure
-            inset_pixels: Number of pixels to inset on each side
-
-        Returns:
-            Tuple of (cropped_image, inset_bbox)
+        Note: crop_image should already be the cropped region,
+        so we crop relative to (0,0), not bbox.x/y
         """
-        # Handle nested bbox structure and preserve original format
+        # Handle nested bbox structure
         bbox_was_nested = False
         if isinstance(bbox, (tuple, list)) and len(bbox) == 1:
             bbox_was_nested = True
@@ -52,11 +47,11 @@ class BBoxInsetAndCrop:
 
         x, y, width, height = bbox
 
-        # Calculate inset amount (cannot exceed half the dimension)
+        # Calculate inset amount from edges of cropped image
         inset_x = min(inset_pixels, width // 2)
         inset_y = min(inset_pixels, height // 2)
 
-        # Calculate new bbox with inset applied
+        # Calculate new bbox (in original image coordinates)
         new_x = x + inset_x
         new_y = y + inset_y
         new_width = width - (inset_x * 2)
@@ -72,12 +67,12 @@ class BBoxInsetAndCrop:
         if bbox_was_nested:
             inset_bbox = (inset_bbox,)
 
-        # Crop the image edges corresponding to the inset
-        # crop_image shape: (B, H, W, C)
+        # Crop from the EDGES of the cropped image
+        # (not using bbox x/y since crop_image is already cropped)
         cropped = crop_image[
             :,
-            inset_y:inset_y + new_height,
-            inset_x:inset_x + new_width,
+            inset_y:height - inset_y,  # ✓ From top edge to bottom edge
+            inset_x:width - inset_x,   # ✓ From left edge to right edge
             :
         ]
 
