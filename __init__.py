@@ -6,6 +6,8 @@ Automatically merges NODE_CLASS_MAPPINGS from all modules.
 
 import importlib
 from pathlib import Path
+# Manually import the API module
+from . import character_editor_api  # noqa: F401
 
 # Define package constants
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -36,9 +38,6 @@ for file in PACKAGE_ROOT.glob("*.py"):
     except Exception as e:
         print(f"Warning: Could not load {module_name}: {e}")
 
-# Also manually import the API module
-from . import character_editor_api  # noqa: F401
-
 # Merge NODE_CLASS_MAPPINGS from all modules
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
@@ -52,7 +51,7 @@ for module in NODE_MODULES:
                 f"{module.__name__}"
             )
     NODE_CLASS_MAPPINGS.update(module.NODE_CLASS_MAPPINGS)
-    
+
     if hasattr(module, 'NODE_DISPLAY_NAME_MAPPINGS'):
         NODE_DISPLAY_NAME_MAPPINGS.update(
             module.NODE_DISPLAY_NAME_MAPPINGS
