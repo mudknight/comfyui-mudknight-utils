@@ -430,6 +430,12 @@ textarea {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: width 0.3s ease, padding 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 50px;
+    padding: 15px 8px;
 }
 
 .sidebar-header {
@@ -440,6 +446,63 @@ textarea {
     padding-bottom: 10px;
     border-bottom: 1px solid #3a3a3a;
     flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar.collapsed .sidebar-header {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.sidebar.collapsed .sidebar-header span {
+    display: none;
+}
+
+.sidebar-toggle {
+    background: transparent;
+    color: #888;
+    border: none;
+    padding: 4px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+    background: #3a3a3a;
+    color: #fff;
+}
+
+.sidebar.collapsed .category-list {
+    display: none;
+}
+
+/* Adjust content-with-sidebar for smooth transition */
+.content-with-sidebar {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Ensure main content adjusts smoothly */
+.main-content {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
 }
 
 .category-list {

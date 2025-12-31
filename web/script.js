@@ -14,6 +14,7 @@ let characterImages = {};
 let styleImages = {};
 let activeTab = 'characters';
 let selectedCategory = 'all';
+let sidebarCollapsed = false;
 
 let autocompleteTags = [];
 let autocompleteState = {
@@ -29,6 +30,38 @@ let savedSearches = {
 	model: '',
 	style: ''
 };
+
+// Load sidebar state from localStorage
+function loadSidebarState() {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved !== null) {
+        sidebarCollapsed = saved === 'true';
+        updateSidebarState();
+    }
+}
+
+// Toggle sidebar collapsed state
+function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+    updateSidebarState();
+}
+
+// Update sidebar UI based on collapsed state
+function updateSidebarState() {
+    const sidebar = document.getElementById('categorySidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+
+    if (sidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        toggleBtn.innerHTML = '›';
+        toggleBtn.setAttribute('aria-label', 'Expand sidebar');
+    } else {
+        sidebar.classList.remove('collapsed');
+        toggleBtn.innerHTML = '‹';
+        toggleBtn.setAttribute('aria-label', 'Collapse sidebar');
+    }
+}
 
 // Autocomplete
 async function loadAutocompleteTags() {

@@ -34,8 +34,14 @@
             <div class="tab-content active" id="charactersTab">
 
                 <div class="content-with-sidebar">
-                    <div class="sidebar">
-                        <div class="sidebar-header">Categories</div>
+                    <div class="sidebar" id="categorySidebar">
+                        <div class="sidebar-header">
+                            <span>Categories</span>
+                            <button class="sidebar-toggle" 
+                                    id="sidebarToggle" 
+                                    onclick="toggleSidebar()"
+                                    aria-label="Collapse sidebar">‹</button>
+                        </div>
                         <div class="category-list" id="categoryList">
                             <div class="category-item active" data-category="all">
                                 <span class="category-name">All Characters</span>
