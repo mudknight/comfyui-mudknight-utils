@@ -11,6 +11,7 @@ from .save import *
 from .loader import *
 from .upscale import *
 from .crop import *
+from .image import *
 from . import character_editor_api
 from pathlib import Path
 
@@ -46,6 +47,7 @@ NODE_CLASS_MAPPINGS = {
     "LoaderFullPipe": LoaderFullPipe,
     "SplitLoaderFullPipe": SplitLoaderFullPipe,
     "BBoxInsetAndCrop": BBoxInsetAndCrop,
+    "AutoLevelNode": AutoLevelNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -73,4 +75,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoaderFullPipe": "Loader (full-pipe)",
     "SplitLoaderFullPipe": "Split Loader (full-pipe)",
     "BBoxInsetAndCrop": "BBox Inset and Crop",
+    "AutoLevelNode": "Auto Level"
 }
