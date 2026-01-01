@@ -642,11 +642,44 @@ function renderModels() {
 		card.className = 'preset-card';
 		card.onclick = () => showEditModal('model', name);
 
-		const preview = model.quality?.positive || 
-			model.embeddings?.positive || '';
+		// Build preview with colored sections
+		let previewHTML = '';
+		
+		// Collect all positive tags
+		const positiveParts = [];
+		if (model.quality?.positive) {
+			positiveParts.push(model.quality.positive);
+		}
+		if (model.embeddings?.positive) {
+			positiveParts.push(model.embeddings.positive);
+		}
+		
+		// Collect all negative tags
+		const negativeParts = [];
+		if (model.quality?.negative) {
+			negativeParts.push(model.quality.negative);
+		}
+		if (model.embeddings?.negative) {
+			negativeParts.push(model.embeddings.negative);
+		}
+		
+		// Build preview HTML
+		if (positiveParts.length > 0) {
+			previewHTML += `<span class="tag-positive">${positiveParts.join(', ')}</span>`;
+		}
+		
+		if (negativeParts.length > 0) {
+			if (previewHTML) previewHTML += ' ';
+			previewHTML += `<span class="tag-negative">${negativeParts.join(', ')}</span>`;
+		}
+		
+		if (!previewHTML) {
+			previewHTML = '<span class="tag-empty">(no tags defined)</span>';
+		}
+
 		card.innerHTML = `
 			<div class="preset-card-name">${name}</div>
-			<div class="preset-card-content">${preview}</div>
+			<div class="preset-card-content tag-preview">${previewHTML}</div>
 		`;
 
 		grid.appendChild(card);

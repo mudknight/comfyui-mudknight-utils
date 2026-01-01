@@ -428,11 +428,21 @@ textarea {
 .tag-positive {
     color: #4ade80;
     font-weight: 500;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tag-negative {
     color: #f87171;
     font-weight: 500;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tag-empty {
