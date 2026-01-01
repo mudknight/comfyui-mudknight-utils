@@ -724,10 +724,25 @@ function renderTags() {
 		card.className = 'preset-card';
 		card.onclick = () => showEditModal('tag', name);
 
-		const preview = tag.negative || tag.positive || '';
+		// Build preview with colored sections
+		let previewHTML = '';
+		
+		if (tag.positive && tag.positive.trim()) {
+			previewHTML += `<span class="tag-positive">${tag.positive}</span>`;
+		}
+		
+		if (tag.negative && tag.negative.trim()) {
+			if (previewHTML) previewHTML += ' ';
+			previewHTML += `<span class="tag-negative">${tag.negative}</span>`;
+		}
+		
+		if (!previewHTML) {
+			previewHTML = '<span class="tag-empty">(no tags defined)</span>';
+		}
+
 		card.innerHTML = `
 			<div class="preset-card-name">${name}</div>
-			<div class="preset-card-content">${preview}</div>
+			<div class="preset-card-content tag-preview">${previewHTML}</div>
 		`;
 
 		grid.appendChild(card);

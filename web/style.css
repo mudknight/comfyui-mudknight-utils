@@ -412,6 +412,28 @@ textarea {
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
 }
+
+.tag-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tag-positive {
+    color: #4ade80;
+    font-weight: 500;
+}
+
+.tag-negative {
+    color: #f87171;
+    font-weight: 500;
+}
+
+.tag-empty {
+    color: #6b7280;
+    font-style: italic;
+}
+
 /* Sidebar Layout */
 .content-with-sidebar {
     display: flex;
