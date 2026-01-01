@@ -11,11 +11,8 @@ I also designed FastDetailer as an alternative to FaceDetailer, with the self-ex
 ## Dependencies
 This node pack requires the following node packs:
 
-- [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use)
 - [ComfyUI-Impact-Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
 - [ComfyUI-Impact-Subpack](https://github.com/ltdrdata/ComfyUI-Impact-Subpack)
-- [ComfyUI-Image-Saver](https://github.com/alexopus/ComfyUI-Image-Saver)
-- [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
 
 ## Nodes
 
