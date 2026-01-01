@@ -3,6 +3,7 @@ import { showStatus } from './utils.js';
 import { getImageUrl, saveCharacters, saveModels, saveStyles, saveTags, renameCharacter, deleteImage } from './api.js';
 import { setupAutocomplete } from './autocomplete.js';
 import { setupModalDragAndDrop } from './dragdrop.js';
+import { setupWeightAdjustment } from './weight-adjustment.js';
 
 export function showEditModal(type, name) {
 	state.currentEditName = name;
@@ -45,6 +46,13 @@ export function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editCategories'));
 		setupAutocomplete(document.getElementById('editCharNameInput'));
 
+		setupWeightAdjustment(document.getElementById('editCharacter'));
+		setupWeightAdjustment(document.getElementById('editTop'));
+		setupWeightAdjustment(document.getElementById('editBottom'));
+		setupWeightAdjustment(document.getElementById('editNeg'));
+		setupWeightAdjustment(document.getElementById('editCategories'));
+		setupWeightAdjustment(document.getElementById('editCharNameInput'));
+
 		document.getElementById('editModal').classList.add('show');
 	} else if (type === 'model') {
 		const data = state.models[name] || {
@@ -67,6 +75,11 @@ export function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editModelQualityNeg'));
 		setupAutocomplete(document.getElementById('editModelEmbedPos'));
 		setupAutocomplete(document.getElementById('editModelEmbedNeg'));
+
+		setupWeightAdjustment(document.getElementById('editModelQualityPos'));
+		setupWeightAdjustment(document.getElementById('editModelQualityNeg'));
+		setupWeightAdjustment(document.getElementById('editModelEmbedPos'));
+		setupWeightAdjustment(document.getElementById('editModelEmbedNeg'));
 
 		document.getElementById('modelEditModal').classList.add('show');
 	} else if (type === 'style') {
@@ -96,6 +109,9 @@ export function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editStylePos'));
 		setupAutocomplete(document.getElementById('editStyleNeg'));
 
+		setupWeightAdjustment(document.getElementById('editStylePos'));
+		setupWeightAdjustment(document.getElementById('editStyleNeg'));
+
 		document.getElementById('styleEditModal').classList.add('show');
 	} else if (type === 'tag') {
 		const data = state.tags[name] || {
@@ -111,6 +127,10 @@ export function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editTagPos'));
 		setupAutocomplete(document.getElementById('editTagNeg'));
 		setupAutocomplete(document.getElementById('editTagNameInput'));
+
+		setupWeightAdjustment(document.getElementById('editTagPos'));
+		setupWeightAdjustment(document.getElementById('editTagNeg'));
+		setupWeightAdjustment(document.getElementById('editTagNameInput'));
 
 		document.getElementById('tagEditModal').classList.add('show');
 	}

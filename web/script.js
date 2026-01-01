@@ -9,6 +9,7 @@ import { renderStyles } from './modules/styles.js';
 import { renderTags } from './modules/tags.js';
 import { showEditModal, hideEditModal, saveItem, deleteCurrentItem, removeImage } from './modules/modals.js';
 import { initSearch, switchTab, clearSearch } from './modules/search.js';
+import { initWeightAdjustment } from './modules/weight-adjustment.js';
 
 function renderAll() {
 	renderCategories();
@@ -62,6 +63,7 @@ function init() {
 	initAutocomplete();
 	initCategories();
 	initSearch();
+	initWeightAdjustment();
 	setupModalEventListeners();
 	
 	window.renderAll = renderAll;
