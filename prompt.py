@@ -493,5 +493,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PromptConditioningNode": "Prompt Conditioning"
+    "PromptConditioningNode": "Prompt (full-pipe)"
 }
