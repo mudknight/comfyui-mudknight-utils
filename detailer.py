@@ -80,6 +80,70 @@ DETAILER_INPUTS = {
 }
 
 
+def crop_image_by_mask(image, mask, padding=0, upscale_factor=1):
+    """
+    Crops an image based on the bounding box of a provided mask.
+    """
+    # mask shape is typically [B, H, W]
+    mask_indices = torch.nonzero(mask)
+    if mask_indices.size(0) == 0:
+        return image, mask, (0, 0, image.shape[2], image.shape[1])
+
+    y_min, x_min = torch.min(mask_indices[:, 1:], dim=0)[0]
+    y_max, x_max = torch.max(mask_indices[:, 1:], dim=0)[0]
+
+    # Apply padding
+    x_min = max(0, x_min.item() - padding)
+    y_min = max(0, y_min.item() - padding)
+    x_max = min(image.shape[2], x_max.item() + padding)
+    y_max = min(image.shape[1], y_max.item() + padding)
+
+    width = x_max - x_min
+    height = y_max - y_min
+
+    crop = image[:, y_min:y_max, x_min:x_max, :]
+    bbox = (x_min, y_min, width, height)
+
+    return crop, mask[:, y_min:y_max, x_min:x_max], bbox
+
+
+def uncrop_image_by_bbox(
+    full_img, crop_img, bbox, feather=0.0, use_square=True
+):
+    """
+    Composites a cropped image back into the original full image.
+    """
+    x, y, w, h = bbox
+    target = full_img.clone()
+
+    # Ensure crop matches expected bbox size (handles scaling mismatches)
+    if crop_img.shape[1] != h or crop_img.shape[2] != w:
+        import nodes
+        scaler = nodes.ImageScale()
+        crop_img = scaler.upscale(
+            crop_img, "bicubic", w, h, "disabled"
+        )[0]
+
+    # Create feather mask
+    mask = torch.ones((1, h, w, 1), device=full_img.device)
+    if feather > 0:
+        feather_pix = int(min(w, h) * (feather / 2))
+        if feather_pix > 0:
+            for i in range(feather_pix):
+                v = i / feather_pix
+                mask[:, i, :, :] *= v
+                mask[:, -(i + 1), :, :] *= v
+                mask[:, :, i, :] *= v
+                mask[:, :, -(i + 1), :] *= v
+
+    # Composite
+    original_region = target[:, y:y+h, x:x+w, :]
+    blended = crop_img * mask + original_region * (1 - mask)
+    target[:, y:y+h, x:x+w, :] = blended
+
+    return target
+
+
 def get_ultralytics_model_list():
     """Get list of available Ultralytics models."""
     try:
@@ -116,10 +180,7 @@ def process_segs(
         mask = mask_node.function(temp_segs)[0]
 
         # Step 3: Crop image from mask
-        crop_node = common.Node("easy imageCropFromMask")
-        crop_result = crop_node.function(image, mask, 1, 1, 1)
-        crop_image = crop_result[0]
-        bbox = crop_result[2]
+        crop_image, _, bbox = crop_image_by_mask(image, mask, padding=10)
 
         if upscale_model != "none":
             # Step 4: Upscale cropped image with model
@@ -310,15 +371,14 @@ class DetailerNode:
 
         # Step 11: Uncrop all processed regions back onto the original image
         final_image = image
-        uncrop_node = common.Node("easy imageUncropFromBBOX")
 
         for eroded_image, bbox in zip(
                 eroded_crops, bboxes):
             # Parameters: original_image, crop_image, bbox, border_blending,
             # use_square_mask, optional_mask
-            final_image = uncrop_node.function(
-                final_image, eroded_image, bbox, feather, True, None
-            )[0]
+            final_image = uncrop_image_by_bbox(
+                final_image, eroded_image, bbox, feather=feather
+            )
 
         preview = common.Node("PreviewImage")
         preview_result = preview.function(eroded_samples_batch)
@@ -404,15 +464,14 @@ class MaskDetailerNode:
 
         # Step 11: Uncrop all processed regions back onto the original image
         final_image = image
-        uncrop_node = common.Node("easy imageUncropFromBBOX")
 
         for eroded_image, bbox in zip(
                 eroded_crops, bboxes):
             # Parameters: original_image, crop_image, bbox, border_blending,
             # use_square_mask, optional_mask
-            final_image = uncrop_node.function(
-                final_image, eroded_image, bbox, feather, True, None
-            )[0]
+            final_image = uncrop_image_by_bbox(
+                final_image, eroded_image, bbox, feather=feather
+            )
 
         preview = common.Node("PreviewImage")
         preview_result = preview.function(eroded_samples_batch)
