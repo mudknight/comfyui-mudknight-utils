@@ -4,6 +4,41 @@ import numpy as np
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 import folder_paths
+from datetime import datetime
+
+
+def replace_variables(text, full_pipe, width, height, timestamp):
+    """
+    Replace variables in text with actual values.
+
+    Args:
+        text: String containing variables like %date, %time, etc.
+        full_pipe: Dictionary containing pipe data
+        width: Image width
+        height: Image height
+        timestamp: datetime object for consistent timestamps
+
+    Returns:
+        String with variables replaced
+    """
+    ckpt_name = full_pipe.get('ckpt_name', 'unknown')
+    if '/' in ckpt_name:
+        ckpt_name = ckpt_name.split('/')[-1]
+
+    replacements = {
+        '%date': timestamp.strftime('%Y-%m-%d'),
+        '%time': timestamp.strftime('%Y-%m-%d-%H%M%S'),
+        '%model': ckpt_name,
+        '%width': str(width),
+        '%height': str(height),
+        '%seed': str(full_pipe.get('seed', 0)),
+    }
+
+    result = text
+    for var, value in replacements.items():
+        result = result.replace(var, value)
+
+    return result
 
 
 class SaveFullPipeTest:
@@ -13,15 +48,30 @@ class SaveFullPipeTest:
 
     @classmethod
     def INPUT_TYPES(cls):
+        tooltip = (
+            "Available variables: %date, %time, %model, "
+            "%width, %height, %seed"
+        )
+
         return {
             "required": {
                 "full_pipe": ("FULL_PIPE",),
                 "filename_prefix": (
                     "STRING",
-                    {"default": "%time_%seed"}
+                    {
+                        "default": "%time_%seed",
+                        "tooltip": tooltip
+                    }
                 ),
-                "path": ("STRING", {"default": "%date"}),
-                "extension": (["png", "jpg", "jpeg", "webp"],),
+                "path": (
+                    "STRING",
+                    {
+                        "default": "%date",
+                        "tooltip": tooltip
+                    }
+                ),
+                "extension": (
+                    ["png", "jpg", "jpeg", "webp"], {"default": "png"}),
                 "a1111_metadata": ("BOOLEAN", {"default": True}),
                 "comfyui_workflow": ("BOOLEAN", {"default": True}),
             },
@@ -63,10 +113,13 @@ class SaveFullPipeTest:
         height = image.shape[1]
         width = image.shape[2]
 
-        # Process path variables
-        from datetime import datetime
-        now = datetime.now()
-        path = path.replace("%date", now.strftime("%Y-%m-%d"))
+        # Create consistent timestamp for this batch
+        timestamp = datetime.now()
+
+        # Replace variables in path
+        path = replace_variables(
+            path, full_pipe, width, height, timestamp
+        )
 
         # Create output directory
         output_dir = folder_paths.get_output_directory()
@@ -82,11 +135,10 @@ class SaveFullPipeTest:
             ).astype(np.uint8)
             pil_image = Image.fromarray(img_array)
 
-            # Process filename
-            filename = filename_prefix.replace(
-                "%time", now.strftime("%Y-%m-%d-%H%M%S")
+            # Replace variables in filename
+            filename = replace_variables(
+                filename_prefix, full_pipe, width, height, timestamp
             )
-            filename = filename.replace("%seed", str(seed))
             if batch_size > 1:
                 filename = f"{filename}_{i:04d}"
             filename = f"{filename}.{extension}"
