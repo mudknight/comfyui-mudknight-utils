@@ -7,6 +7,78 @@ import folder_paths
 from datetime import datetime
 
 
+def get_node_by_type(prompt, node_type):
+    return [v for k, v in prompt.items() if v.get("class_type") == node_type]
+
+
+def build_a1111_meta(pipe, prompt, w, h, model):
+    p_text = pipe.get("positive_text", "")
+    n_text = pipe.get("negative_text", "")
+    seed = pipe.get("seed", 0)
+
+    if not prompt:
+        meta = f"{p_text}\nNegative prompt: {n_text}\n"
+        # width and height here should be divided by the upscale value
+        meta += f"Seed: {seed}, Size: {w}x{h}, Model: {model}"
+        return meta
+
+    lora_meta = ""
+    stacker = get_node_by_type(prompt, "Lora Stacker (LoraManager)")
+    if stacker:
+        v_stack = stacker[0].get("inputs", {})
+        loras = v_stack.get("lora_stack", [])
+        for lora in loras:
+            if isinstance(lora, list) and len(lora) >= 3:
+                name, strength = lora[0], lora[1]
+                name = name.split("/")[-1].rsplit(".", 1)[0]
+                lora_meta += f"<lora:{name}:{strength}>, "
+
+    steps, sampler, sched, cfg = "20", "euler_ancestral", "karras", "7.0"
+    clip_skip = 2
+    model_hash = "unknown"
+
+    loader = get_node_by_type(prompt, "LoaderFullPipe")
+    if loader:
+        v_loader = loader[0].get("inputs", {})
+        clip_skip = abs(v_loader.get("clip_skip", clip_skip))
+        ckpt_name = v_loader.get("ckpt_name", "")
+        if ckpt_name:
+            import hashlib
+            model_hash = hashlib.sha256(ckpt_name.encode()).hexdigest()[:10]
+
+    base = get_node_by_type(prompt, "BaseNode")[0]
+    if base:
+        v = base.get("inputs", {})
+        sampler = v.get("sampler_name", sampler)
+        sched = v.get("scheduler", sched)
+        steps = v.get("steps", steps)
+        cfg = v.get("cfg", cfg)
+
+    meta = f"{lora_meta}{p_text}\nNegative prompt: {n_text}\n"
+    meta += (f"Steps: {steps}, Sampler: {sampler}, Schedule type: {sched}, "
+             f"CFG scale: {cfg}, Seed: {seed}, Size: {w}x{h}, "
+             f"Model hash: {model_hash}, Model: {model}, "
+             f"Clip skip: {clip_skip}")
+
+    upscale = get_node_by_type(prompt, "UpscaleNode")
+    if upscale:
+        v = upscale[0].get("inputs", {})
+        meta += (f", Hires upscale: {v.get('scale_by')}, "
+                 f"Hires steps: {v.get('steps')}, "
+                 f"Denoising strength: {v.get('denoise')}, "
+                 f"Hires upscaler: {v.get('upscale_model')}")
+
+    detailers = get_node_by_type(prompt, "DetailerPipeNode")
+    for i, det in enumerate(detailers):
+        v = det.get("inputs", {})
+        sfx = " 2nd" if i == 1 else ""
+        meta += (f", ADetailer model{sfx}: {v.get('bbox_model')}, "
+                 f"ADetailer confidence{sfx}: {v.get('threshold')}, "
+                 f"ADetailer denoising strength{sfx}: {v.get('denoise')}")
+
+    return meta
+
+
 def replace_variables(text, full_pipe, width, height, timestamp):
     """
     Replace variables in text with actual values.
@@ -103,10 +175,7 @@ class SaveFullPipe:
         if image is None:
             return {"ui": {"text": ["No image in pipe"]}}
 
-        positive_text = full_pipe.get("positive_text", "")
-        negative_text = full_pipe.get("negative_text", "")
         ckpt_name = full_pipe.get("ckpt_name", "unknown").split('/')[-1]
-        seed = full_pipe.get("seed", 0)
 
         # Get image dimensions
         batch_size = image.shape[0]
@@ -147,17 +216,10 @@ class SaveFullPipe:
             metadata = PngInfo()
 
             # Create A1111-style parameters text
-            if a1111_metadata:
-                params_text = positive_text
-                if negative_text:
-                    params_text += f"\nNegative prompt: {negative_text}"
-                params_text += (
-                    f"\nSteps: unknown, Sampler: unknown, "
-                    f"CFG scale: unknown, Seed: {seed}, "
-                    f"Size: {width}x{height}, "
-                    f"Model: {ckpt_name}, Version: ComfyUI"
-                )
-                metadata.add_text("parameters", params_text)
+            if a1111_metadata and prompt:
+                meta_text = build_a1111_meta(full_pipe, prompt, width,
+                                             height, ckpt_name)
+                metadata.add_text("parameters", meta_text)
 
             # Embed workflow if requested (PNG only)
             # IMPORTANT: workflow must come before prompt
