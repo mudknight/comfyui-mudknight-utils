@@ -4,7 +4,102 @@ Custom ComfyUI node for comprehensive prompt conditioning with quality
 tags, style presets, character replacement, and LoRA loading.
 """
 import re
+import folder_paths
+import comfy.sd
+import comfy.utils
 from . import common
+
+
+def parse_lora_syntax(lora_string):
+    """
+    Parse LoRA syntax string and return list of (name, model_str, clip_str).
+
+    Supports formats:
+    - <lora:filename:strength> - applies strength to both model and clip
+    - <lora:filename:model_str:clip_str> - different strengths
+    - Multiple LoRAs separated by commas or spaces
+
+    Args:
+        lora_string: String containing LoRA syntax
+
+    Returns:
+        List of tuples: [(lora_name, model_strength, clip_strength), ...]
+    """
+    if not lora_string or not lora_string.strip():
+        return []
+
+    # Pattern matches <lora:name:strength> or <lora:name:model:clip>
+    pattern = r'<lora:([^:>]+):([0-9.-]+)(?::([0-9.-]+))?\s*>'
+    matches = re.findall(pattern, lora_string, re.IGNORECASE)
+
+    lora_list = []
+    for match in matches:
+        lora_name = match[0].strip()
+        model_strength = float(match[1])
+
+        # If third group exists, use it for clip strength
+        # Otherwise, use model strength for both
+        if match[2]:
+            clip_strength = float(match[2])
+        else:
+            clip_strength = model_strength
+
+        lora_list.append((lora_name, model_strength, clip_strength))
+
+    return lora_list
+
+
+def apply_loras(model, clip, lora_list):
+    """
+    Apply a list of LoRAs to model and clip, automatically finding
+    files in subdirectories.
+    """
+    if not lora_list:
+        return model, clip
+
+    model_lora = model
+    clip_lora = clip
+
+    # Get all available LoRAs in the lora directory (incl. subfolders)
+    available_loras = folder_paths.get_filename_list("loras")
+
+    for lora_name, strength_model, strength_clip in lora_list:
+        try:
+            # Ensure the filename has the extension for comparison
+            ext = ".safetensors"
+            s_name = lora_name if lora_name.endswith(ext) else lora_name + ext
+
+            # Find the relative path by matching the base filename
+            full_rel_path = next(
+                (p for p in available_loras if p.endswith(s_name)),
+                None
+            )
+
+            if full_rel_path is None:
+                print(f"Warning: LoRA '{lora_name}' not found.")
+                continue
+
+            # Load LoRA file using the discovered relative path
+            lora_path = folder_paths.get_full_path("loras", full_rel_path)
+
+            if lora_path is None:
+                continue
+
+            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+
+            # Apply LoRA to model and clip
+            model_lora, clip_lora = comfy.sd.load_lora_for_models(
+                model_lora,
+                clip_lora,
+                lora,
+                strength_model,
+                strength_clip
+            )
+        except Exception as e:
+            print(f"Error loading LoRA '{lora_name}': {e}")
+            continue
+
+    return model_lora, clip_lora
 
 
 def extract_loras(prompt):
@@ -229,8 +324,6 @@ class PromptConditioningNode:
             },
             "optional": {
                 "trigger_words": ("STRING", {
-                    # "multiline": False,
-                    # "default": "",
                     "forceInput": True
                 }),
                 "style": (style_list, {
@@ -290,19 +383,6 @@ class PromptConditioningNode:
         negative="",
         deduplicate_tags=True
     ):
-        # Import required node classes
-        from nodes import NODE_CLASS_MAPPINGS
-
-        # Validate all required nodes are available
-        if not all([
-            NODE_CLASS_MAPPINGS.get("LoRA Text Loader (LoraManager)")
-            ]):
-            raise RuntimeError(
-                "Required custom nodes not found. Ensure "
-                "comfyui-lora-manager "
-                "is installed."
-            )
-
         # Extract pipe components
         model = full_pipe.get("model")
         clip = full_pipe.get("clip")
@@ -356,7 +436,9 @@ class PromptConditioningNode:
 
         # Process tag presets
         tag_preset_node = common.Node("TagPresetNode")
-        tag_preset_pos, tag_preset_neg = tag_preset_node.function(text=prompt)
+        tag_preset_pos, tag_preset_neg = tag_preset_node.function(
+            text=prompt
+        )
 
         # Extract LoRAs and embeddings from character tags
         prompt, prompt_loras = extract_loras(prompt)
@@ -367,12 +449,16 @@ class PromptConditioningNode:
         char_neg, char_neg_embeds = extract_embeddings(char_neg)
 
         # Extract LoRAs and embeddings from tag preset results
-        tag_preset_pos, tag_preset_pos_loras = extract_loras(tag_preset_pos)
+        tag_preset_pos, tag_preset_pos_loras = extract_loras(
+            tag_preset_pos
+        )
         tag_preset_neg, _ = extract_loras(tag_preset_neg)
         tag_preset_pos, tag_preset_pos_embeds = extract_embeddings(
-            tag_preset_pos)
+            tag_preset_pos
+        )
         tag_preset_neg, tag_preset_neg_embeds = extract_embeddings(
-            tag_preset_neg)
+            tag_preset_neg
+        )
 
         # Collect all embeddings to preserve their capitalization
         all_embeddings = (
@@ -487,13 +573,9 @@ class PromptConditioningNode:
             ) + reconstructed['prompt_neg']
         )
 
-        # Load LoRAs if present in syntax
-        lora_loader = common.Node("LoRA Text Loader (LoraManager)")
-        model_out, clip_out, _, _ = lora_loader.function(
-            model=model,
-            lora_syntax=combined_loras,
-            clip=clip
-        )
+        # Parse and apply LoRAs directly
+        lora_list = parse_lora_syntax(combined_loras)
+        model_out, clip_out = apply_loras(model, clip, lora_list)
 
         # Create updated pipe
         new_pipe = full_pipe.copy()
