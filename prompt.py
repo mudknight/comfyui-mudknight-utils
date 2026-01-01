@@ -354,6 +354,10 @@ class PromptConditioningNode:
             input_tags=positive
         )
 
+        # Process tag presets
+        tag_preset_node = common.Node("TagPresetNode")
+        tag_preset_pos, tag_preset_neg = tag_preset_node.function(text=prompt)
+
         # Extract LoRAs and embeddings from character tags
         prompt, prompt_loras = extract_loras(prompt)
         char_pos, char_pos_loras = extract_loras(char_pos)
@@ -362,6 +366,14 @@ class PromptConditioningNode:
         char_pos, char_pos_embeds = extract_embeddings(char_pos)
         char_neg, char_neg_embeds = extract_embeddings(char_neg)
 
+        # Extract LoRAs and embeddings from tag preset results
+        tag_preset_pos, tag_preset_pos_loras = extract_loras(tag_preset_pos)
+        tag_preset_neg, _ = extract_loras(tag_preset_neg)
+        tag_preset_pos, tag_preset_pos_embeds = extract_embeddings(
+            tag_preset_pos)
+        tag_preset_neg, tag_preset_neg_embeds = extract_embeddings(
+            tag_preset_neg)
+
         # Collect all embeddings to preserve their capitalization
         all_embeddings = (
             positive_embeds + negative_embeds +
@@ -369,7 +381,8 @@ class PromptConditioningNode:
             style_pos_embeds + style_neg_embeds +
             trigger_embeds +
             char_pos_embeds + char_neg_embeds +
-            prompt_embeds
+            prompt_embeds +
+            tag_preset_pos_embeds + tag_preset_neg_embeds
         )
 
         # Define prompt sources for processing
@@ -381,6 +394,8 @@ class PromptConditioningNode:
             'trigger': trigger_words_clean,
             'char_pos': char_pos,
             'char_neg': char_neg,
+            'tag_preset_pos': tag_preset_pos,
+            'tag_preset_neg': tag_preset_neg,
             'prompt_pos': prompt,
             'prompt_neg': negative
         }
@@ -397,6 +412,7 @@ class PromptConditioningNode:
             'style_pos',
             'trigger',
             'char_pos',
+            'tag_preset_pos',
             'prompt_pos'
         ]
 
@@ -412,6 +428,7 @@ class PromptConditioningNode:
                 'quality_neg',
                 'style_neg',
                 'char_neg',
+                'tag_preset_neg',
                 'prompt_neg'
             ]
 
@@ -439,7 +456,9 @@ class PromptConditioningNode:
             style=reconstructed['style_pos'],
             trigger=reconstructed['trigger'],
             character=reconstructed['char_pos'],
-            prompt=reconstructed['prompt_pos']
+            prompt=reconstructed['tag_preset_pos'] + (
+                ', ' if reconstructed['tag_preset_pos'] else ''
+            ) + reconstructed['prompt_pos']
         )
 
         # Combine all extracted LoRAs
@@ -449,6 +468,7 @@ class PromptConditioningNode:
             style_pos_loras,
             trigger_loras,
             char_pos_loras,
+            tag_preset_pos_loras,
             prompt_loras,
             lora_syntax
         ]
@@ -462,7 +482,9 @@ class PromptConditioningNode:
             style=reconstructed['style_neg'],
             trigger="",
             character=reconstructed['char_neg'],
-            prompt=reconstructed['prompt_neg']
+            prompt=reconstructed['tag_preset_neg'] + (
+                ', ' if reconstructed['tag_preset_neg'] else ''
+            ) + reconstructed['prompt_neg']
         )
 
         # Load LoRAs if present in syntax

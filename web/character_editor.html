@@ -21,6 +21,9 @@
                     <button class="tab-button" onclick="switchTab('styles')">
                         Styles
                     </button>
+                    <button class="tab-button" onclick="switchTab('tags')">
+                        Tags
+                    </button>
                 </div>
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="Search...">
@@ -76,6 +79,15 @@
                 <div class="empty-state" id="styleEmptyState" 
                                          style="display: none;">
                     <p>No styles found. Click the + card above to add one.</p>
+                </div>
+            </div>
+
+            <!-- Tags Tab -->
+            <div class="tab-content" id="tagsTab">
+                <div class="preset-grid" id="tagGrid"></div>
+                <div class="empty-state" id="tagEmptyState" 
+                                         style="display: none;">
+                    <p>No tag presets found. Click the + card above to add one.</p>
                 </div>
             </div>
         </div>
@@ -221,6 +233,38 @@
             </div>
         </div>
 
+        <!-- Tag Edit Modal -->
+        <div class="modal" id="tagEditModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px;">
+                            Trigger Tag
+                        </label>
+                        <input type="text" id="editTagNameInput" 
+                                           class="name-input" style="margin: 0;" 
+                                                              placeholder="e.g., t-shirt" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Positive Tags (added when trigger is present)</label>
+                    <textarea id="editTagPos"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Negative Tags (added when trigger is present)</label>
+                    <textarea id="editTagNeg"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="delete" onclick="deleteCurrentItem('tag')">
+                        Delete
+                    </button>
+                    <button onclick="hideEditModal('tag')">Cancel</button>
+                    <button class="save" onclick="saveItem('tag')">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <script src="script.js"></script>
 

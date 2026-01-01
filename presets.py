@@ -64,6 +64,13 @@ DEFAULT_WILDCARDS = {
     "example": "option1 | option2 | option3"
 }
 
+DEFAULT_TAGS = {
+    "t-shirt": {
+        "positive": "",
+        "negative": "print shirt"
+    }
+}
+
 
 # Shared utility functions
 def strip_jsonc_comments(text):
@@ -661,13 +668,108 @@ class WildcardNode:
         return (result,)
 
 
-# Node registration
+class TagPresetNode:
+    """
+    A ComfyUI node that adds positive/negative tags based on trigger tags.
+    Checks if specific tags are present in the input and adds associated
+    positive and negative tags from the configuration.
+    """
+
+    # Class variable to cache loaded tags
+    _cache = {}
+
+    # Path to the JSONC file (relative to this script)
+    JSON_PATH = os.path.join(
+        os.path.dirname(__file__), "config", "tags.jsonc")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {
+                    "multiline": True,
+                    "default": ""
+                }),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("positive", "negative")
+    FUNCTION = "process_tags"
+    CATEGORY = "conditioning"
+
+    @classmethod
+    def IS_CHANGED(cls, text, unique_id=None):
+        """
+        Return the file modification time to invalidate cache
+        when file changes.
+        """
+        try:
+            mtime = os.path.getmtime(cls.JSON_PATH)
+            return mtime
+        except:
+            return float("nan")
+
+    def process_tags(self, text, unique_id=None):
+        """
+        Process input text and add positive/negative tags based on matches.
+
+        Args:
+            text: Input text to scan for trigger tags
+            unique_id: Hidden parameter for cache busting
+
+        Returns:
+            A tuple containing (positive_tags, negative_tags)
+        """
+        if not text.strip():
+            return ("", "")
+
+        # Load tag presets
+        tags = load_cached_data(
+            self.JSON_PATH, self.__class__._cache, 'mtime', DEFAULT_TAGS)
+
+        # Normalize input text to lowercase for matching
+        text_lower = text.lower()
+
+        # Split into individual tags for precise matching
+        input_tags = [t.strip() for t in text_lower.split(',') if t.strip()]
+
+        # Collect matching positive and negative tags
+        positive_parts = []
+        negative_parts = []
+
+        for trigger_tag, preset in tags.items():
+            trigger_lower = trigger_tag.lower()
+
+            # Check if trigger tag is in the input
+            if trigger_lower in input_tags:
+                # Add associated positive tags
+                pos = preset.get("positive", "")
+                if pos:
+                    positive_parts.append(pos)
+
+                # Add associated negative tags
+                neg = preset.get("negative", "")
+                if neg:
+                    negative_parts.append(neg)
+
+        # Join results
+        positive_output = ", ".join(positive_parts)
+        negative_output = ", ".join(negative_parts)
+
+        return (positive_output, negative_output)
+
+
 NODE_CLASS_MAPPINGS = {
     "ModelPresetNode": ModelPresetNode,
     "StylePresetNode": StylePresetNode,
     "CharacterPresetNode": CharacterPresetNode,
     "TagReplacementNode": TagReplacementNode,
     "WildcardNode": WildcardNode,
+    "TagPresetNode": TagPresetNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -676,4 +778,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CharacterPresetNode": "Character Preset",
     "TagReplacementNode": "Tag Replace",
     "WildcardNode": "Wildcard passthrough",
+    "TagPresetNode": "Tag Preset",
 }

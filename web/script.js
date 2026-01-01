@@ -1,6 +1,7 @@
 let characters = {};
 let models = {};
 let styles = {};
+let tags = {};
 let currentEditName = null;
 let currentEditType = null;
 let currentOriginalName = null; // Add this
@@ -8,7 +9,8 @@ let currentAddType = null;
 let searchTerms = {
 	character: '',
 	model: '',
-	style: ''
+	style: '',
+	tag: '',
 };
 let characterImages = {};
 let styleImages = {};
@@ -28,7 +30,8 @@ let autocompleteState = {
 let savedSearches = {
 	character: '',
 	model: '',
-	style: ''
+	style: '',
+	tag: ''
 };
 
 // Load sidebar state from localStorage
@@ -407,7 +410,8 @@ function switchTab(tabName) {
 	const tabMap = {
 		characters: 'character',
 		models: 'model',
-		styles: 'style'
+		styles: 'style',
+		tags: 'tag',
 	};
 	
 	// Save current search
@@ -427,7 +431,8 @@ function switchTab(tabName) {
 	const placeholders = {
 		characters: 'Search characters...',
 		models: 'Search models...',
-		styles: 'Search styles...'
+		styles: 'Search styles...',
+		tags: 'Search tag presets...',
 	};
 	searchInput.placeholder = placeholders[tabName];
 	
@@ -453,6 +458,7 @@ function switchTab(tabName) {
 	if (tabName === 'characters') renderCharacters();
 	else if (tabName === 'models') renderModels();
 	else if (tabName === 'styles') renderStyles();
+	else if (tabName === 'tags') renderTags();
 }
 
 function clearSearch() {
@@ -503,6 +509,12 @@ async function loadData() {
 			await checkImages('style');
 		}
 		
+		// Load tags
+		const tagResponse = await fetch('/tag_editor');
+		if (tagResponse.ok) {
+			tags = await tagResponse.json();
+		}
+		
 		renderAll();
 	} catch (error) {
 		console.error('Load error:', error);
@@ -547,6 +559,7 @@ function renderAll() {
 	renderCharacters();
 	renderModels();
 	renderStyles();
+	renderTags();
 }
 
 function renderCharacters() {
@@ -679,6 +692,44 @@ function renderStyles() {
 		`;
 
 		setupDragAndDrop(card, name, 'style');
+		grid.appendChild(card);
+	}
+}
+
+function renderTags() {
+	const grid = document.getElementById('tagGrid');
+	const emptyState = document.getElementById('tagEmptyState');
+	grid.innerHTML = '';
+
+	// Add the "Add" card first
+	const addCard = document.createElement('div');
+	addCard.className = 'preset-card preset-add-card';
+	addCard.innerHTML = '+';
+	addCard.onclick = () => {
+		showEditModal('tag', '');
+	};
+	grid.appendChild(addCard);
+
+	const sortedNames = getSortedNames(tags);
+	const filteredNames = sortedNames.filter(name =>
+		name.toLowerCase().includes(searchTerms.tag.toLowerCase())
+	);
+
+	emptyState.style.display = filteredNames.length === 0 ? 
+		'block' : 'none';
+
+	for (const name of filteredNames) {
+		const tag = tags[name];
+		const card = document.createElement('div');
+		card.className = 'preset-card';
+		card.onclick = () => showEditModal('tag', name);
+
+		const preview = tag.negative || tag.positive || '';
+		card.innerHTML = `
+			<div class="preset-card-name">${name}</div>
+			<div class="preset-card-content">${preview}</div>
+		`;
+
 		grid.appendChild(card);
 	}
 }
@@ -848,6 +899,23 @@ function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editStyleNeg'));
 
 		document.getElementById('styleEditModal').classList.add('show');
+	} else if (type === 'tag') {
+		const data = tags[name] || {
+			positive: '',
+			negative: ''
+		};
+
+		currentOriginalName = name;
+		document.getElementById('editTagNameInput').value = name;
+		document.getElementById('editTagPos').value = data.positive || '';
+		document.getElementById('editTagNeg').value = data.negative || '';
+
+		// Setup autocomplete for tag fields
+		setupAutocomplete(document.getElementById('editTagPos'));
+		setupAutocomplete(document.getElementById('editTagNeg'));
+		setupAutocomplete(document.getElementById('editTagNameInput'));
+
+		document.getElementById('tagEditModal').classList.add('show');
 	}
 }
 
@@ -907,6 +975,9 @@ function hideEditModal(type) {
 	}
 	if (type === 'style') {
 		document.getElementById('styleEditModal').classList.remove('show');
+	}
+	if (type === 'tag') {
+		document.getElementById('tagEditModal').classList.remove('show');
 	}
 	currentEditName = null;
 	currentEditType = null;
@@ -1040,6 +1111,65 @@ async function saveItem(type) {
 		} catch (error) {
 			showStatus('Error saving style: ' + error.message, 'error');
 		}
+	} else if (type === 'tag') {
+		const newName = document.getElementById(
+			'editTagNameInput'
+		).value.trim();
+		
+		if (!newName) {
+			alert('Tag name cannot be empty');
+			return;
+		}
+		
+		// Check if name changed and new name already exists
+		if (newName !== currentOriginalName && 
+		    currentOriginalName && 
+		    tags[newName]) {
+			alert('A tag preset with this name already exists');
+			return;
+		}
+		
+		const tagData = {
+			positive: document.getElementById('editTagPos').value,
+			negative: document.getElementById('editTagNeg').value
+		};
+
+		// If this is a new tag (no original name)
+		if (!currentOriginalName) {
+			if (tags[newName]) {
+				alert('A tag preset with this name already exists');
+				return;
+			}
+			tags[newName] = tagData;
+		} else if (newName !== currentOriginalName) {
+			// Rename: delete old, add new
+			delete tags[currentOriginalName];
+			tags[newName] = tagData;
+		} else {
+			// Just update existing
+			tags[currentOriginalName] = tagData;
+		}
+
+		try {
+			const response = await fetch('/tag_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(tags)
+			});
+
+			if (response.ok) {
+				showStatus('Tag preset saved successfully!', 'success');
+				renderTags();
+				hideEditModal('tag');
+			} else {
+				throw new Error('Failed to save');
+			}
+		} catch (error) {
+			showStatus(
+				'Error saving tag preset: ' + error.message, 
+				'error'
+			);
+		}
 	}
 }
 
@@ -1095,6 +1225,29 @@ async function deleteCurrentItem(type) {
 			}
 		} catch (error) {
 			showStatus('Error deleting style: ' + error.message, 'error');
+		}
+	} else if (type === 'tag') {
+		delete tags[currentEditName];
+
+		try {
+			const response = await fetch('/tag_editor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(tags)
+			});
+
+			if (response.ok) {
+				showStatus('Tag preset deleted successfully!', 'success');
+				renderTags();
+				hideEditModal('tag');
+			} else {
+				throw new Error('Failed to delete');
+			}
+		} catch (error) {
+			showStatus(
+				'Error deleting tag preset: ' + error.message, 
+				'error'
+			);
 		}
 	}
 }
@@ -1406,6 +1559,12 @@ document.getElementById('modelEditModal').addEventListener('click',
 document.getElementById('styleEditModal').addEventListener('click', 
 	(e) => {
 		if (e.target.id === 'styleEditModal') hideEditModal('style');
+	}
+);
+
+document.getElementById('tagEditModal').addEventListener('click', 
+	(e) => {
+		if (e.target.id === 'tagEditModal') hideEditModal('tag');
 	}
 );
 

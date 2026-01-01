@@ -432,3 +432,36 @@ print("Model and Style Editor API routes registered")
 
 
 print("Character Editor API routes registered")
+
+
+# Tag editor endpoints
+@server.PromptServer.instance.routes.get('/tag_editor')
+async def get_tags(request):
+    """Get all tag presets"""
+    try:
+        tags_file = CONFIG_DIR / "tags.jsonc"
+        if not tags_file.exists():
+            return web.json_response({})
+
+        content = tags_file.read_text(encoding='utf-8')
+        clean_content = strip_jsonc_comments(content)
+        tags = json.loads(clean_content)
+        return web.json_response(tags)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post('/tag_editor')
+async def update_tags(request):
+    """Update tag presets"""
+    try:
+        data = await request.json()
+        tags_file = CONFIG_DIR / "tags.jsonc"
+        content = json.dumps(data, indent=4, ensure_ascii=False)
+        tags_file.write_text(content, encoding='utf-8')
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+print("Tag Editor API routes registered")
