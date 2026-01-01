@@ -1,10 +1,10 @@
 import { app } from "../../../scripts/app.js";
 
 app.registerExtension({
-    name: "CharacterEditor",
+    name: "PresetManager",
     async setup() {
         const addButton = () => {
-            console.log("=== Adding Character Editor button ===");
+            console.log("=== Adding Preset Manager button ===");
 
             const loraGroup = document.querySelector(
                 '.lora-manager-top-menu-group'
@@ -15,8 +15,8 @@ app.registerExtension({
                 return false;
             }
 
-            if (document.getElementById("character-editor-button")) {
-                console.log("Character Editor button already exists");
+            if (document.getElementById("preset-manager-button")) {
+                console.log("Preset Manager button already exists");
                 return true;
             }
 
@@ -27,13 +27,13 @@ app.registerExtension({
             icon.style.fontSize = "24px";
             editorButton.appendChild(icon);
 
-            editorButton.id = "character-editor-button";
+            editorButton.id = "preset-manager-button";
             editorButton.className = "comfyui-button comfyui-menu-mobile-" +
                 "collapse primary";
-            editorButton.title = "Launch Character Editor";
+            editorButton.title = "Launch Preset Manager";
             editorButton.setAttribute(
                 "aria-label",
-                "Launch Character Editor"
+                "Launch Preset Manager"
             );
             editorButton.onclick = () => {
                 const url = (
@@ -42,7 +42,7 @@ app.registerExtension({
                 );
                 window.open(
                     url,
-                    'Character Editor',
+                    'PresetManager',
                     'width=1200,height=800,resizable=yes,scrollbars=yes'
                 );
             };
@@ -61,7 +61,7 @@ app.registerExtension({
                 loraGroup.nextSibling
             );
 
-            console.log("Character Editor button added!");
+            console.log("Preset Manager button added!");
             return true;
         };
 
