@@ -1,0 +1,566 @@
+{
+  "id": "684b1686-8821-4d69-a870-107380f13704",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "id": 2,
+      "type": "Lora Stacker (LoraManager)",
+      "pos": [
+        1990,
+        320
+      ],
+      "size": [
+        290,
+        580
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LORA_STACK",
+          "type": "LORA_STACK",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "trigger_words",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "active_loras",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-lora-manager",
+        "ver": "0.9.11",
+        "Node name for S&R": "Lora Stacker (LoraManager)"
+      },
+      "widgets_values": [
+        "",
+        []
+      ]
+    },
+    {
+      "id": 3,
+      "type": "TriggerWord Toggle (LoraManager)",
+      "pos": [
+        2300,
+        500
+      ],
+      "size": [
+        273.8873046875,
+        400
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "trigger_words",
+          "shape": 7,
+          "type": "string",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "filtered_trigger_words",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-lora-manager",
+        "ver": "0.9.11",
+        "Node name for S&R": "TriggerWord Toggle (LoraManager)"
+      },
+      "widgets_values": [
+        true,
+        false,
+        false,
+        [],
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "type": "BaseNode",
+      "pos": [
+        2970,
+        320
+      ],
+      "size": [
+        270,
+        580
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 5
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "BaseNode"
+      },
+      "widgets_values": [
+        "euler_ancestral_cfg_pp",
+        "karras",
+        20,
+        1.5,
+        1,
+        "832x1216 (2:3)",
+        true
+      ]
+    },
+    {
+      "id": 6,
+      "type": "UpscaleNode",
+      "pos": [
+        3260,
+        320
+      ],
+      "size": [
+        280,
+        580
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 6
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "UpscaleNode"
+      },
+      "widgets_values": [
+        "euler_ancestral_cfg_pp",
+        "align_your_steps",
+        20,
+        1.5,
+        0.2,
+        "none",
+        2
+      ]
+    },
+    {
+      "id": 10,
+      "type": "SaveFullPipe",
+      "pos": [
+        4140,
+        320
+      ],
+      "size": [
+        290,
+        580
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "SaveFullPipe"
+      },
+      "widgets_values": [
+        "%time_%seed",
+        "%date",
+        "png",
+        true,
+        true
+      ]
+    },
+    {
+      "id": 1,
+      "type": "LoaderFullPipe",
+      "pos": [
+        2300,
+        320
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "LoaderFullPipe"
+      },
+      "widgets_values": [
+        "Illustrious/waiIllustriousSDXL_v160.safetensors",
+        -2,
+        0,
+        "randomize"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "PromptConditioningNode",
+      "pos": [
+        2590,
+        320
+      ],
+      "size": [
+        360,
+        580
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 4
+        },
+        {
+          "name": "trigger_words",
+          "shape": 7,
+          "type": "STRING",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "match",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "PromptConditioningNode"
+      },
+      "widgets_values": [
+        "none",
+        true,
+        true,
+        "",
+        "",
+        true
+      ]
+    },
+    {
+      "id": 8,
+      "type": "DetailerPipeNode",
+      "pos": [
+        3560,
+        320
+      ],
+      "size": [
+        270,
+        580
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "DetailerPipeNode"
+      },
+      "widgets_values": [
+        "bbox/face_yolov8m.pt",
+        "none",
+        20,
+        1.5,
+        "euler_ancestral_cfg_pp",
+        "align_your_steps",
+        0.4,
+        "lanczos",
+        "none",
+        0.5,
+        0.25,
+        10,
+        32
+      ]
+    },
+    {
+      "id": 9,
+      "type": "DetailerPipeNode",
+      "pos": [
+        3850,
+        320
+      ],
+      "size": [
+        270,
+        580
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "c121da42be6850ebcd35d9b77e72f71fa89eecf3",
+        "Node name for S&R": "DetailerPipeNode"
+      },
+      "widgets_values": [
+        "bbox/full_eyes_detect_v1.pt",
+        "bbox/Eyes.pt",
+        20,
+        1.5,
+        "euler_ancestral_cfg_pp",
+        "align_your_steps",
+        0.4,
+        "lanczos",
+        "none",
+        0.5,
+        0.25,
+        10,
+        32
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      0,
+      "LORA_STACK"
+    ],
+    [
+      2,
+      2,
+      1,
+      3,
+      0,
+      "string"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      1,
+      "STRING"
+    ],
+    [
+      4,
+      1,
+      0,
+      4,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      6,
+      5,
+      0,
+      6,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      7,
+      6,
+      0,
+      8,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      9,
+      9,
+      0,
+      10,
+      0,
+      "FULL_PIPE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        -1908.66015625,
+        269.31640625
+      ]
+    },
+    "frontendVersion": "1.34.9"
+  },
+  "version": 0.4
+}
