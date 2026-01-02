@@ -346,6 +346,10 @@ class PromptConditioningNode:
                         "config/models.jsonc"
                     )
                 }),
+                "character_presets": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": ("Enable character presets")
+                }),
                 "positive": ("STRING", {
                     "multiline": True,
                     "default": "",
@@ -366,8 +370,8 @@ class PromptConditioningNode:
             }
         }
 
-    RETURN_TYPES = ("FULL_PIPE", "STRING",)
-    RETURN_NAMES = ("full_pipe", "match",)
+    RETURN_TYPES = ("FULL_PIPE",)
+    RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
     CATEGORY = "custom/conditioning"
     DESCRIPTION = "Add multi-string conditioning prompt to full pipe"
@@ -379,6 +383,7 @@ class PromptConditioningNode:
         style="none",
         quality_tags=True,
         embeddings=True,
+        character_presets=True,
         positive="",
         negative="",
         deduplicate_tags=True
@@ -429,10 +434,15 @@ class PromptConditioningNode:
         )
 
         # Process tag replacements
-        tag_replacement_node = common.Node("TagReplacementNode")
-        prompt, char_pos, char_neg, match = tag_replacement_node.function(
-            input_tags=positive
-        )
+        if character_presets:
+            tag_replacement_node = common.Node("TagReplacementNode")
+            prompt, char_pos, char_neg, match = tag_replacement_node.function(
+                input_tags=positive
+            )
+        else:
+            prompt = positive
+            char_pos = ""
+            char_neg = ""
 
         # Process tag presets
         tag_preset_node = common.Node("TagPresetNode")
@@ -588,7 +598,7 @@ class PromptConditioningNode:
             "negative_text": neg_text
         })
 
-        return (new_pipe, char_pos,)
+        return (new_pipe,)
 
 
 # Node registration
