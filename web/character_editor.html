@@ -10,6 +10,7 @@
         <div class="container">
             <!-- New Navigation Bar -->
             <div class="navbar">
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()"> ‹ </button>
                 <h1>Preset Manager</h1>
                 <div class="tabs">
                     <button class="tab-button active" onclick="switchTab('characters')">
@@ -40,10 +41,6 @@
                     <div class="sidebar" id="categorySidebar">
                         <div class="sidebar-header">
                             <span>Categories</span>
-                            <button class="sidebar-toggle" 
-                                    id="sidebarToggle" 
-                                    onclick="toggleSidebar()"
-                                    aria-label="Collapse sidebar">‹</button>
                         </div>
                         <div class="category-list" id="categoryList">
                             <div class="category-item active" data-category="all">

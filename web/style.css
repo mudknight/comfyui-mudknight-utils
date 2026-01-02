@@ -468,14 +468,19 @@ textarea {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: width 0.3s ease, padding 0.3s ease;
+    /* Transition transform for better performance than width */
+    transition: width 0.3s ease, padding 0.3s ease, margin 0.3s ease;
 }
 
 .sidebar.collapsed {
-    width: 50px;
-    padding: 15px 8px;
+    width: 0;
+    padding: 0;
+    margin-right: 0;
+    /* Hide overflow to prevent text peek-through during transition */
+    overflow: hidden; 
 }
 
+/* Adjust the sidebar header since the button is moving out */
 .sidebar-header {
     font-size: 14px;
     font-weight: 600;
@@ -483,11 +488,7 @@ textarea {
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 1px solid #3a3a3a;
-    flex-shrink: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+    white-space: nowrap;
 }
 
 .sidebar.collapsed .sidebar-header {
@@ -642,7 +643,7 @@ textarea {
         flex-direction: row; /* Keep it horizontal */
     }
 
-    .sidebar {
+    .sidebar, #sidebarToggle {
         display: none; /* Hide sidebar on narrow viewports */
     }
 

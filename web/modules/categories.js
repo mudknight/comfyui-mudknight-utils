@@ -98,6 +98,9 @@ export function updateSidebarState() {
 	const sidebar = document.getElementById('categorySidebar');
 	const toggleBtn = document.getElementById('sidebarToggle');
 
+	// Ensure button exists before manipulation
+	if (!toggleBtn) return;
+
 	if (state.sidebarCollapsed) {
 		sidebar.classList.add('collapsed');
 		toggleBtn.innerHTML = '›';
