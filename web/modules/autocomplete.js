@@ -27,8 +27,13 @@ function detectContext(input) {
 	}
 	
 	// Default to tag search (existing logic)
-	let start = text.lastIndexOf(',', cursorPos - 1) + 1;
-	while (start < cursorPos && text[start] === ' ') {
+	const lastComma = text.lastIndexOf(',', cursorPos - 1);
+	const lastNewline = text.lastIndexOf('\n', cursorPos - 1);
+
+	// Start from whichever is closer to the cursor to preserve newlines
+	let start = Math.max(lastComma, lastNewline) + 1;
+
+	while (start < cursorPos && /[ \t]/.test(text[start])) {
 		start++;
 	}
 	
