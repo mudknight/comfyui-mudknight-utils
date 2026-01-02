@@ -683,12 +683,52 @@ textarea {
 
 .autocomplete-tag {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .autocomplete-count {
     font-size: 11px;
     color: #888;
     margin-left: 10px;
+}
+
+/* Category-specific colors */
+.tag-category-1 .autocomplete-tag {
+    color: #ff6b6b;
+}
+
+.tag-category-3 .autocomplete-tag {
+    color: #b794f4;
+}
+
+.tag-category-4 .autocomplete-tag {
+    color: #68d391;
+}
+
+.tag-category-5 .autocomplete-tag {
+    color: #f6e05e;
+}
+
+/* Alias display styles */
+.alias-name {
+    color: #888;
+    font-style: italic;
+}
+
+.alias-arrow {
+    color: #666;
+}
+
+.alias-target {
+    font-weight: 600;
+}
+
+.category-label {
+    font-size: 11px;
+    color: #888;
+    margin-left: 4px;
 }
 
 .autocomplete-dropdown::-webkit-scrollbar {

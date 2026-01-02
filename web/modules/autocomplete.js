@@ -47,27 +47,26 @@ function detectContext(input) {
 
 function showAutocomplete(input, context) {
 	const { type, searchTerm, start } = context;
-	
-	// For LoRA and embedding, show immediately after typing the prefix
+
+	// For LoRA and embedding, show immediately after typing prefix
 	// For tags, require at least 2 characters
 	if (type === 'tag' && (!searchTerm || searchTerm.length < 2)) {
 		hideAutocomplete();
 		return;
 	}
-	
+
 	// For LoRA/embedding, allow showing with 0 characters
-	// (right after typing <lora: or embedding:)
 	if ((type === 'lora' || type === 'embedding') && 
-	    searchTerm === undefined) {
+		searchTerm === undefined) {
 		hideAutocomplete();
 		return;
 	}
-	
+
 	autocompleteState.contextType = type;
 	let filtered = [];
-	
+
 	console.log(`Searching ${type}:`, searchTerm);
-	
+
 	// Filter based on context type
 	if (type === 'lora') {
 		const searchLower = searchTerm.toLowerCase();
@@ -98,7 +97,7 @@ function showAutocomplete(input, context) {
 			}));
 		console.log('Filtered embeddings:', filtered.length);
 	} else {
-		// Tag search
+		// Tag search with category and alias support
 		const searchLower = searchTerm.toLowerCase();
 		filtered = autocompleteState.tags
 			.filter(item => 
@@ -107,54 +106,96 @@ function showAutocomplete(input, context) {
 			.slice(0, 10)
 			.map(item => ({
 				display: item.tag,
-				value: item.tag,
+				value: item.isAlias ? item.aliasFor : item.tag,
 				count: item.count,
+				category: item.category,
+				isAlias: item.isAlias,
+				aliasFor: item.aliasFor,
 				type: 'tag'
 			}));
 	}
-	
+
 	if (filtered.length === 0) {
 		hideAutocomplete();
 		return;
 	}
-	
+
 	autocompleteState.filteredTags = filtered;
 	autocompleteState.selectedIndex = 0;
 	autocompleteState.activeElement = input;
 	autocompleteState.currentWord = searchTerm;
 	autocompleteState.wordStart = start;
-	
+
 	const dropdown = document.getElementById('autocompleteDropdown');
 	dropdown.innerHTML = '';
-	
+
 	filtered.forEach((item, index) => {
 		const div = document.createElement('div');
 		div.className = 'autocomplete-item';
 		if (index === 0) {
 			div.classList.add('selected');
 		}
-		
-		// Different display based on type
-		if (item.type === 'tag' && item.count) {
-			div.innerHTML = `
-				<span class="autocomplete-tag">${item.display}</span>
-				<span class="autocomplete-count">${item.count}</span>
-			`;
-		} else {
-			div.innerHTML = `
-				<span class="autocomplete-tag">${item.display}</span>
-			`;
+
+		// Add category class for tags
+		if (item.type === 'tag' && item.category !== undefined) {
+			div.classList.add(`tag-category-${item.category}`);
 		}
-		
+
+		// Different display based on type
+		if (item.type === 'tag') {
+			if (item.isAlias) {
+				// Alias format: alias -> tag (category) count
+				const categoryLabel = getCategoryLabel(item.category);
+				div.innerHTML = `
+		    <span class="autocomplete-tag">
+			<span class="alias-name">${item.display}</span>
+			<span class="alias-arrow"> → </span>
+			<span class="alias-target">${item.value}</span>
+			${categoryLabel ? 
+					`<span class="category-label">${categoryLabel}
+			    </span>` : ''}
+		    </span>
+		    <span class="autocomplete-count">${item.count}</span>
+		`;
+			} else {
+				// Regular tag format: tag (category) count
+				const categoryLabel = getCategoryLabel(item.category);
+				div.innerHTML = `
+		    <span class="autocomplete-tag">
+			${item.display}
+			${categoryLabel ? 
+					`<span class="category-label">${categoryLabel}
+			    </span>` : ''}
+		    </span>
+		    <span class="autocomplete-count">${item.count}</span>
+		`;
+			}
+		} else {
+			// LoRA/embedding format
+			div.innerHTML = `
+		<span class="autocomplete-tag">${item.display}</span>
+	    `;
+		}
+
 		div.onclick = () => selectAutocomplete(index);
 		dropdown.appendChild(div);
 	});
-	
+
 	const rect = input.getBoundingClientRect();
 	dropdown.style.left = rect.left + 'px';
 	dropdown.style.top = (rect.bottom + 5) + 'px';
 	dropdown.style.width = rect.width + 'px';
 	dropdown.style.display = 'block';
+}
+
+function getCategoryLabel(category) {
+	const labels = {
+		1: '(artist)',
+		3: '(copyright)',
+		4: '(character)',
+		5: '(meta)'
+	};
+	return labels[category] || '';
 }
 
 export function hideAutocomplete() {

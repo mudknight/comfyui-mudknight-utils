@@ -35,35 +35,103 @@ export async function loadTags() {
 
 export async function loadAutocompleteTags() {
 	try {
-		const response = await fetch('autocomplete.txt');
+		const response = await fetch('danbooru.csv');
 		if (!response.ok) {
-			console.log('Autocomplete file not found');
+			console.log('Danbooru CSV not found');
 			return [];
 		}
-		
+
 		const text = await response.text();
 		const lines = text.split('\n');
-		
-		const tags = lines
-			.map(line => {
-				const parts = line.trim().split(',');
-				if (parts.length >= 2) {
-					return {
-						tag: parts[0].trim(),
-						count: parseInt(parts[1]) || 0
-					};
+
+		const tags = [];
+
+		for (const line of lines) {
+			if (!line.trim()) continue;
+
+			// Parse CSV line handling quotes
+			const parts = parseCsvLine(line);
+			if (parts.length < 3) continue;
+
+			const tag = parts[0].trim();
+			const category = parseInt(parts[1]) || 0;
+			const count = parseInt(parts[2]) || 0;
+			const aliasField = parts[3] || '';
+
+			// Skip category 2 (unused)
+			if (category === 2) continue;
+
+			// Add main tag
+			tags.push({
+				tag: tag,
+				category: category,
+				count: count,
+				isAlias: false
+			});
+
+			// Parse and add aliases
+			if (aliasField) {
+				const aliases = parseAliases(aliasField);
+				for (const alias of aliases) {
+					tags.push({
+						tag: alias,
+						category: category,
+						count: count,
+						isAlias: true,
+						aliasFor: tag
+					});
 				}
-				return null;
-			})
-			.filter(Boolean)
-			.sort((a, b) => b.count - a.count);
-		
-		console.log(`Loaded ${tags.length} autocomplete tags`);
+			}
+		}
+
+		// Sort by count (descending)
+		tags.sort((a, b) => b.count - a.count);
+
+		console.log(`Loaded ${tags.length} tags from Danbooru CSV`);
 		return tags;
 	} catch (error) {
-		console.error('Error loading autocomplete tags:', error);
+		console.error('Error loading Danbooru tags:', error);
 		return [];
 	}
+}
+
+function parseCsvLine(line) {
+	const parts = [];
+	let current = '';
+	let inQuotes = false;
+
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+
+		if (char === '"') {
+			inQuotes = !inQuotes;
+		} else if (char === ',' && !inQuotes) {
+			parts.push(current);
+			current = '';
+		} else {
+			current += char;
+		}
+	}
+
+	if (current) {
+		parts.push(current);
+	}
+
+	return parts;
+}
+
+function parseAliases(aliasField) {
+	if (!aliasField) return [];
+
+	// Remove quotes and leading/trailing slashes
+	let cleaned = aliasField.replace(/^["\/]+|["\/]+$/g, '');
+
+	// Split by comma
+	const aliases = cleaned.split(',')
+		.map(a => a.trim())
+		.filter(a => a.length > 0);
+
+	return aliases;
 }
 
 export async function saveCharacters(characters) {
