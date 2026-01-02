@@ -1,0 +1,76 @@
+import { app } from "/scripts/app.js";
+import { autocompleteState } from "/extensions/comfyui-mudknight-utils/modules/state.js";
+import * as api from "/extensions/comfyui-mudknight-utils/modules/api.js";
+import { 
+    setupAutocomplete, 
+    initAutocomplete 
+} from "/extensions/comfyui-mudknight-utils/modules/autocomplete.js";
+
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.href = "/extensions/comfyui-mudknight-utils/autocomplete.css";
+document.head.appendChild(link);
+
+app.registerExtension({
+    name: "Mudknight.Autocomplete",
+    settings: [
+        {
+            id: "Mudknight.Autocomplete.Enabled",
+            name: "Enable Prompt Autocomplete",
+            type: "boolean",
+            defaultValue: true,
+        },
+    ],
+    async setup() {
+        // Create dropdown if missing
+        let dropdown = document.getElementById("autocompleteDropdown");
+        if (!dropdown) {
+            dropdown = document.createElement("div");
+            dropdown.id = "autocompleteDropdown";
+            // Ensure visibility and placement
+            dropdown.style.cssText = `
+                display: none; 
+                position: fixed; 
+                z-index: 999999; 
+                background: #222;
+                border: 1px solid #444;
+                pointer-events: auto;
+            `;
+            document.body.appendChild(dropdown);
+        }
+
+        initAutocomplete();
+
+        const [tags, loras, embeds] = await Promise.all([
+            api.loadAutocompleteTags(),
+            api.loadLoras(),
+            api.loadEmbeddings()
+        ]);
+
+        autocompleteState.tags = tags;
+        autocompleteState.loras = loras;
+        autocompleteState.embeddings = embeds;
+    },
+    async beforeRegisterNodeDef(nodeType) {
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function() {
+            if (onNodeCreated) onNodeCreated.apply(this, arguments);
+
+            const isEnabled = app.ui.settings.getSettingValue(
+                "Mudknight.Autocomplete.Enabled", 
+                true
+            );
+
+            if (isEnabled) {
+                // Delay slightly to ensure LiteGraph has created the textarea
+                setTimeout(() => {
+                    this.widgets?.forEach(w => {
+                        if (w.element && w.element.tagName === "TEXTAREA") {
+                            setupAutocomplete(w.element, true);
+                        }
+                    });
+                }, 100);
+            }
+        };
+    }
+});
