@@ -44,7 +44,7 @@ export function showEditModal(type, name) {
 		setupAutocomplete(document.getElementById('editBottom'));
 		setupAutocomplete(document.getElementById('editNeg'));
 		setupAutocomplete(document.getElementById('editCategories'));
-		setupAutocomplete(document.getElementById('editCharNameInput'));
+		setupAutocomplete(document.getElementById('editCharNameInput'), false);
 
 		setupWeightAdjustment(document.getElementById('editCharacter'));
 		setupWeightAdjustment(document.getElementById('editTop'));

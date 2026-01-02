@@ -96,11 +96,15 @@ function selectAutocomplete(index) {
 	const before = text.substring(0, info.start);
 	const after = text.substring(info.end);
 	
-	const newText = before + selectedTag + ', ' + after.trimStart();
+	// Check if comma insertion is enabled
+	const insertComma = autocompleteState.insertComma !== false;
+	const suffix = insertComma ? ', ' : '';
+	
+	const newText = before + selectedTag + suffix + after.trimStart();
 	
 	input.value = newText;
 	
-	const newCursorPos = before.length + selectedTag.length + 2;
+	const newCursorPos = before.length + selectedTag.length + suffix.length;
 	input.setSelectionRange(newCursorPos, newCursorPos);
 	
 	hideAutocomplete();
@@ -116,7 +120,8 @@ function handleAutocompleteKeydown(e, input) {
 	
 	if (e.key === 'ArrowDown') {
 		e.preventDefault();
-		if (autocompleteState.selectedIndex < autocompleteState.filteredTags.length - 1) {
+		if (autocompleteState.selectedIndex <
+		    autocompleteState.filteredTags.length - 1) {
 			autocompleteState.selectedIndex++;
 			updateAutocompleteSelection();
 		}
@@ -149,23 +154,33 @@ function updateAutocompleteSelection() {
 	});
 }
 
-export function setupAutocomplete(input) {
-	input.addEventListener('input', (e) => {
-		const info = getCurrentWord(input);
-		showAutocomplete(input, info.word, info.start);
-	});
-	
-	input.addEventListener('keydown', (e) => {
-		handleAutocompleteKeydown(e, input);
-	});
-	
-	input.addEventListener('blur', (e) => {
-		setTimeout(() => {
-			if (autocompleteState.activeElement === input) {
-				hideAutocomplete();
-			}
-		}, 200);
-	});
+export function setupAutocomplete(input, insertComma = true) {
+	// Store the insertComma setting in the state
+	if (!input._autocompleteSetup) {
+		input._autocompleteSetup = true;
+		input._insertComma = insertComma;
+		
+		input.addEventListener('input', (e) => {
+			// Update state with current element's setting
+			autocompleteState.insertComma = input._insertComma;
+			const info = getCurrentWord(input);
+			showAutocomplete(input, info.word, info.start);
+		});
+		
+		input.addEventListener('keydown', (e) => {
+			// Update state with current element's setting
+			autocompleteState.insertComma = input._insertComma;
+			handleAutocompleteKeydown(e, input);
+		});
+		
+		input.addEventListener('blur', (e) => {
+			setTimeout(() => {
+				if (autocompleteState.activeElement === input) {
+					hideAutocomplete();
+				}
+			}, 200);
+		});
+	}
 }
 
 export function initAutocomplete() {
