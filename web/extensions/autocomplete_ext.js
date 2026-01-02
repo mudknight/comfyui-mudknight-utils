@@ -12,10 +12,10 @@ link.href = "/extensions/comfyui-mudknight-utils/autocomplete.css";
 document.head.appendChild(link);
 
 app.registerExtension({
-    name: "Mudknight.Autocomplete",
+    name: "Mudknight Utils.Autocomplete",
     settings: [
         {
-            id: "Mudknight.Autocomplete.Enabled",
+            id: "Mudknight Utils.Autocomplete.Enabled",
             name: "Enable Prompt Autocomplete",
             type: "boolean",
             defaultValue: true,
@@ -57,7 +57,7 @@ app.registerExtension({
             if (onNodeCreated) onNodeCreated.apply(this, arguments);
 
             const isEnabled = app.ui.settings.getSettingValue(
-                "Mudknight.Autocomplete.Enabled", 
+                "Mudknight Utils.Autocomplete.Enabled", 
                 true
             );
 
