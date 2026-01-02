@@ -344,24 +344,30 @@ function updateAutocompleteSelection() {
 }
 
 export function setupAutocomplete(input, insertComma = true) {
-	// Store the insertComma setting in the state
 	if (!input._autocompleteSetup) {
 		input._autocompleteSetup = true;
 		input._insertComma = insertComma;
-		
+
 		input.addEventListener('input', (e) => {
-			// Update state with current element's setting
+			// Default to true if the check function doesn't exist
+			const enabled = input._checkEnabled ? input._checkEnabled() : true;
+			if (!enabled) return;
+
 			autocompleteState.insertComma = input._insertComma;
 			const context = detectContext(input);
 			showAutocomplete(input, context);
 		});
-		
+
 		input.addEventListener('keydown', (e) => {
-			// Update state with current element's setting
+			const enabled = input._checkEnabled ? input._checkEnabled() : true;
+			const dropdown = document.getElementById('autocompleteDropdown');
+
+			if (!enabled || dropdown.style.display !== 'block') return;
+
 			autocompleteState.insertComma = input._insertComma;
 			handleAutocompleteKeydown(e, input);
 		});
-		
+
 		input.addEventListener('blur', (e) => {
 			setTimeout(() => {
 				if (autocompleteState.activeElement === input) {

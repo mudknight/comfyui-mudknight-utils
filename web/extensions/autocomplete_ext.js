@@ -62,10 +62,15 @@ app.registerExtension({
             );
 
             if (isEnabled) {
-                // Delay slightly to ensure LiteGraph has created the textarea
                 setTimeout(() => {
                     this.widgets?.forEach(w => {
                         if (w.element && w.element.tagName === "TEXTAREA") {
+                            w.element._checkEnabled = () => {
+                                return app.ui.settings.getSettingValue(
+                                    "Mudknight Utils.Autocomplete.Enabled",
+                                    true
+                                );
+                            };
                             setupAutocomplete(w.element, true);
                         }
                     });
