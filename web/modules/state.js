@@ -33,5 +33,9 @@ export const autocompleteState = {
 	currentWord: '',
 	wordStart: 0,
 	filteredTags: [],
-	tags: []
+	tags: [],
+	loras: [],
+	embeddings: [],
+	contextType: 'tag',
+	insertComma: true
 };

@@ -1,11 +1,33 @@
 import { autocompleteState } from './state.js';
 
-function getCurrentWord(input) {
+function detectContext(input) {
 	const cursorPos = input.selectionStart;
-	const text = input.value;
+	const text = input.value.substring(0, cursorPos);
 	
+	// Check for LoRA syntax: <lora: (with optional content after)
+	const loraMatch = text.match(/<lora:([^:>]*)$/);
+	if (loraMatch) {
+		console.log('Detected LoRA context:', loraMatch[1]);
+		return {
+			type: 'lora',
+			searchTerm: loraMatch[1] || '',
+			start: cursorPos - loraMatch[1].length
+		};
+	}
+	
+	// Check for embedding syntax: embedding: (with optional content)
+	const embedMatch = text.match(/\bembedding:([^\s,]*)$/i);
+	if (embedMatch) {
+		console.log('Detected embedding context:', embedMatch[1]);
+		return {
+			type: 'embedding',
+			searchTerm: embedMatch[1] || '',
+			start: cursorPos - embedMatch[1].length
+		};
+	}
+	
+	// Default to tag search (existing logic)
 	let start = text.lastIndexOf(',', cursorPos - 1) + 1;
-	
 	while (start < cursorPos && text[start] === ' ') {
 		start++;
 	}
@@ -13,25 +35,83 @@ function getCurrentWord(input) {
 	let end = text.indexOf(',', cursorPos);
 	if (end === -1) end = text.length;
 	
-	const word = text.substring(start, end).trim();
+	const searchTerm = text.substring(start, end).trim();
 	
 	return {
-		word: word,
+		type: 'tag',
+		searchTerm: searchTerm,
 		start: start,
 		end: end
 	};
 }
 
-function showAutocomplete(input, word, startPos) {
-	if (!word || word.length < 2) {
+function showAutocomplete(input, context) {
+	const { type, searchTerm, start } = context;
+	
+	// For LoRA and embedding, show immediately after typing the prefix
+	// For tags, require at least 2 characters
+	if (type === 'tag' && (!searchTerm || searchTerm.length < 2)) {
 		hideAutocomplete();
 		return;
 	}
 	
-	const searchWord = word.toLowerCase();
-	const filtered = autocompleteState.tags
-		.filter(item => item.tag.toLowerCase().includes(searchWord))
-		.slice(0, 10);
+	// For LoRA/embedding, allow showing with 0 characters
+	// (right after typing <lora: or embedding:)
+	if ((type === 'lora' || type === 'embedding') && 
+	    searchTerm === undefined) {
+		hideAutocomplete();
+		return;
+	}
+	
+	autocompleteState.contextType = type;
+	let filtered = [];
+	
+	console.log(`Searching ${type}:`, searchTerm);
+	
+	// Filter based on context type
+	if (type === 'lora') {
+		const searchLower = searchTerm.toLowerCase();
+		filtered = autocompleteState.loras
+			.filter(item => 
+				searchLower === '' || 
+				item.name.toLowerCase().includes(searchLower)
+			)
+			.slice(0, 10)
+			.map(item => ({
+				display: item.name,
+				value: item.name,
+				type: 'lora'
+			}));
+		console.log('Filtered LoRAs:', filtered.length);
+	} else if (type === 'embedding') {
+		const searchLower = searchTerm.toLowerCase();
+		filtered = autocompleteState.embeddings
+			.filter(item => 
+				searchLower === '' || 
+				item.name.toLowerCase().includes(searchLower)
+			)
+			.slice(0, 10)
+			.map(item => ({
+				display: item.name,
+				value: item.name,
+				type: 'embedding'
+			}));
+		console.log('Filtered embeddings:', filtered.length);
+	} else {
+		// Tag search
+		const searchLower = searchTerm.toLowerCase();
+		filtered = autocompleteState.tags
+			.filter(item => 
+				item.tag.toLowerCase().includes(searchLower)
+			)
+			.slice(0, 10)
+			.map(item => ({
+				display: item.tag,
+				value: item.tag,
+				count: item.count,
+				type: 'tag'
+			}));
+	}
 	
 	if (filtered.length === 0) {
 		hideAutocomplete();
@@ -41,8 +121,8 @@ function showAutocomplete(input, word, startPos) {
 	autocompleteState.filteredTags = filtered;
 	autocompleteState.selectedIndex = 0;
 	autocompleteState.activeElement = input;
-	autocompleteState.currentWord = word;
-	autocompleteState.wordStart = startPos;
+	autocompleteState.currentWord = searchTerm;
+	autocompleteState.wordStart = start;
 	
 	const dropdown = document.getElementById('autocompleteDropdown');
 	dropdown.innerHTML = '';
@@ -53,10 +133,18 @@ function showAutocomplete(input, word, startPos) {
 		if (index === 0) {
 			div.classList.add('selected');
 		}
-		div.innerHTML = `
-			<span class="autocomplete-tag">${item.tag}</span>
-			<span class="autocomplete-count">${item.count}</span>
-		`;
+		
+		// Different display based on type
+		if (item.type === 'tag' && item.count) {
+			div.innerHTML = `
+				<span class="autocomplete-tag">${item.display}</span>
+				<span class="autocomplete-count">${item.count}</span>
+			`;
+		} else {
+			div.innerHTML = `
+				<span class="autocomplete-tag">${item.display}</span>
+			`;
+		}
 		
 		div.onclick = () => selectAutocomplete(index);
 		dropdown.appendChild(div);
@@ -75,6 +163,7 @@ export function hideAutocomplete() {
 	autocompleteState.activeElement = null;
 	autocompleteState.selectedIndex = -1;
 	autocompleteState.filteredTags = [];
+	autocompleteState.contextType = 'tag';
 }
 
 function selectAutocomplete(index) {
@@ -85,26 +174,76 @@ function selectAutocomplete(index) {
 	}
 	
 	const input = autocompleteState.activeElement;
-	let selectedTag = autocompleteState.filteredTags[index].tag;
-	
-	selectedTag = selectedTag.replace(/_/g, ' ');
-	selectedTag = selectedTag.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-	
+	const item = autocompleteState.filteredTags[index];
 	const text = input.value;
-	const info = getCurrentWord(input);
+	const cursorPos = input.selectionStart;
 	
-	const before = text.substring(0, info.start);
-	const after = text.substring(info.end);
+	let newText, newCursorPos;
 	
-	// Check if comma insertion is enabled
-	const insertComma = autocompleteState.insertComma !== false;
-	const suffix = insertComma ? ', ' : '';
-	
-	const newText = before + selectedTag + suffix + after.trimStart();
+	if (autocompleteState.contextType === 'lora') {
+		// Complete LoRA syntax: <lora:name:1.0>
+		const beforeLora = text.lastIndexOf('<lora:', cursorPos) + 6;
+		const afterCursor = text.substring(cursorPos);
+		
+		// Find the end of the lora tag
+		let endPos = cursorPos;
+		if (afterCursor.includes('>')) {
+			endPos = cursorPos + afterCursor.indexOf('>') + 1;
+		}
+		
+		const before = text.substring(0, beforeLora);
+		const after = text.substring(endPos);
+		
+		// Don't add comma for LoRA tags
+		newText = `${before}${item.value}:1.0>${after}`;
+		newCursorPos = before.length + item.value.length + 5;
+		
+	} else if (autocompleteState.contextType === 'embedding') {
+		// Complete embedding syntax: embedding:name
+		const beforeEmbed = 
+			text.lastIndexOf('embedding:', cursorPos) + 10;
+		const before = text.substring(0, beforeEmbed);
+		
+		// Find next comma or end
+		let endPos = cursorPos;
+		const afterCursor = text.substring(cursorPos);
+		const commaPos = afterCursor.indexOf(',');
+		if (commaPos !== -1) {
+			endPos = cursorPos + commaPos;
+		} else {
+			endPos = text.length;
+		}
+		
+		const after = text.substring(endPos);
+		
+		// Check if comma insertion is enabled
+		const insertComma = autocompleteState.insertComma !== false;
+		const suffix = insertComma ? ', ' : '';
+		
+		newText = `${before}${item.value}${suffix}${after.trimStart()}`;
+		newCursorPos = before.length + item.value.length + suffix.length;
+		
+	} else {
+		// Tag completion (existing logic with insertComma support)
+		let selectedTag = item.value;
+		selectedTag = selectedTag.replace(/_/g, ' ');
+		selectedTag = selectedTag.replace(
+			/\(/g, '\\('
+		).replace(/\)/g, '\\)');
+		
+		const context = detectContext(input);
+		const before = text.substring(0, context.start);
+		const after = text.substring(context.end || cursorPos);
+		
+		// Check if comma insertion is enabled
+		const insertComma = autocompleteState.insertComma !== false;
+		const suffix = insertComma ? ', ' : '';
+		
+		newText = before + selectedTag + suffix + after.trimStart();
+		newCursorPos = before.length + selectedTag.length + suffix.length;
+	}
 	
 	input.value = newText;
-	
-	const newCursorPos = before.length + selectedTag.length + suffix.length;
 	input.setSelectionRange(newCursorPos, newCursorPos);
 	
 	hideAutocomplete();
@@ -163,8 +302,8 @@ export function setupAutocomplete(input, insertComma = true) {
 		input.addEventListener('input', (e) => {
 			// Update state with current element's setting
 			autocompleteState.insertComma = input._insertComma;
-			const info = getCurrentWord(input);
-			showAutocomplete(input, info.word, info.start);
+			const context = detectContext(input);
+			showAutocomplete(input, context);
 		});
 		
 		input.addEventListener('keydown', (e) => {

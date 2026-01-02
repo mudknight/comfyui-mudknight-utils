@@ -24,6 +24,13 @@ async function loadData() {
 		const autocompleteTags = await api.loadAutocompleteTags();
 		autocompleteState.tags = autocompleteTags;
 		
+		// Load LoRAs and embeddings
+		const loras = await api.loadLoras();
+		autocompleteState.loras = loras;
+		
+		const embeddings = await api.loadEmbeddings();
+		autocompleteState.embeddings = embeddings;
+		
 		state.characters = await api.loadCharacters();
 		await api.checkImages('character');
 		

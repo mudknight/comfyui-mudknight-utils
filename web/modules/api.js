@@ -211,3 +211,35 @@ export async function deleteImage(name, type = 'character') {
 	}
 	throw new Error('Failed to delete image');
 }
+
+export async function loadLoras() {
+	try {
+		const response = await fetch('/lora_list');
+		if (!response.ok) {
+			console.log('Failed to load LoRA list');
+			return [];
+		}
+		const loras = await response.json();
+		console.log(`Loaded ${loras.length} LoRAs`);
+		return loras;
+	} catch (error) {
+		console.error('Error loading LoRAs:', error);
+		return [];
+	}
+}
+
+export async function loadEmbeddings() {
+	try {
+		const response = await fetch('/embedding_list');
+		if (!response.ok) {
+			console.log('Failed to load embedding list');
+			return [];
+		}
+		const embeddings = await response.json();
+		console.log(`Loaded ${embeddings.length} embeddings`);
+		return embeddings;
+	} catch (error) {
+		console.error('Error loading embeddings:', error);
+		return [];
+	}
+}

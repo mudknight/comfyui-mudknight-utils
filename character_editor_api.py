@@ -8,6 +8,7 @@ import json
 import os
 import re
 import base64
+import folder_paths
 from pathlib import Path
 from aiohttp import web
 from PIL import Image
@@ -465,3 +466,69 @@ async def update_tags(request):
 
 
 print("Tag Editor API routes registered")
+
+
+@server.PromptServer.instance.routes.get('/lora_list')
+async def get_lora_list(request):
+    """Get list of all available LoRAs"""
+    try:
+        loras = folder_paths.get_filename_list("loras")
+        # Return list of dicts with name and relative path
+        lora_list = [{"name": lora, "path": lora} for lora in loras]
+        return web.json_response(lora_list)
+    except Exception as e:
+        return web.json_response(
+            {"error": str(e)},
+            status=500
+        )
+
+
+@server.PromptServer.instance.routes.get('/embedding_list')
+async def get_embedding_list(request):
+    """Get list of all available embeddings"""
+    try:
+        # Get embedding paths
+        embedding_paths = folder_paths.get_folder_paths("embeddings")
+        embeddings = []
+
+        # Scan each embeddings folder
+        for emb_path in embedding_paths:
+            if not os.path.exists(emb_path):
+                continue
+
+            for root, dirs, files in os.walk(emb_path):
+                for file in files:
+                    # Common embedding extensions
+                    if file.lower().endswith(
+                        ('.pt', '.safetensors', '.bin')
+                    ):
+                        # Remove extension for cleaner names
+                        name = os.path.splitext(file)[0]
+                        # Get relative path from embedding root
+                        rel_path = os.path.relpath(
+                            os.path.join(root, file),
+                            emb_path
+                        )
+                        embeddings.append({
+                            "name": name,
+                            "path": rel_path
+                        })
+
+        # Remove duplicates and sort
+        unique_embeddings = {
+            emb["name"]: emb for emb in embeddings
+        }.values()
+        sorted_embeddings = sorted(
+            unique_embeddings,
+            key=lambda x: x["name"].lower()
+        )
+
+        return web.json_response(list(sorted_embeddings))
+    except Exception as e:
+        return web.json_response(
+            {"error": str(e)},
+            status=500
+        )
+
+
+print("LoRA and Embedding list API routes registered")
