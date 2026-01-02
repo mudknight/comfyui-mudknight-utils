@@ -265,7 +265,7 @@ function selectAutocomplete(index) {
 		const insertComma = autocompleteState.insertComma !== false;
 		const suffix = insertComma ? ', ' : '';
 		
-		newText = `${before}${item.value}${suffix}${after.trimStart()}`;
+		newText = `${before}${item.value}${suffix}${after}`;
 		newCursorPos = before.length + item.value.length + suffix.length;
 		
 	} else {
@@ -284,7 +284,7 @@ function selectAutocomplete(index) {
 		const insertComma = autocompleteState.insertComma !== false;
 		const suffix = insertComma ? ', ' : '';
 		
-		newText = before + selectedTag + suffix + after.trimStart();
+		newText = before + selectedTag + suffix + after;
 		newCursorPos = before.length + selectedTag.length + suffix.length;
 	}
 	
