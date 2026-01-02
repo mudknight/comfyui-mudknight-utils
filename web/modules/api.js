@@ -35,7 +35,9 @@ export async function loadTags() {
 
 export async function loadAutocompleteTags() {
 	try {
-		const response = await fetch('danbooru.csv');
+		const response = await fetch(
+			'/extensions/comfyui-mudknight-utils/danbooru.csv'
+		);
 		if (!response.ok) {
 			console.log('Danbooru CSV not found');
 			return [];
