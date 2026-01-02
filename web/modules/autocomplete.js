@@ -98,19 +98,23 @@ function showAutocomplete(input, context) {
 		console.log('Filtered embeddings:', filtered.length);
 	} else {
 		// Tag search with category and alias support
-		const searchLower = searchTerm.toLowerCase();
+		// Replace spaces with underscores for matching
+		const searchLower = searchTerm.toLowerCase().replace(/ /g, '_');
 		filtered = autocompleteState.tags
 			.filter(item => 
 				item.tag.toLowerCase().includes(searchLower)
 			)
 			.slice(0, 10)
 			.map(item => ({
-				display: item.tag,
-				value: item.isAlias ? item.aliasFor : item.tag,
+				display: item.tag.replace(/_/g, ' '),
+				value: item.isAlias ? 
+				item.aliasFor.replace(/_/g, ' ') : 
+				item.tag.replace(/_/g, ' '),
 				count: item.count,
 				category: item.category,
 				isAlias: item.isAlias,
-				aliasFor: item.aliasFor,
+				aliasFor: item.aliasFor ? 
+				item.aliasFor.replace(/_/g, ' ') : undefined,
 				type: 'tag'
 			}));
 	}
