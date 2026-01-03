@@ -66,8 +66,7 @@ app.registerExtension({
             if (onNodeCreated) onNodeCreated.apply(this, arguments);
 
             const isEnabled = app.ui.settings.getSettingValue(
-                "Mudknight Utils.Autocomplete.Enabled", 
-                true
+                "Mudknight Utils.Autocomplete.Enabled",
             );
 
             if (isEnabled) {
@@ -78,7 +77,6 @@ app.registerExtension({
                             w.element._checkEnabled = () => {
                                 return app.ui.settings.getSettingValue(
                                     "Mudknight Utils.Autocomplete.Enabled",
-                                    true
                                 );
                             };
                             setupAutocomplete(w.element, true);
