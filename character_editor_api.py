@@ -468,13 +468,228 @@ async def update_tags(request):
 print("Tag Editor API routes registered")
 
 
+print("LoRA and Embedding list API routes registered")
+
+
+# Preview image cache directory
+PREVIEW_CACHE_DIR = Path(__file__).parent / "config" / "preview_cache"
+PREVIEW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+PREVIEW_SIZE = 256  # Size for cached preview images
+
+
+def get_lora_preview_path(lora_name_or_path):
+    """Get the preview image path for a LoRA"""
+    lora_file = None
+    
+    # First, try using folder_paths.get_full_path which handles subdirectories properly
+    # This is the most reliable method
+    try:
+        # Try with the path as-is (might already include extension)
+        full_path = folder_paths.get_full_path("loras", lora_name_or_path)
+        if full_path and os.path.exists(full_path):
+            lora_file = full_path
+    except:
+        pass
+    
+    # If that didn't work, try adding common extensions
+    if not lora_file:
+        for ext in ['.safetensors', '.ckpt', '.pt', '.bin']:
+            try:
+                # Try with extension appended
+                full_path = folder_paths.get_full_path("loras", lora_name_or_path + ext)
+                if full_path and os.path.exists(full_path):
+                    lora_file = full_path
+                    break
+            except:
+                continue
+    
+    # If still not found, try direct path search (fallback)
+    if not lora_file:
+        lora_paths = folder_paths.get_folder_paths("loras")
+        for lora_dir in lora_paths:
+            # Try as direct filename
+            for ext in ['.safetensors', '.ckpt', '.pt', '.bin']:
+                test_path = os.path.join(lora_dir, lora_name_or_path + ext)
+                if os.path.exists(test_path):
+                    lora_file = test_path
+                    break
+            if lora_file:
+                break
+    
+    if lora_file:
+        # Check for preview files in the same directory as the LoRA file
+        base_name = os.path.splitext(os.path.basename(lora_file))[0]
+        preview_dir = os.path.dirname(lora_file)
+        
+        # First check for .preview.* files
+        for ext in ['.preview.png', '.preview.jpeg', '.preview.jpg', '.preview.webp']:
+            preview_path = os.path.join(preview_dir, base_name + ext)
+            if os.path.exists(preview_path):
+                return preview_path
+        
+        # Also check for image files with same base name (without .preview. prefix)
+        # Common image extensions
+        for ext in ['.png', '.jpeg', '.jpg', '.webp', '.gif', '.bmp']:
+            preview_path = os.path.join(preview_dir, base_name + ext)
+            if os.path.exists(preview_path):
+                # Make sure it's not the LoRA file itself
+                if preview_path != lora_file:
+                    return preview_path
+    
+    return None
+
+
+def get_embedding_preview_path(embedding_path):
+    """Get the preview image path for an embedding"""
+    embedding_paths = folder_paths.get_folder_paths("embeddings")
+    for emb_dir in embedding_paths:
+        # Try to find the embedding file
+        emb_file = None
+        for ext in ['.pt', '.safetensors', '.bin']:
+            test_path = os.path.join(emb_dir, embedding_path)
+            if os.path.exists(test_path):
+                emb_file = test_path
+                break
+        
+        if emb_file:
+            # Check for preview files
+            base_name = os.path.splitext(os.path.basename(emb_file))[0]
+            preview_dir = os.path.dirname(emb_file)
+            
+            # First check for .preview.* files
+            for ext in ['.preview.png', '.preview.jpeg', '.preview.jpg', '.preview.webp']:
+                preview_path = os.path.join(preview_dir, base_name + ext)
+                if os.path.exists(preview_path):
+                    return preview_path
+            
+            # Also check for image files with same base name (without .preview. prefix)
+            # Common image extensions
+            for ext in ['.png', '.jpeg', '.jpg', '.webp', '.gif', '.bmp']:
+                preview_path = os.path.join(preview_dir, base_name + ext)
+                if os.path.exists(preview_path):
+                    # Make sure it's not the embedding file itself
+                    if preview_path != emb_file:
+                        return preview_path
+    
+    return None
+
+
+def get_cached_preview_path(original_path, cache_key):
+    """Get or create a cached preview image"""
+    # Create a hash of the original path for cache filename
+    import hashlib
+    cache_hash = hashlib.md5(cache_key.encode()).hexdigest()
+    cache_path = PREVIEW_CACHE_DIR / f"{cache_hash}.jpg"
+    
+    # Check if cache exists and is newer than original
+    if cache_path.exists():
+        try:
+            if os.path.getmtime(cache_path) >= os.path.getmtime(original_path):
+                return cache_path
+        except:
+            pass
+    
+    # Create cached version
+    try:
+        img = Image.open(original_path)
+        img = img.convert('RGB')
+        
+        # Resize with center crop to square
+        width, height = img.size
+        if width > height:
+            left = (width - height) / 2
+            img = img.crop((left, 0, left + height, height))
+        else:
+            top = (height - width) / 2
+            img = img.crop((0, top, width, top + width))
+        
+        # Resize to preview size
+        img = img.resize((PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.LANCZOS)
+        
+        # Save as JPEG
+        img.save(cache_path, 'JPEG', quality=85, optimize=True)
+        return cache_path
+    except Exception as e:
+        print(f"Error creating cached preview: {e}")
+        return original_path
+
+
+@server.PromptServer.instance.routes.get('/lora_preview/{name}')
+async def get_lora_preview(request):
+    """Get LoRA preview image"""
+    try:
+        from urllib.parse import unquote
+        name = unquote(request.match_info['name'])
+        # Try to find preview using the name
+        preview_path = get_lora_preview_path(name)
+        
+        # If not found, try to find the LoRA in the list and use its full path
+        if not preview_path or not os.path.exists(preview_path):
+            # Try to find the LoRA in the list to get its full path
+            try:
+                loras = folder_paths.get_filename_list("loras")
+                # Check if name matches any LoRA (by name or path)
+                for lora in loras:
+                    lora_name = os.path.splitext(lora)[0]
+                    if lora_name == name or lora == name:
+                        # Try with the full path
+                        preview_path = get_lora_preview_path(lora)
+                        if preview_path and os.path.exists(preview_path):
+                            break
+            except:
+                pass
+        
+        if not preview_path or not os.path.exists(preview_path):
+            return web.Response(status=404)
+        
+        # Use cached version if available
+        cache_path = get_cached_preview_path(preview_path, f"lora:{name}")
+        return web.FileResponse(cache_path)
+    except Exception as e:
+        print(f"Error getting LoRA preview: {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.get('/embedding_preview/{path:.*}')
+async def get_embedding_preview(request):
+    """Get embedding preview image"""
+    try:
+        from urllib.parse import unquote
+        path = unquote(request.match_info['path'])
+        preview_path = get_embedding_preview_path(path)
+        
+        if not preview_path or not os.path.exists(preview_path):
+            return web.Response(status=404)
+        
+        # Use cached version if available
+        cache_path = get_cached_preview_path(preview_path, f"embedding:{path}")
+        return web.FileResponse(cache_path)
+    except Exception as e:
+        print(f"Error getting embedding preview: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
 @server.PromptServer.instance.routes.get('/lora_list')
 async def get_lora_list(request):
     """Get list of all available LoRAs"""
     try:
         loras = folder_paths.get_filename_list("loras")
-        # Return list of dicts with name and relative path
-        lora_list = [{"name": lora, "path": lora} for lora in loras]
+        # Return list of dicts with name, path, and hasPreview
+        lora_list = []
+        for lora in loras:
+            # Remove extension for name
+            name = os.path.splitext(lora)[0]
+            # Try both the name (without extension) and the full path for preview detection
+            # The full path might include subdirectories
+            has_preview = (get_lora_preview_path(name) is not None or 
+                          get_lora_preview_path(lora) is not None)
+            lora_list.append({
+                "name": name,
+                "path": lora,
+                "hasPreview": has_preview
+            })
         return web.json_response(lora_list)
     except Exception as e:
         return web.json_response(
@@ -509,9 +724,11 @@ async def get_embedding_list(request):
                             os.path.join(root, file),
                             emb_path
                         )
+                        has_preview = get_embedding_preview_path(rel_path) is not None
                         embeddings.append({
                             "name": name,
-                            "path": rel_path
+                            "path": rel_path,
+                            "hasPreview": has_preview
                         })
 
         # Remove duplicates and sort
@@ -529,6 +746,3 @@ async def get_embedding_list(request):
             {"error": str(e)},
             status=500
         )
-
-
-print("LoRA and Embedding list API routes registered")

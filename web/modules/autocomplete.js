@@ -4,6 +4,7 @@ import { getImageUrl } from './api.js';
 // Shared thumbnail element for autocomplete
 let sharedThumbnail = null;
 let thumbnailTimeout = null;
+let currentPreviewKey = null; // Track current preview to avoid redrawing
 
 function getOrCreateThumbnail() {
 	if (!sharedThumbnail) {
@@ -14,7 +15,54 @@ function getOrCreateThumbnail() {
 	return sharedThumbnail;
 }
 
-function showThumbnailForElement(element, characterName, immediate = false) {
+function getPreviewUrl(nameOrPath, type) {
+	if (type === 'character') {
+		return getImageUrl(nameOrPath, 'character');
+	} else if (type === 'lora') {
+		// URL encode the name for the API
+		return `/lora_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
+	} else if (type === 'embedding') {
+		// URL encode the path for the API
+		return `/embedding_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
+	}
+	return null;
+}
+
+function showThumbnailForElement(element, nameOrPath, previewType, immediate = false) {
+	// Create a unique key for this preview
+	const previewKey = `${previewType}:${nameOrPath}`;
+	
+	// If we're already showing this exact preview, don't redraw
+	if (currentPreviewKey === previewKey && sharedThumbnail && sharedThumbnail.style.display === 'block') {
+		// Just update position in case the element moved
+		if (immediate) {
+			const rect = element.getBoundingClientRect();
+			const thumbnailWidth = 128 + 8;
+			const thumbnailHeight = 128 + 8;
+			const viewportWidth = window.innerWidth;
+			const viewportHeight = window.innerHeight;
+			
+			let left = rect.right + 10;
+			let top = rect.top;
+			
+			if (left + thumbnailWidth > viewportWidth) {
+				left = rect.left - thumbnailWidth - 10;
+			}
+			
+			if (top + thumbnailHeight > viewportHeight) {
+				top = viewportHeight - thumbnailHeight - 10;
+			}
+			
+			if (top < 10) {
+				top = 10;
+			}
+			
+			sharedThumbnail.style.left = left + 'px';
+			sharedThumbnail.style.top = top + 'px';
+		}
+		return;
+	}
+	
 	// Clear any existing timeout
 	if (thumbnailTimeout) {
 		clearTimeout(thumbnailTimeout);
@@ -22,11 +70,20 @@ function showThumbnailForElement(element, characterName, immediate = false) {
 	}
 	
 	const thumbnail = getOrCreateThumbnail();
+	const previewUrl = getPreviewUrl(nameOrPath, previewType);
+	
+	if (!previewUrl) {
+		currentPreviewKey = null;
+		return;
+	}
+	
+	// Update the current preview key
+	currentPreviewKey = previewKey;
 	
 	// Update image if needed
 	const img = thumbnail.querySelector('img');
-	if (!img || img.alt !== characterName) {
-		thumbnail.innerHTML = `<img src="${getImageUrl(characterName, 'character')}" alt="${characterName}" />`;
+	if (!img || img.src !== previewUrl) {
+		thumbnail.innerHTML = `<img src="${previewUrl}" alt="${nameOrPath}" />`;
 	}
 	
 	const showThumbnail = () => {
@@ -77,6 +134,7 @@ function hideThumbnail() {
 	if (sharedThumbnail) {
 		sharedThumbnail.style.display = 'none';
 	}
+	currentPreviewKey = null;
 }
 
 function detectContext(input) {
@@ -161,7 +219,10 @@ function showAutocomplete(input, context) {
 			.map(item => ({
 				display: item.name,
 				value: item.name,
-				type: 'lora'
+				type: 'lora',
+				hasPreview: item.hasPreview || false,
+				previewName: item.name,
+				previewPath: item.path  // Store full path as fallback
 			}));
 		console.log('Filtered LoRAs:', filtered.length);
 	} else if (type === 'embedding') {
@@ -175,7 +236,9 @@ function showAutocomplete(input, context) {
 			.map(item => ({
 				display: item.name,
 				value: item.name,
-				type: 'embedding'
+				type: 'embedding',
+				hasPreview: item.hasPreview || false,
+				previewPath: item.path
 			}));
 		console.log('Filtered embeddings:', filtered.length);
 	} else {
@@ -312,12 +375,26 @@ function showAutocomplete(input, context) {
 
 		div.onclick = () => selectAutocomplete(index);
 		
-		// Store character name in data attribute for selection-based display
+		// Store preview info in data attributes for selection-based display
 		if (item.type === 'tag' && item.isPreset && 
 		    item.presetType === 'character' && item.hasImage && 
 		    item.characterName) {
 			div.dataset.characterName = item.characterName;
-			setupThumbnailHover(div, item.characterName);
+			div.dataset.previewType = 'character';
+			setupThumbnailHover(div, item.characterName, 'character');
+		} else if (item.type === 'lora' && item.hasPreview) {
+			// Try previewPath first (full path), then fall back to previewName
+			const previewIdentifier = item.previewPath || item.previewName;
+			if (previewIdentifier) {
+				div.dataset.previewName = item.previewName;
+				div.dataset.previewPath = item.previewPath;
+				div.dataset.previewType = 'lora';
+				setupThumbnailHover(div, previewIdentifier, 'lora');
+			}
+		} else if (item.type === 'embedding' && item.hasPreview && item.previewPath) {
+			div.dataset.previewPath = item.previewPath;
+			div.dataset.previewType = 'embedding';
+			setupThumbnailHover(div, item.previewPath, 'embedding');
 		}
 		
 		dropdown.appendChild(div);
@@ -352,13 +429,24 @@ function updateThumbnailForSelectedItem() {
 	
 	const selectedIndex = autocompleteState.selectedIndex;
 	if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
-		const selectedItem = autocompleteState.filteredTags[selectedIndex];
-		if (selectedItem.type === 'tag' && selectedItem.isPreset && 
-		    selectedItem.presetType === 'character' && selectedItem.hasImage && 
-		    selectedItem.characterName) {
-			const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
-			if (selectedElement) {
-				showThumbnailForElement(selectedElement, selectedItem.characterName, true);
+		const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
+		if (selectedElement) {
+			// Check what type of preview the selected item has
+			const previewType = selectedElement.dataset.previewType;
+			if (previewType === 'character' && selectedElement.dataset.characterName) {
+				showThumbnailForElement(selectedElement, selectedElement.dataset.characterName, 'character', true);
+			} else if (previewType === 'lora') {
+				// Try previewPath first, then fall back to previewName
+				const previewIdentifier = selectedElement.dataset.previewPath || selectedElement.dataset.previewName;
+				if (previewIdentifier) {
+					showThumbnailForElement(selectedElement, previewIdentifier, 'lora', true);
+				} else {
+					hideThumbnail();
+				}
+			} else if (previewType === 'embedding' && selectedElement.dataset.previewPath) {
+				showThumbnailForElement(selectedElement, selectedElement.dataset.previewPath, 'embedding', true);
+			} else {
+				hideThumbnail();
 			}
 		} else {
 			hideThumbnail();
@@ -368,10 +456,10 @@ function updateThumbnailForSelectedItem() {
 	}
 }
 
-function setupThumbnailHover(element, characterName) {
+function setupThumbnailHover(element, nameOrPath, previewType) {
 	element.addEventListener('mouseenter', () => {
 		// Show thumbnail on hover with delay
-		showThumbnailForElement(element, characterName, false);
+		showThumbnailForElement(element, nameOrPath, previewType, false);
 	});
 	
 	element.addEventListener('mouseleave', () => {
@@ -381,20 +469,30 @@ function setupThumbnailHover(element, characterName) {
 			const selectedIndex = autocompleteState.selectedIndex;
 			if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
 				const selectedItem = autocompleteState.filteredTags[selectedIndex];
-				if (selectedItem.type === 'tag' && selectedItem.isPreset && 
-				    selectedItem.presetType === 'character' && selectedItem.hasImage && 
-				    selectedItem.characterName) {
-					const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
-					if (selectedElement) {
-						// Show selected item's thumbnail immediately
-						showThumbnailForElement(selectedElement, selectedItem.characterName, true);
+				const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
+				
+				if (selectedElement) {
+					// Check what type of preview the selected item has
+					const selectedPreviewType = selectedElement.dataset.previewType;
+					if (selectedPreviewType === 'character' && selectedElement.dataset.characterName) {
+						showThumbnailForElement(selectedElement, selectedElement.dataset.characterName, 'character', true);
+					} else if (selectedPreviewType === 'lora') {
+						// Try previewPath first, then fall back to previewName
+						const previewIdentifier = selectedElement.dataset.previewPath || selectedElement.dataset.previewName;
+						if (previewIdentifier) {
+							showThumbnailForElement(selectedElement, previewIdentifier, 'lora', true);
+						} else {
+							hideThumbnail();
+						}
+					} else if (selectedPreviewType === 'embedding' && selectedElement.dataset.previewPath) {
+						showThumbnailForElement(selectedElement, selectedElement.dataset.previewPath, 'embedding', true);
+					} else {
+						hideThumbnail();
 					}
 				} else {
-					// Selected item doesn't have a thumbnail, so hide
 					hideThumbnail();
 				}
 			} else {
-				// No selected item, hide thumbnail
 				hideThumbnail();
 			}
 		} else {
