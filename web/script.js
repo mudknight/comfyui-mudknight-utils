@@ -159,7 +159,7 @@ function init() {
 	initSearch();
 	initWeightAdjustment();
 	setupModalEventListeners();
-	createSettingsPanel();
+	// createSettingsPanel();
 	
 	window.renderAll = renderAll;
 	window.renderCharacters = renderCharacters;
