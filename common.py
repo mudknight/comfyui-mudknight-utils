@@ -2,6 +2,26 @@ import os
 import folder_paths
 
 
+def return_preview(return_tuple, preview_image, extra_pnginfo):
+    preview = Node("PreviewImage")
+    preview_result = preview.function(preview_image)
+
+    is_vue = (
+        extra_pnginfo
+        and extra_pnginfo.get("workflow", {})
+        .get("extra", {})
+        .get("workflowRendererVersion") == "Vue"
+    )
+
+    if not is_vue:
+        return {
+            "ui": preview_result.get("ui", {}),
+            "result": return_tuple,
+        }
+
+    return return_tuple
+
+
 def detect_model_type(model):
     """ Detect model type (SDXL, SD1, SVD) based on latent channels. """
     model_type = "SDXL"  # Default

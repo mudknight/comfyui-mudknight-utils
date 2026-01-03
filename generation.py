@@ -60,10 +60,7 @@ class BaseNode:
             "optional": {
                 "image": ("IMAGE",),
             },
-            "hidden": {
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
-            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
@@ -74,8 +71,7 @@ class BaseNode:
 
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, resolution, portrait, image=None, prompt=None,
-            extra_pnginfo=None):
+            denoise, resolution, portrait, image=None, extra_pnginfo=None):
         """Generate image from latent using sampling."""
 
         # Unpack full_pipe
@@ -120,14 +116,11 @@ class BaseNode:
         full_pipe_in = common.Node("FullPipeIn")
         result = full_pipe_in.function(full_pipe, image=decoded_image)[0]
 
-        # Generate preview
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(decoded_image)
-
-        return {
-            "ui": preview_result.get("ui", {}),
-            "result": (result, decoded_image,)
-        }
+        return common.return_preview(
+            (result, decoded_image),
+            decoded_image,
+            extra_pnginfo
+        )
 
 
 class UpscaleNode:
@@ -157,7 +150,8 @@ class UpscaleNode:
             },
             "optional": {
                 "image": ("IMAGE",),
-            }
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
@@ -167,7 +161,7 @@ class UpscaleNode:
 
     def upscale(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, upscale_model, scale_by, image=None):
+            denoise, upscale_model, scale_by, image=None, extra_pnginfo=None):
         """Upscale and sample image."""
         # Unpack full_pipe
         model = full_pipe.get("model")
@@ -208,14 +202,11 @@ class UpscaleNode:
         full_pipe_in = common.Node("FullPipeIn")
         result = full_pipe_in.function(full_pipe, image=decoded_image)[0]
 
-        # Generate preview
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(decoded_image)
-
-        return {
-            "ui": preview_result.get("ui", {}),
-            "result": (result, decoded_image,)
-        }
+        return common.return_preview(
+            (result, decoded_image),
+            decoded_image,
+            extra_pnginfo
+        )
 
 
 NODE_CLASS_MAPPINGS = {

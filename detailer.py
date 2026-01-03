@@ -285,7 +285,8 @@ class DetailerNode:
                 **UPSCALER_INPUTS,
                 # Detection parameters
                 **DETAILER_INPUTS,
-            }
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE", "IMAGE")
@@ -298,7 +299,7 @@ class DetailerNode:
     def process(self, bbox_model, fallback_model, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion, context_padding):
+                edge_erosion, context_padding, extra_pnginfo=None):
         """Main processing function."""
 
         # Create placeholder for early returns
@@ -380,13 +381,11 @@ class DetailerNode:
                 final_image, eroded_image, bbox, feather=feather
             )
 
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(eroded_samples_batch)
-
-        # return (final_image, eroded_samples_batch)
-        return {
-                "ui": preview_result.get("ui", {}),
-                "result": (final_image, eroded_samples_batch,)}
+        return common.return_preview(
+            (final_image, eroded_samples_batch,),
+            eroded_samples_batch,
+            extra_pnginfo
+        )
 
 
 class MaskDetailerNode:
@@ -407,7 +406,8 @@ class MaskDetailerNode:
                 **UPSCALER_INPUTS,
                 # Detection parameters
                 **DETAILER_INPUTS,
-            }
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE", "IMAGE")
@@ -420,7 +420,7 @@ class MaskDetailerNode:
     def process(self, image, mask, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion, context_padding):
+                edge_erosion, context_padding, extra_pnginfo=None):
         """Main processing function."""
 
         # Generate SEGS from mask
@@ -473,13 +473,11 @@ class MaskDetailerNode:
                 final_image, eroded_image, bbox, feather=feather
             )
 
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(eroded_samples_batch)
-
-        # return (final_image, eroded_samples_batch)
-        return {
-                "ui": preview_result.get("ui", {}),
-                "result": (final_image, eroded_samples_batch,)}
+        return common.return_preview(
+            (final_image, eroded_samples_batch,),
+            eroded_samples_batch,
+            extra_pnginfo
+        )
 
 
 class DetailerPipeNode(DetailerNode):
@@ -503,7 +501,8 @@ class DetailerPipeNode(DetailerNode):
                 **UPSCALER_INPUTS,
                 # Detection parameters
                 **DETAILER_INPUTS,
-            }
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
@@ -516,7 +515,7 @@ class DetailerPipeNode(DetailerNode):
     def process_pipe(self, bbox_model, fallback_model, full_pipe, steps, cfg,
                      sampler, scheduler, denoise, upscale_method,
                      upscale_model, threshold, feather, edge_erosion,
-                     context_padding):
+                     context_padding, extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         image = full_pipe.get("image")
@@ -556,13 +555,11 @@ class DetailerPipeNode(DetailerNode):
         new_pipe = full_pipe.copy()
         new_pipe["image"] = final_image
 
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(cropped_image)
-
-        return {
-            "ui": preview_result.get("ui", {}),
-            "result": (new_pipe, final_image, cropped_image)
-        }
+        return common.return_preview(
+            (new_pipe, final_image, cropped_image),
+            cropped_image,
+            extra_pnginfo
+        )
 
 
 class MaskDetailerPipeNode(MaskDetailerNode):
@@ -585,7 +582,8 @@ class MaskDetailerPipeNode(MaskDetailerNode):
             },
             "optional": {
                 "image": ("IMAGE",),
-            }
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
@@ -598,7 +596,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
     def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
                      threshold, feather, edge_erosion, context_padding,
-                     image=None):
+                     image=None, extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         if image is None:
@@ -639,13 +637,11 @@ class MaskDetailerPipeNode(MaskDetailerNode):
         new_pipe = full_pipe.copy()
         new_pipe["image"] = final_image
 
-        preview = common.Node("PreviewImage")
-        preview_result = preview.function(cropped_image)
-
-        return {
-            "ui": preview_result.get("ui", {}),
-            "result": (new_pipe, final_image, cropped_image)
-        }
+        return common.return_preview(
+            (new_pipe, final_image, cropped_image),
+            cropped_image,
+            extra_pnginfo
+        )
 
 
 NODE_CLASS_MAPPINGS = {
