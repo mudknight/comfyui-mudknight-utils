@@ -22,14 +22,21 @@ app.registerExtension({
             type: "boolean",
             defaultValue: true,
         },
+        {
+            id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
+            name: "Hide tag aliases when main tag is present",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "When enabled, aliases like 'blackh' or " +
+                "'black-hair' won't show if 'black hair' is in results, " +
+                "unless you specifically type the alias"
+        },
     ],
     async setup() {
-        // Create dropdown if missing
         let dropdown = document.getElementById("autocompleteDropdown");
         if (!dropdown) {
             dropdown = document.createElement("div");
             dropdown.id = "autocompleteDropdown";
-            // Ensure visibility and placement
             dropdown.style.cssText = `
                 display: none; 
                 position: fixed; 
@@ -43,10 +50,14 @@ app.registerExtension({
 
         initAutocomplete();
 
+        const hideAliases = app.ui.settings.getSettingValue(
+            "Mudknight Utils.Autocomplete.HideAliasesWithMain",
+        );
+        autocompleteState.hideAliasesWithMain = hideAliases;
+
         const tags = await api.loadAutocompleteTags();
         autocompleteState.tags = tags;
-        
-        // Load presets after tags are loaded
+
         const [characterPresets, tagPresets, loras, embeds] = 
             await Promise.all([
                 api.loadCharacterPresets(tags),
@@ -54,7 +65,7 @@ app.registerExtension({
                 api.loadLoras(),
                 api.loadEmbeddings()
             ]);
-        
+
         autocompleteState.characterPresets = characterPresets;
         autocompleteState.tagPresets = tagPresets;
         autocompleteState.loras = loras;
@@ -75,9 +86,19 @@ app.registerExtension({
                         if (w.element && 
                             w.element.tagName === "TEXTAREA") {
                             w.element._checkEnabled = () => {
-                                return app.ui.settings.getSettingValue(
-                                    "Mudknight Utils.Autocomplete.Enabled",
+                                const enabled = app.ui.settings.getSettingValue(
+                                    "Mudknight Utils.Autocomplete.Enabled"
                                 );
+                                if (enabled) {
+                                    const hideAliases = 
+                                        app.ui.settings.getSettingValue(
+                                            "Mudknight Utils.Autocomplete" +
+                                            ".HideAliasesWithMain",
+                                        );
+                                    autocompleteState.hideAliasesWithMain = 
+                                        hideAliases;
+                                }
+                                return enabled;
                             };
                             setupAutocomplete(w.element, true);
                         }

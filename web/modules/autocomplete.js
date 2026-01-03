@@ -144,7 +144,6 @@ function detectContext(input) {
 	// Check for LoRA syntax: <lora: (with optional content after)
 	const loraMatch = text.match(/<lora:([^:>]*)$/);
 	if (loraMatch) {
-		console.log('Detected LoRA context:', loraMatch[1]);
 		return {
 			type: 'lora',
 			searchTerm: loraMatch[1] || '',
@@ -155,7 +154,6 @@ function detectContext(input) {
 	// Check for embedding syntax: embedding: (with optional content)
 	const embedMatch = text.match(/\bembedding:([^\s,]*)$/i);
 	if (embedMatch) {
-		console.log('Detected embedding context:', embedMatch[1]);
 		return {
 			type: 'embedding',
 			searchTerm: embedMatch[1] || '',
@@ -224,7 +222,6 @@ function showAutocomplete(input, context) {
 				previewName: item.name,
 				previewPath: item.path  // Store full path as fallback
 			}));
-		console.log('Filtered LoRAs:', filtered.length);
 	} else if (type === 'embedding') {
 		const searchLower = searchTerm.toLowerCase();
 		filtered = autocompleteState.embeddings
@@ -240,7 +237,6 @@ function showAutocomplete(input, context) {
 				hasPreview: item.hasPreview || false,
 				previewPath: item.path
 			}));
-		console.log('Filtered embeddings:', filtered.length);
 	} else {
 		// Tag search with category, alias, and preset support
 		// Replace spaces with underscores for matching
@@ -269,20 +265,20 @@ function showAutocomplete(input, context) {
 		});
 		
 		// Convert map back to array and filter matching tags
-		const matching = Array.from(tagMap.values())
+		let matching = Array.from(tagMap.values())
 			.filter(item => 
 				item.tag.toLowerCase().includes(searchLower)
 			)
 			.map(item => ({
 				display: item.tag.replace(/_/g, ' '),
 				value: item.isAlias ? 
-				item.aliasFor.replace(/_/g, ' ') : 
-				item.tag.replace(/_/g, ' '),
+					item.aliasFor.replace(/_/g, ' ') : 
+					item.tag.replace(/_/g, ' '),
 				count: item.count,
 				category: item.category,
 				isAlias: item.isAlias,
 				aliasFor: item.aliasFor ? 
-				item.aliasFor.replace(/_/g, ' ') : undefined,
+					item.aliasFor.replace(/_/g, ' ') : undefined,
 				isPreset: item.isPreset || false,
 				presetType: item.presetType,
 				characterName: item.characterName,  // For image lookup
@@ -290,7 +286,40 @@ function showAutocomplete(input, context) {
 				type: 'tag'
 			}));
 		
-		// Sort: presets first (if enabled), then by count
+		// Filter aliases if setting enabled
+		if (autocompleteState.hideAliasesWithMain) {
+			const mainTagsPresent = new Map();
+			matching.forEach(item => {
+				if (!item.isAlias) {
+					const normalizedValue = 
+						item.value.toLowerCase().replace(/ /g, '_');
+					mainTagsPresent.set(normalizedValue, true);
+				}
+			});
+			
+			matching = matching.filter(item => {
+				if (!item.isAlias || !item.aliasFor) {
+					return true;
+				}
+				
+				const mainTag = 
+					item.aliasFor.toLowerCase().replace(/ /g, '_');
+				const aliasTag = 
+					item.display.toLowerCase().replace(/ /g, '_');
+				
+				if (mainTagsPresent.has(mainTag)) {
+					const searchMatchesAlias = 
+						aliasTag.startsWith(searchLower);
+					const searchMatchesMain = 
+						mainTag.startsWith(searchLower);
+					
+					return searchMatchesAlias && !searchMatchesMain;
+				}
+				
+				return true;
+			});
+		}
+		
 		if (autocompleteState.presetsFirst) {
 			matching.sort((a, b) => {
 				// Presets always come first
@@ -341,36 +370,38 @@ function showAutocomplete(input, context) {
 				const presetLabel = item.isPreset ? 
 					' <span class="preset-label">PRESET</span>' : '';
 				div.innerHTML = `
-		    <span class="autocomplete-tag">
-			<span class="alias-name">${item.display}</span>
-			<span class="alias-arrow"> → </span>
-			<span class="alias-target">${item.value}</span>
-			${categoryLabel ? 
-					`<span class="category-label">${categoryLabel}
-			    </span>` : ''}${presetLabel}
-		    </span>
-		    <span class="autocomplete-count">${item.count}</span>
-		`;
+					<span class="autocomplete-tag">
+						<span class="alias-name">${item.display}</span>
+						<span class="alias-arrow"> → </span>
+						<span class="alias-target">${item.value}</span>
+						${categoryLabel ? 
+							`<span class="category-label">
+								${categoryLabel}
+							</span>` : ''}${presetLabel}
+					</span>
+					<span class="autocomplete-count">${item.count}</span>
+				`;
 			} else {
 				// Regular tag format: tag (category) [PRESET] count
 				const categoryLabel = getCategoryLabel(item.category);
 				const presetLabel = item.isPreset ? 
 					' <span class="preset-label">PRESET</span>' : '';
 				div.innerHTML = `
-		    <span class="autocomplete-tag">
-			${item.display}
-			${categoryLabel ? 
-					`<span class="category-label">${categoryLabel}
-			    </span>` : ''}${presetLabel}
-		    </span>
-		    <span class="autocomplete-count">${item.count}</span>
-		`;
+					<span class="autocomplete-tag">
+						${item.display}
+						${categoryLabel ? 
+							`<span class="category-label">
+								${categoryLabel}
+							</span>` : ''}${presetLabel}
+					</span>
+					<span class="autocomplete-count">${item.count}</span>
+				`;
 			}
 		} else {
 			// LoRA/embedding format
 			div.innerHTML = `
-		<span class="autocomplete-tag">${item.display}</span>
-	    `;
+				<span class="autocomplete-tag">${item.display}</span>
+			`;
 		}
 
 		div.onclick = () => selectAutocomplete(index);
@@ -406,8 +437,7 @@ function showAutocomplete(input, context) {
 	dropdown.style.width = rect.width + 'px';
 	dropdown.style.display = 'block';
 	
-	// Set up dropdown-level hover handlers to show selected item thumbnail
-	// when cursor is over dropdown but not over a specific item
+	// Set  cursor is over dropdown but not over a specific item
 	dropdown.addEventListener('mouseenter', () => {
 		updateThumbnailForSelectedItem();
 	});
