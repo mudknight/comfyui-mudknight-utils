@@ -30,22 +30,12 @@ function renderAll() {
 	renderTags();
 }
 
-function loadHideAliasesSetting() {
-	const saved = localStorage.getItem('autocomplete.hideAliasesWithMain');
-	if (saved !== null) {
-		return saved === 'true';
-	}
-	return true;
-}
 
-function saveHideAliasesSetting(value) {
-	localStorage.setItem('autocomplete.hideAliasesWithMain', value);
-}
 
 async function loadData() {
 	try {
-		autocompleteState.hideAliasesWithMain = 
-			loadHideAliasesSetting();
+		const hideAliases = localStorage.getItem("Mudknight Utils.Autocomplete.HideAliasesWithMain");
+		autocompleteState.hideAliasesWithMain = hideAliases === 'true';
 		
 		const autocompleteTags = await api.loadAutocompleteTags();
 		autocompleteState.tags = autocompleteTags;
@@ -101,57 +91,7 @@ function setupModalEventListeners() {
 	});
 }
 
-function toggleHideAliases() {
-	autocompleteState.hideAliasesWithMain = 
-		!autocompleteState.hideAliasesWithMain;
-	saveHideAliasesSetting(autocompleteState.hideAliasesWithMain);
-	
-	const checkbox = document.getElementById('hideAliasesCheckbox');
-	if (checkbox) {
-		checkbox.checked = autocompleteState.hideAliasesWithMain;
-	}
-}
 
-function createSettingsPanel() {
-	const panel = document.createElement('div');
-	panel.style.cssText = `
-		position: fixed;
-		bottom: 20px;
-		right: 20px;
-		background: #2a2a2a;
-		border: 1px solid #3a3a3a;
-		border-radius: 6px;
-		padding: 15px;
-		z-index: 1000;
-		min-width: 250px;
-	`;
-	
-	panel.innerHTML = `
-		<div style="font-size: 14px; font-weight: 600; 
-		            margin-bottom: 10px; color: #fff;">
-			Autocomplete Settings
-		</div>
-		<label style="display: flex; align-items: center; gap: 10px; 
-		              cursor: pointer; color: #e0e0e0;">
-			<input type="checkbox" id="hideAliasesCheckbox" 
-			       style="cursor: pointer;">
-			<span style="font-size: 13px;">
-				Hide aliases when main tag is present
-			</span>
-		</label>
-		<div style="font-size: 11px; color: #888; margin-top: 8px; 
-		            margin-left: 30px;">
-			When enabled, aliases won't show if their main tag is in 
-			results, unless you specifically type the alias
-		</div>
-	`;
-	
-	document.body.appendChild(panel);
-	
-	const checkbox = document.getElementById('hideAliasesCheckbox');
-	checkbox.checked = autocompleteState.hideAliasesWithMain;
-	checkbox.addEventListener('change', toggleHideAliases);
-}
 
 function init() {
 	initAutocomplete();
@@ -159,7 +99,6 @@ function init() {
 	initSearch();
 	initWeightAdjustment();
 	setupModalEventListeners();
-	// createSettingsPanel();
 	
 	window.renderAll = renderAll;
 	window.renderCharacters = renderCharacters;
@@ -175,6 +114,12 @@ function init() {
 	window.clearSearch = clearSearch;
 	window.selectCategory = selectCategory;
 	window.toggleSidebar = toggleSidebar;
+	
+	window.addEventListener('storage', (event) => {
+		if (event.key === "Mudknight Utils.Autocomplete.HideAliasesWithMain") {
+			autocompleteState.hideAliasesWithMain = event.newValue === 'true';
+		}
+	});
 	
 	loadData();
 }

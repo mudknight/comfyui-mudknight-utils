@@ -29,7 +29,10 @@ app.registerExtension({
             defaultValue: true,
             tooltip: "When enabled, aliases like 'blackh' or " +
                 "'black-hair' won't show if 'black hair' is in results, " +
-                "unless you specifically type the alias"
+                "unless you specifically type the alias",
+            onChange: (value) => {
+                localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", value);
+            }
         },
     ],
     async setup() {
@@ -54,6 +57,7 @@ app.registerExtension({
             "Mudknight Utils.Autocomplete.HideAliasesWithMain",
         );
         autocompleteState.hideAliasesWithMain = hideAliases;
+        localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", hideAliases);
 
         const tags = await api.loadAutocompleteTags();
         autocompleteState.tags = tags;
@@ -97,6 +101,7 @@ app.registerExtension({
                                         );
                                     autocompleteState.hideAliasesWithMain = 
                                         hideAliases;
+                                    localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", hideAliases);
                                 }
                                 return enabled;
                             };
