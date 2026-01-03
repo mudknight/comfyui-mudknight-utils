@@ -185,7 +185,23 @@ function detectContext(input) {
 	};
 }
 
+function isAutocompleteEnabled() {
+	const isPresetManager = window.location.pathname.includes(
+		'character_editor.html'
+	);
+	const key = isPresetManager
+		? "Mudknight Utils.Autocomplete.PresetManagerEnabled"
+		: "Mudknight Utils.Autocomplete.Enabled";
+	const value = localStorage.getItem(key);
+	return value !== 'false';
+}
+
 function showAutocomplete(input, context) {
+	if (!isAutocompleteEnabled()) {
+		hideAutocomplete();
+		return;
+	}
+
 	const { type, searchTerm, start } = context;
 
 	// For LoRA and embedding, show immediately after typing prefix
@@ -640,8 +656,8 @@ function selectAutocomplete(index) {
 
 function handleAutocompleteKeydown(e, input) {
 	const dropdown = document.getElementById('autocompleteDropdown');
-	
-	if (dropdown.style.display !== 'block') {
+
+	if (!isAutocompleteEnabled() || dropdown.style.display !== 'block') {
 		return;
 	}
 	

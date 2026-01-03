@@ -35,6 +35,19 @@ app.registerExtension({
                 localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", value);
             }
         },
+        {
+            id: "Mudknight Utils.Autocomplete.PresetManagerEnabled",
+            name: "Enable Autocomplete in Preset Manager",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Enable autocomplete in the Preset Manager window.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Mudknight Utils.Autocomplete.PresetManagerEnabled", 
+                    value
+                );
+            }
+        },
     ],
     async setup() {
         let dropdown = document.getElementById("autocompleteDropdown");
