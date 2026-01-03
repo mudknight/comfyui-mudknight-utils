@@ -136,6 +136,102 @@ function parseAliases(aliasField) {
 	return aliases;
 }
 
+export async function loadCharacterPresets(danbooruTags) {
+	try {
+		const response = await fetch('/character_editor');
+		if (!response.ok) {
+			console.log('Failed to load character presets');
+			return [];
+		}
+		const characters = await response.json();
+		
+		// Create tag lookup map for faster searching
+		const tagMap = new Map();
+		danbooruTags.forEach(tag => {
+			tagMap.set(tag.tag.toLowerCase(), tag);
+		});
+		
+		const presets = [];
+		for (const [name, data] of Object.entries(characters)) {
+			// Normalize: strip backslashes, trim, lowercase, 
+			// replace spaces with underscores
+			const nameLower = name.trim()
+				.replace(/\\/g, '')  // Remove backslashes
+				.toLowerCase()
+				.replace(/ /g, '_');
+			const danbooruTag = tagMap.get(nameLower);
+			
+			// Inherit properties from danbooru if exists,
+			// otherwise default to character category
+			const category = danbooruTag ? danbooruTag.category : 4;
+			const count = danbooruTag ? danbooruTag.count : 0;
+			
+			presets.push({
+				tag: nameLower,
+				category: category,
+				count: count,
+				isAlias: false,
+				isPreset: true,
+				presetType: 'character'
+			});
+		}
+		
+		console.log(`Loaded ${presets.length} character presets`);
+		return presets;
+	} catch (error) {
+		console.error('Error loading character presets:', error);
+		return [];
+	}
+}
+
+export async function loadTagPresets(danbooruTags) {
+	try {
+		const response = await fetch('/tag_editor');
+		if (!response.ok) {
+			console.log('Failed to load tag presets');
+			return [];
+		}
+		const tags = await response.json();
+		
+		// Create tag lookup map for faster searching
+		const tagMap = new Map();
+		danbooruTags.forEach(tag => {
+			tagMap.set(tag.tag.toLowerCase(), tag);
+		});
+		
+		const presets = [];
+		for (const name of Object.keys(tags)) {
+			// Normalize: strip backslashes, trim, lowercase,
+			// replace spaces with underscores
+			const nameLower = name.trim()
+				.replace(/\\/g, '')  // Remove backslashes
+				.toLowerCase()
+				.replace(/ /g, '_');
+			const danbooruTag = tagMap.get(nameLower);
+			
+			// Inherit properties from danbooru if exists,
+			// otherwise default to general category
+			const category = danbooruTag ? danbooruTag.category : 0;
+			const count = danbooruTag ? danbooruTag.count : 0;
+			
+			presets.push({
+				tag: nameLower,
+				category: category,
+				count: count,
+				isAlias: false,
+				isPreset: true,
+				presetType: 'tag'
+			});
+		}
+		
+		console.log(`Loaded ${presets.length} tag presets`);
+		return presets;
+	} catch (error) {
+		console.error('Error loading tag presets:', error);
+		return [];
+	}
+}
+
 export async function saveCharacters(characters) {
 	const response = await fetch('/character_editor', {
 		method: 'POST',

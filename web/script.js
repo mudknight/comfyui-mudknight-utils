@@ -2,12 +2,23 @@ import { state, autocompleteState } from './modules/state.js';
 import * as api from './modules/api.js';
 import { showStatus } from './modules/utils.js';
 import { initAutocomplete } from './modules/autocomplete.js';
-import { initCategories, renderCategories, selectCategory, toggleSidebar } from './modules/categories.js';
+import { 
+	initCategories, 
+	renderCategories, 
+	selectCategory, 
+	toggleSidebar 
+} from './modules/categories.js';
 import { renderCharacters } from './modules/characters.js';
 import { renderModels } from './modules/models.js';
 import { renderStyles } from './modules/styles.js';
 import { renderTags } from './modules/tags.js';
-import { showEditModal, hideEditModal, saveItem, deleteCurrentItem, removeImage } from './modules/modals.js';
+import { 
+	showEditModal, 
+	hideEditModal, 
+	saveItem, 
+	deleteCurrentItem, 
+	removeImage 
+} from './modules/modals.js';
 import { initSearch, switchTab, clearSearch } from './modules/search.js';
 import { initWeightAdjustment } from './modules/weight-adjustment.js';
 
@@ -23,6 +34,15 @@ async function loadData() {
 	try {
 		const autocompleteTags = await api.loadAutocompleteTags();
 		autocompleteState.tags = autocompleteTags;
+		
+		// Load character and tag presets after tags are loaded
+		const characterPresets = await api.loadCharacterPresets(
+			autocompleteTags
+		);
+		autocompleteState.characterPresets = characterPresets;
+		
+		const tagPresets = await api.loadTagPresets(autocompleteTags);
+		autocompleteState.tagPresets = tagPresets;
 		
 		// Load LoRAs and embeddings
 		const loras = await api.loadLoras();
@@ -53,13 +73,15 @@ function setupModalEventListeners() {
 		if (e.target.id === 'editModal') hideEditModal('character');
 	});
 
-	document.getElementById('modelEditModal').addEventListener('click', (e) => {
-		if (e.target.id === 'modelEditModal') hideEditModal('model');
-	});
+	document.getElementById('modelEditModal')
+		.addEventListener('click', (e) => {
+			if (e.target.id === 'modelEditModal') hideEditModal('model');
+		});
 
-	document.getElementById('styleEditModal').addEventListener('click', (e) => {
-		if (e.target.id === 'styleEditModal') hideEditModal('style');
-	});
+	document.getElementById('styleEditModal')
+		.addEventListener('click', (e) => {
+			if (e.target.id === 'styleEditModal') hideEditModal('style');
+		});
 
 	document.getElementById('tagEditModal').addEventListener('click', (e) => {
 		if (e.target.id === 'tagEditModal') hideEditModal('tag');

@@ -1,6 +1,8 @@
 import { app } from "/scripts/app.js";
-import { autocompleteState } from "/extensions/comfyui-mudknight-utils/modules/state.js";
-import * as api from "/extensions/comfyui-mudknight-utils/modules/api.js";
+import { autocompleteState } from 
+	"/extensions/comfyui-mudknight-utils/modules/state.js";
+import * as api from 
+	"/extensions/comfyui-mudknight-utils/modules/api.js";
 import { 
     setupAutocomplete, 
     initAutocomplete 
@@ -41,13 +43,20 @@ app.registerExtension({
 
         initAutocomplete();
 
-        const [tags, loras, embeds] = await Promise.all([
-            api.loadAutocompleteTags(),
-            api.loadLoras(),
-            api.loadEmbeddings()
-        ]);
-
+        const tags = await api.loadAutocompleteTags();
         autocompleteState.tags = tags;
+        
+        // Load presets after tags are loaded
+        const [characterPresets, tagPresets, loras, embeds] = 
+            await Promise.all([
+                api.loadCharacterPresets(tags),
+                api.loadTagPresets(tags),
+                api.loadLoras(),
+                api.loadEmbeddings()
+            ]);
+        
+        autocompleteState.characterPresets = characterPresets;
+        autocompleteState.tagPresets = tagPresets;
         autocompleteState.loras = loras;
         autocompleteState.embeddings = embeds;
     },
@@ -64,7 +73,8 @@ app.registerExtension({
             if (isEnabled) {
                 setTimeout(() => {
                     this.widgets?.forEach(w => {
-                        if (w.element && w.element.tagName === "TEXTAREA") {
+                        if (w.element && 
+                            w.element.tagName === "TEXTAREA") {
                             w.element._checkEnabled = () => {
                                 return app.ui.settings.getSettingValue(
                                     "Mudknight Utils.Autocomplete.Enabled",

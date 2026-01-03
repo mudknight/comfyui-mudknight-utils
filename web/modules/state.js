@@ -36,6 +36,9 @@ export const autocompleteState = {
 	tags: [],
 	loras: [],
 	embeddings: [],
+	characterPresets: [],
+	tagPresets: [],
 	contextType: 'tag',
-	insertComma: true
+	insertComma: true,
+	presetsFirst: true  // Configurable: show presets above regular tags
 };

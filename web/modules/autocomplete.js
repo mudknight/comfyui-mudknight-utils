@@ -102,14 +102,39 @@ function showAutocomplete(input, context) {
 			}));
 		console.log('Filtered embeddings:', filtered.length);
 	} else {
-		// Tag search with category and alias support
+		// Tag search with category, alias, and preset support
 		// Replace spaces with underscores for matching
 		const searchLower = searchTerm.toLowerCase().replace(/ /g, '_');
-		filtered = autocompleteState.tags
+		
+		// Create a map to merge presets with regular tags
+		// Presets replace regular tags when they have the same name
+		const tagMap = new Map();
+		
+		// First, add all regular tags
+		autocompleteState.tags.forEach(tag => {
+			const key = tag.tag.toLowerCase().trim();
+			tagMap.set(key, tag);
+		});
+		
+		// Then, override with character presets
+		autocompleteState.characterPresets.forEach(preset => {
+			const key = preset.tag.toLowerCase().trim();
+			tagMap.set(key, preset);
+		});
+		
+		// Finally, override with tag presets
+		autocompleteState.tagPresets.forEach(preset => {
+			const key = preset.tag.toLowerCase().trim();
+			tagMap.set(key, preset);
+		});
+		
+		console.log(`Total tags after merge: ${tagMap.size}`);
+		
+		// Convert map back to array and filter matching tags
+		const matching = Array.from(tagMap.values())
 			.filter(item => 
 				item.tag.toLowerCase().includes(searchLower)
 			)
-			.slice(0, 10)
 			.map(item => ({
 				display: item.tag.replace(/_/g, ' '),
 				value: item.isAlias ? 
@@ -120,8 +145,26 @@ function showAutocomplete(input, context) {
 				isAlias: item.isAlias,
 				aliasFor: item.aliasFor ? 
 				item.aliasFor.replace(/_/g, ' ') : undefined,
+				isPreset: item.isPreset || false,
+				presetType: item.presetType,
 				type: 'tag'
 			}));
+		
+		// Sort: presets first (if enabled), then by count
+		if (autocompleteState.presetsFirst) {
+			matching.sort((a, b) => {
+				// Presets always come first
+				if (a.isPreset && !b.isPreset) return -1;
+				if (!a.isPreset && b.isPreset) return 1;
+				// Within same group, sort by count
+				return b.count - a.count;
+			});
+		} else {
+			// Just sort by count
+			matching.sort((a, b) => b.count - a.count);
+		}
+		
+		filtered = matching.slice(0, 10);
 	}
 
 	if (filtered.length === 0) {
@@ -153,8 +196,10 @@ function showAutocomplete(input, context) {
 		// Different display based on type
 		if (item.type === 'tag') {
 			if (item.isAlias) {
-				// Alias format: alias -> tag (category) count
+				// Alias format: alias -> tag (category) [PRESET] count
 				const categoryLabel = getCategoryLabel(item.category);
+				const presetLabel = item.isPreset ? 
+					' <span class="preset-label">PRESET</span>' : '';
 				div.innerHTML = `
 		    <span class="autocomplete-tag">
 			<span class="alias-name">${item.display}</span>
@@ -162,19 +207,21 @@ function showAutocomplete(input, context) {
 			<span class="alias-target">${item.value}</span>
 			${categoryLabel ? 
 					`<span class="category-label">${categoryLabel}
-			    </span>` : ''}
+			    </span>` : ''}${presetLabel}
 		    </span>
 		    <span class="autocomplete-count">${item.count}</span>
 		`;
 			} else {
-				// Regular tag format: tag (category) count
+				// Regular tag format: tag (category) [PRESET] count
 				const categoryLabel = getCategoryLabel(item.category);
+				const presetLabel = item.isPreset ? 
+					' <span class="preset-label">PRESET</span>' : '';
 				div.innerHTML = `
 		    <span class="autocomplete-tag">
 			${item.display}
 			${categoryLabel ? 
 					`<span class="category-label">${categoryLabel}
-			    </span>` : ''}
+			    </span>` : ''}${presetLabel}
 		    </span>
 		    <span class="autocomplete-count">${item.count}</span>
 		`;
@@ -350,7 +397,8 @@ export function setupAutocomplete(input, insertComma = true) {
 
 		input.addEventListener('input', (e) => {
 			// Default to true if the check function doesn't exist
-			const enabled = input._checkEnabled ? input._checkEnabled() : true;
+			const enabled = input._checkEnabled ? 
+				input._checkEnabled() : true;
 			if (!enabled) return;
 
 			autocompleteState.insertComma = input._insertComma;
@@ -359,8 +407,10 @@ export function setupAutocomplete(input, insertComma = true) {
 		});
 
 		input.addEventListener('keydown', (e) => {
-			const enabled = input._checkEnabled ? input._checkEnabled() : true;
-			const dropdown = document.getElementById('autocompleteDropdown');
+			const enabled = input._checkEnabled ? 
+				input._checkEnabled() : true;
+			const dropdown = 
+				document.getElementById('autocompleteDropdown');
 
 			if (!enabled || dropdown.style.display !== 'block') return;
 
