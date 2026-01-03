@@ -1,8 +1,8 @@
 import { app } from "/scripts/app.js";
 import { autocompleteState } from 
-	"/extensions/comfyui-mudknight-utils/modules/state.js";
+    "/extensions/comfyui-mudknight-utils/modules/state.js";
 import * as api from 
-	"/extensions/comfyui-mudknight-utils/modules/api.js";
+    "/extensions/comfyui-mudknight-utils/modules/api.js";
 import { 
     setupAutocomplete, 
     initAutocomplete 
@@ -21,29 +21,18 @@ app.registerExtension({
             name: "Enable Autocomplete in ComfyUI",
             type: "boolean",
             defaultValue: true,
-            tooltip: "Enable autocomplete for multiline strings in ComfyUI nodes.",
+            tooltip: "Enable autocomplete for multiline strings.",
         },
         {
             id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
             name: "Hide tag aliases when main tag is present",
             type: "boolean",
             defaultValue: true,
-            tooltip: "When enabled, aliases like 'blackh' or " +
-                "'black-hair' won't show if 'black hair' is in results, " +
-                "unless you specifically type the alias",
-            onChange: (value) => {
-                localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", value);
-            }
-        },
-        {
-            id: "Mudknight Utils.Autocomplete.PresetManagerEnabled",
-            name: "Enable Autocomplete in Preset Manager",
-            type: "boolean",
-            defaultValue: true,
-            tooltip: "Enable autocomplete in the Preset Manager window.",
+            tooltip: "When enabled, aliases won't show if main tag " +
+                "is in results, unless you specifically type the alias",
             onChange: (value) => {
                 localStorage.setItem(
-                    "Mudknight Utils.Autocomplete.PresetManagerEnabled", 
+                    "Mudknight Utils.Autocomplete.HideAliasesWithMain",
                     value
                 );
             }
@@ -71,7 +60,10 @@ app.registerExtension({
             "Mudknight Utils.Autocomplete.HideAliasesWithMain",
         );
         autocompleteState.hideAliasesWithMain = hideAliases;
-        localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", hideAliases);
+        localStorage.setItem(
+            "Mudknight Utils.Autocomplete.HideAliasesWithMain",
+            hideAliases
+        );
 
         const tags = await api.loadAutocompleteTags();
         autocompleteState.tags = tags;
@@ -88,8 +80,89 @@ app.registerExtension({
         autocompleteState.tagPresets = tagPresets;
         autocompleteState.loras = loras;
         autocompleteState.embeddings = embeds;
+
+        // Setup MutationObserver for Vue nodes (Nodes 2.0)
+        this.setupVueNodeObserver();
     },
+
+    setupVueNodeObserver() {
+        const processedTextareas = new WeakSet();
+
+        const processTextarea = (textarea) => {
+            if (processedTextareas.has(textarea)) return;
+            if (textarea._autocompleteSetup) return;
+
+            const isEnabled = app.ui.settings.getSettingValue(
+                "Mudknight Utils.Autocomplete.Enabled",
+            );
+
+            if (!isEnabled) return;
+
+            textarea._checkEnabled = () => {
+                const enabled = app.ui.settings.getSettingValue(
+                    "Mudknight Utils.Autocomplete.Enabled"
+                );
+                if (enabled) {
+                    const hideAliases = 
+                        app.ui.settings.getSettingValue(
+                            "Mudknight Utils.Autocomplete" +
+                            ".HideAliasesWithMain",
+                        );
+                    autocompleteState.hideAliasesWithMain = 
+                        hideAliases;
+                    localStorage.setItem(
+                        "Mudknight Utils.Autocomplete" +
+                        ".HideAliasesWithMain",
+                        hideAliases
+                    );
+                }
+                return enabled;
+            };
+
+            setupAutocomplete(textarea, true);
+            processedTextareas.add(textarea);
+        };
+
+        // Process existing textareas
+        const processExistingTextareas = () => {
+            document.querySelectorAll('textarea').forEach(textarea => {
+                processTextarea(textarea);
+            });
+        };
+
+        // Initial scan
+        setTimeout(processExistingTextareas, 100);
+
+        // Watch for new textareas being added (for Vue nodes)
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                // Check added nodes
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+                    // Check if the node itself is a textarea
+                    if (node.tagName === 'TEXTAREA') {
+                        processTextarea(node);
+                    }
+
+                    // Check for textareas within the node
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('textarea')
+                            .forEach(processTextarea);
+                    }
+                }
+            }
+        });
+
+        // Observe the entire document for new textareas
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    },
+
     async beforeRegisterNodeDef(nodeType) {
+        // Keep existing widget-based node support
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             if (onNodeCreated) onNodeCreated.apply(this, arguments);
@@ -104,18 +177,25 @@ app.registerExtension({
                         if (w.element && 
                             w.element.tagName === "TEXTAREA") {
                             w.element._checkEnabled = () => {
-                                const enabled = app.ui.settings.getSettingValue(
-                                    "Mudknight Utils.Autocomplete.Enabled"
-                                );
+                                const enabled = 
+                                    app.ui.settings.getSettingValue(
+                                        "Mudknight Utils.Autocomplete" +
+                                        ".Enabled"
+                                    );
                                 if (enabled) {
                                     const hideAliases = 
                                         app.ui.settings.getSettingValue(
                                             "Mudknight Utils.Autocomplete" +
                                             ".HideAliasesWithMain",
                                         );
-                                    autocompleteState.hideAliasesWithMain = 
+                                    autocompleteState
+                                        .hideAliasesWithMain = 
                                         hideAliases;
-                                    localStorage.setItem("Mudknight Utils.Autocomplete.HideAliasesWithMain", hideAliases);
+                                    localStorage.setItem(
+                                        "Mudknight Utils.Autocomplete" +
+                                        ".HideAliasesWithMain",
+                                        hideAliases
+                                    );
                                 }
                                 return enabled;
                             };
