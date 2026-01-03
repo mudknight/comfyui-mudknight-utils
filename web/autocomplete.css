@@ -104,3 +104,24 @@
 .autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
     background: #5a5a5a;
 }
+
+/* Thumbnail hover display */
+.autocomplete-thumbnail {
+    position: fixed;
+    z-index: 1000001;
+    display: none;
+    background: #2a2a2a;
+    border: 1px solid #4a9eff;
+    border-radius: 6px;
+    padding: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+.autocomplete-thumbnail img {
+    display: block;
+    width: 128px;
+    height: 128px;
+    object-fit: cover;
+    border-radius: 4px;
+}

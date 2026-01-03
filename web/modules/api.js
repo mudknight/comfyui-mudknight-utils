@@ -151,7 +151,8 @@ export async function loadCharacterPresets(danbooruTags) {
 			tagMap.set(tag.tag.toLowerCase(), tag);
 		});
 		
-		const presets = [];
+		// First, collect all character data
+		const presetData = [];
 		for (const [name, data] of Object.entries(characters)) {
 			// Normalize: strip backslashes, trim, lowercase, 
 			// replace spaces with underscores
@@ -166,21 +167,49 @@ export async function loadCharacterPresets(danbooruTags) {
 			const category = danbooruTag ? danbooruTag.category : 4;
 			const count = danbooruTag ? danbooruTag.count : 0;
 			
-			presets.push({
-				tag: nameLower,
+			presetData.push({
+				name: name,
+				nameLower: nameLower,
 				category: category,
-				count: count,
-				isAlias: false,
-				isPreset: true,
-				presetType: 'character'
+				count: count
 			});
 		}
+		
+		// Check all images in parallel
+		const imageChecks = presetData.map(item => 
+			checkCharacterImage(item.name).then(hasImage => ({
+				...item,
+				hasImage: hasImage
+			}))
+		);
+		const presetsWithImages = await Promise.all(imageChecks);
+		
+		// Build final presets array
+		const presets = presetsWithImages.map(item => ({
+			tag: item.nameLower,
+			category: item.category,
+			count: item.count,
+			isAlias: false,
+			isPreset: true,
+			presetType: 'character',
+			characterName: item.name,  // Store original name for image lookup
+			hasImage: item.hasImage
+		}));
 		
 		console.log(`Loaded ${presets.length} character presets`);
 		return presets;
 	} catch (error) {
 		console.error('Error loading character presets:', error);
 		return [];
+	}
+}
+
+async function checkCharacterImage(name) {
+	try {
+		const response = await fetch(`/character_editor/image/${encodeName(name)}`);
+		return response.ok;
+	} catch (error) {
+		return false;
 	}
 }
 

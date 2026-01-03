@@ -1,4 +1,83 @@
 import { autocompleteState } from './state.js';
+import { getImageUrl } from './api.js';
+
+// Shared thumbnail element for autocomplete
+let sharedThumbnail = null;
+let thumbnailTimeout = null;
+
+function getOrCreateThumbnail() {
+	if (!sharedThumbnail) {
+		sharedThumbnail = document.createElement('div');
+		sharedThumbnail.className = 'autocomplete-thumbnail';
+		document.body.appendChild(sharedThumbnail);
+	}
+	return sharedThumbnail;
+}
+
+function showThumbnailForElement(element, characterName, immediate = false) {
+	// Clear any existing timeout
+	if (thumbnailTimeout) {
+		clearTimeout(thumbnailTimeout);
+		thumbnailTimeout = null;
+	}
+	
+	const thumbnail = getOrCreateThumbnail();
+	
+	// Update image if needed
+	const img = thumbnail.querySelector('img');
+	if (!img || img.alt !== characterName) {
+		thumbnail.innerHTML = `<img src="${getImageUrl(characterName, 'character')}" alt="${characterName}" />`;
+	}
+	
+	const showThumbnail = () => {
+		const rect = element.getBoundingClientRect();
+		const thumbnailWidth = 128 + 8; // image width + padding
+		const thumbnailHeight = 128 + 8;
+		const viewportWidth = window.innerWidth;
+		const viewportHeight = window.innerHeight;
+		
+		// Position thumbnail to the right of the dropdown item
+		let left = rect.right + 10;
+		let top = rect.top;
+		
+		// Adjust if thumbnail would go off-screen to the right
+		if (left + thumbnailWidth > viewportWidth) {
+			// Position to the left instead
+			left = rect.left - thumbnailWidth - 10;
+		}
+		
+		// Adjust if thumbnail would go off-screen at the bottom
+		if (top + thumbnailHeight > viewportHeight) {
+			top = viewportHeight - thumbnailHeight - 10;
+		}
+		
+		// Ensure thumbnail doesn't go off-screen at the top
+		if (top < 10) {
+			top = 10;
+		}
+		
+		thumbnail.style.display = 'block';
+		thumbnail.style.left = left + 'px';
+		thumbnail.style.top = top + 'px';
+	};
+	
+	if (immediate) {
+		showThumbnail();
+	} else {
+		// Show thumbnail after a short delay
+		thumbnailTimeout = setTimeout(showThumbnail, 300);
+	}
+}
+
+function hideThumbnail() {
+	if (thumbnailTimeout) {
+		clearTimeout(thumbnailTimeout);
+		thumbnailTimeout = null;
+	}
+	if (sharedThumbnail) {
+		sharedThumbnail.style.display = 'none';
+	}
+}
 
 function detectContext(input) {
 	const cursorPos = input.selectionStart;
@@ -143,6 +222,8 @@ function showAutocomplete(input, context) {
 				item.aliasFor.replace(/_/g, ' ') : undefined,
 				isPreset: item.isPreset || false,
 				presetType: item.presetType,
+				characterName: item.characterName,  // For image lookup
+				hasImage: item.hasImage || false,
 				type: 'tag'
 			}));
 		
@@ -230,6 +311,15 @@ function showAutocomplete(input, context) {
 		}
 
 		div.onclick = () => selectAutocomplete(index);
+		
+		// Store character name in data attribute for selection-based display
+		if (item.type === 'tag' && item.isPreset && 
+		    item.presetType === 'character' && item.hasImage && 
+		    item.characterName) {
+			div.dataset.characterName = item.characterName;
+			setupThumbnailHover(div, item.characterName);
+		}
+		
 		dropdown.appendChild(div);
 	});
 
@@ -238,6 +328,79 @@ function showAutocomplete(input, context) {
 	dropdown.style.top = (rect.bottom + 5) + 'px';
 	dropdown.style.width = rect.width + 'px';
 	dropdown.style.display = 'block';
+	
+	// Set up dropdown-level hover handlers to show selected item thumbnail
+	// when cursor is over dropdown but not over a specific item
+	dropdown.addEventListener('mouseenter', () => {
+		updateThumbnailForSelectedItem();
+	});
+	
+	dropdown.addEventListener('mouseleave', () => {
+		// When leaving dropdown entirely, hide thumbnail
+		hideThumbnail();
+	});
+	
+	// Show thumbnail for initially selected item if it has a character image
+	updateThumbnailForSelectedItem();
+}
+
+function updateThumbnailForSelectedItem() {
+	const dropdown = document.getElementById('autocompleteDropdown');
+	if (!dropdown || dropdown.style.display !== 'block') {
+		return;
+	}
+	
+	const selectedIndex = autocompleteState.selectedIndex;
+	if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
+		const selectedItem = autocompleteState.filteredTags[selectedIndex];
+		if (selectedItem.type === 'tag' && selectedItem.isPreset && 
+		    selectedItem.presetType === 'character' && selectedItem.hasImage && 
+		    selectedItem.characterName) {
+			const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
+			if (selectedElement) {
+				showThumbnailForElement(selectedElement, selectedItem.characterName, true);
+			}
+		} else {
+			hideThumbnail();
+		}
+	} else {
+		hideThumbnail();
+	}
+}
+
+function setupThumbnailHover(element, characterName) {
+	element.addEventListener('mouseenter', () => {
+		// Show thumbnail on hover with delay
+		showThumbnailForElement(element, characterName, false);
+	});
+	
+	element.addEventListener('mouseleave', () => {
+		// When leaving, check if there's a selected item to show instead
+		const dropdown = document.getElementById('autocompleteDropdown');
+		if (dropdown && dropdown.style.display === 'block') {
+			const selectedIndex = autocompleteState.selectedIndex;
+			if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
+				const selectedItem = autocompleteState.filteredTags[selectedIndex];
+				if (selectedItem.type === 'tag' && selectedItem.isPreset && 
+				    selectedItem.presetType === 'character' && selectedItem.hasImage && 
+				    selectedItem.characterName) {
+					const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
+					if (selectedElement) {
+						// Show selected item's thumbnail immediately
+						showThumbnailForElement(selectedElement, selectedItem.characterName, true);
+					}
+				} else {
+					// Selected item doesn't have a thumbnail, so hide
+					hideThumbnail();
+				}
+			} else {
+				// No selected item, hide thumbnail
+				hideThumbnail();
+			}
+		} else {
+			hideThumbnail();
+		}
+	});
 }
 
 function getCategoryLabel(category) {
@@ -253,6 +416,10 @@ function getCategoryLabel(category) {
 export function hideAutocomplete() {
 	const dropdown = document.getElementById('autocompleteDropdown');
 	dropdown.style.display = 'none';
+	
+	// Hide thumbnail
+	hideThumbnail();
+	
 	autocompleteState.activeElement = null;
 	autocompleteState.selectedIndex = -1;
 	autocompleteState.filteredTags = [];
@@ -384,6 +551,9 @@ function updateAutocompleteSelection() {
 			item.classList.remove('selected');
 		}
 	});
+	
+	// Update thumbnail for the newly selected item
+	updateThumbnailForSelectedItem();
 }
 
 export function setupAutocomplete(input, insertComma = true) {
