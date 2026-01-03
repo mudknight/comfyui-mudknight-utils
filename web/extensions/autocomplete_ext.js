@@ -18,9 +18,10 @@ app.registerExtension({
     settings: [
         {
             id: "Mudknight Utils.Autocomplete.Enabled",
-            name: "Enable Prompt Autocomplete",
+            name: "Enable Autocomplete in ComfyUI",
             type: "boolean",
             defaultValue: true,
+            tooltip: "Enable autocomplete for multiline strings in ComfyUI nodes.",
         },
         {
             id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
