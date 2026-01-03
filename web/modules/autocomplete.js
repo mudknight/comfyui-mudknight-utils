@@ -70,8 +70,6 @@ function showAutocomplete(input, context) {
 	autocompleteState.contextType = type;
 	let filtered = [];
 
-	console.log(`Searching ${type}:`, searchTerm);
-
 	// Filter based on context type
 	if (type === 'lora') {
 		const searchLower = searchTerm.toLowerCase();
@@ -127,8 +125,6 @@ function showAutocomplete(input, context) {
 			const key = preset.tag.toLowerCase().trim();
 			tagMap.set(key, preset);
 		});
-		
-		console.log(`Total tags after merge: ${tagMap.size}`);
 		
 		// Convert map back to array and filter matching tags
 		const matching = Array.from(tagMap.values())
