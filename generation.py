@@ -80,11 +80,7 @@ class BaseNode:
         positive = full_pipe.get("positive")
         negative = full_pipe.get("negative")
         seed = full_pipe.get("seed")
-
-        # Get resolution
-        resolution_selector = common.Node("ResolutionSelector")
-        width, height = resolution_selector.function(
-            resolution, portrait)
+        latent = full_pipe.get("latent")
 
         # Determine latent source
         if image is not None:
@@ -95,7 +91,13 @@ class BaseNode:
             # Encode to latent
             vae_encode = common.Node("VAEEncode")
             latent = vae_encode.function(vae, scaled_image)[0]
+        elif latent is not None:
+            pass
         else:
+            # Get resolution
+            resolution_selector = common.Node("ResolutionSelector")
+            width, height = resolution_selector.function(
+                resolution, portrait)
             # Create empty latent
             empty_latent = common.Node("EmptyLatentImage")
             latent = empty_latent.function(width, height, 1)[0]
