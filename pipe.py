@@ -18,6 +18,7 @@ PIPE_FIELDS = {
         "ckpt_name": ("STRING", {"forceInput": True}),
         "seed": ("INT", {"forceInput": True}),
         "image": ("IMAGE",),
+        "latent": ("LATENT",),
     }
 }
 
