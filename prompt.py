@@ -435,8 +435,8 @@ class PromptConditioningNode:
 
         # Process tag replacements
         if character_presets:
-            tag_replacement_node = common.Node("TagReplacementNode")
-            prompt, char_pos, char_neg, match = tag_replacement_node.function(
+            tag_replacement_node = common.Node("CharacterReplacementNode")
+            prompt, char_pos, char_neg = tag_replacement_node.function(
                 input_tags=positive
             )
         else:

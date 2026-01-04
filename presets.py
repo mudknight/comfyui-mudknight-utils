@@ -275,7 +275,7 @@ class CharacterPresetNode:
         return (positive_tags, negative_tags)
 
 
-class TagReplacementNode:
+class CharacterReplacementNode:
     """
     A ComfyUI node that replaces tags from a multiline string input based on
     a JSONC mapping file. Matched tags are output to character outputs, while
@@ -303,8 +303,8 @@ class TagReplacementNode:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("prompt", "character_pos", "character_neg", "match")
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("prompt", "character_pos", "character_neg")
     FUNCTION = "process_tags"
     CATEGORY = "conditioning"
 
@@ -347,9 +347,6 @@ class TagReplacementNode:
         character_pos_parts = []
         character_neg_parts = []
 
-        # Store matching character tag
-        match = None
-
         # Track which outfit parts to include
         include_top = False
         include_bottom = False
@@ -366,7 +363,6 @@ class TagReplacementNode:
             if tag in mappings:
                 # Tag matched a key in the JSONC
                 char_data = mappings[tag]
-                match = tag
 
                 # Extract character data (matching CharacterPresetNode format)
                 if isinstance(char_data, dict):
@@ -409,7 +405,7 @@ class TagReplacementNode:
 
         return (
                 prompt_output, character_pos_output,
-                character_neg_output, match)
+                character_neg_output)
 
 
 class ModelPresetNode:
@@ -767,7 +763,7 @@ NODE_CLASS_MAPPINGS = {
     "ModelPresetNode": ModelPresetNode,
     "StylePresetNode": StylePresetNode,
     "CharacterPresetNode": CharacterPresetNode,
-    "TagReplacementNode": TagReplacementNode,
+    "CharacterReplacementNode": CharacterReplacementNode,
     "WildcardNode": WildcardNode,
     "TagPresetNode": TagPresetNode,
 }
@@ -776,7 +772,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModelPresetNode": "Model Preset",
     "StylePresetNode": "Style Preset",
     "CharacterPresetNode": "Character Preset",
-    "TagReplacementNode": "Tag Replace",
+    "CharacterReplacementNode": "Character Replace",
     "WildcardNode": "Wildcard passthrough",
     "TagPresetNode": "Tag Preset",
 }
