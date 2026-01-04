@@ -1,5 +1,8 @@
 import torch
 import numpy as np
+import os
+import io
+from PIL import Image
 
 
 class AutoLevelNode:
@@ -203,10 +206,123 @@ class AutoLevelNode:
         return (torch.from_numpy(result),)
 
 
+DEVICES = {
+    "CPU": None,
+    "AMD": "rusticl",
+    "Intel": "Intel(R) OpenCL Graphics",
+    "NVIDIA": "NVIDIA CUDA"
+}
+
+
+class OpenCVDenoise:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "gpu": (list(DEVICES),),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "run"
+    CATEGORY = "image/filter"
+
+    def _select_gpu(self, gpu):
+        if gpu == "CPU":
+            import cv2
+            cv2.ocl.setUseOpenCL(False)
+            return
+
+        # Set env before any OpenCV import
+        platform = DEVICES[gpu]
+        if platform:
+            os.environ["OPENCV_OPENCL_DEVICE"] = f"{platform}:GPU:0"
+
+    def run(self, image, gpu):
+        # Select GPU before importing OpenCV
+        self._select_gpu(gpu)
+        import cv2  # deferred import
+
+        if gpu != "CPU":
+            cv2.ocl.setUseOpenCL(True)
+        else:
+            cv2.ocl.setUseOpenCL(False)
+
+        # Extract first batch image
+        img = image[0]
+
+        # Convert to numpy whether it's torch tensor or already numpy
+        if isinstance(img, torch.Tensor):
+            img = img.cpu().numpy()
+        img = (np.array(img) * 255.0).astype(np.uint8)
+
+        if gpu != "CPU":
+            img = cv2.UMat(img)
+
+        # Apply filters
+        img = cv2.edgePreservingFilter(img, flags=2, sigma_s=128, sigma_r=0.01)
+        img = cv2.bilateralFilter(img, 256, 8, 60)
+
+        # Convert back to numpy if UMat
+        if isinstance(img, cv2.UMat):
+            img = img.get()
+
+        # Convert back to 0-1 float and restore batch dimension
+        img = img.astype(np.float32) / 255.0
+        img = np.expand_dims(img, axis=0)
+        img = torch.from_numpy(img)
+
+        return (img,)
+
+
+class ImageFileSize:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("formatted_size",)
+    FUNCTION = "get_size"
+    OUTPUT_NODE = True
+    CATEGORY = "image"
+
+    def get_size(self, image):
+        # Convert torch tensor to PIL
+        i = 255. * image[0].cpu().numpy()
+        img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+
+        # Save to memory buffer as PNG
+        with io.BytesIO() as output:
+            img.save(output, format="PNG")
+            size_bytes = output.tell()
+
+        # Format string
+        if size_bytes < 1024:
+            size_str = f"{size_bytes} B"
+        elif size_bytes < 1024**2:
+            size_str = f"{size_bytes / 1024:.2f} KB"
+        else:
+            size_str = f"{size_bytes / 1024**2:.2f} MB"
+
+        return {"ui": {"text": size_str}, "result": (size_str,)}
+
+
 NODE_CLASS_MAPPINGS = {
-    "AutoLevelNode": AutoLevelNode
+    "AutoLevelNode": AutoLevelNode,
+    "OpenCVDenoise": OpenCVDenoise,
+    "ImageFileSize": ImageFileSize,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "AutoLevelNode": "Auto Level"
+    "AutoLevelNode": "Auto Level",
+    "OpenCVDenoise": "OpenCV Denoise",
+    "ImageFileSize": "Image File Size",
 }
