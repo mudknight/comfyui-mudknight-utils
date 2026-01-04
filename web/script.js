@@ -34,10 +34,24 @@ function renderAll() {
 
 async function loadData() {
 	try {
-		const hideAliases = localStorage.getItem("Mudknight Utils.Autocomplete.HideAliasesWithMain");
+		const hideAliases = localStorage.getItem(
+			"Mudknight Utils.Autocomplete.HideAliasesWithMain"
+		);
 		autocompleteState.hideAliasesWithMain = hideAliases === 'true';
 		
-		const autocompleteTags = await api.loadAutocompleteTags();
+		// Check for custom sources in localStorage (set by ComfyUI)
+		const customSources = localStorage.getItem(
+			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomSources"
+		) || "";
+		
+		console.log(
+			"Preset Manager: Loading with custom sources:",
+			customSources
+		);
+		
+		const autocompleteTags = await api.loadAutocompleteTags(
+			customSources
+		);
 		autocompleteState.tags = autocompleteTags;
 		
 		const characterPresets = await api.loadCharacterPresets(

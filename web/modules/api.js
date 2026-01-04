@@ -33,68 +33,192 @@ export async function loadTags() {
 	throw new Error('Failed to load tags');
 }
 
-export async function loadAutocompleteTags() {
-	try {
-		const response = await fetch(
-			'/extensions/comfyui-mudknight-utils/danbooru.csv'
-		);
-		if (!response.ok) {
-			console.log('Danbooru CSV not found');
-			return [];
-		}
+async function parseTagFile(text, url) {
+    const lines = text.split('\n');
+    const tags = [];
 
-		const text = await response.text();
-		const lines = text.split('\n');
+    // Detect format: CSV has 3+ fields, TXT has 2
+    const firstLine = lines.find(l => l.trim()) || '';
+    const firstParts = parseCsvLine(firstLine);
+    const isCsv = firstParts.length >= 3;
 
-		const tags = [];
+    console.log(
+        `Parsing ${url} as ${isCsv ? 'CSV' : 'TXT'} format`
+    );
 
-		for (const line of lines) {
-			if (!line.trim()) continue;
+    for (const line of lines) {
+        if (!line.trim()) continue;
 
-			// Parse CSV line handling quotes
-			const parts = parseCsvLine(line);
-			if (parts.length < 3) continue;
+        if (isCsv) {
+            // CSV format: tag,category,count,aliases
+            const parts = parseCsvLine(line);
+            if (parts.length < 3) continue;
 
-			const tag = parts[0].trim();
-			const category = parseInt(parts[1]) || 0;
-			const count = parseInt(parts[2]) || 0;
-			const aliasField = parts[3] || '';
+            const tag = parts[0].trim();
+            const category = parseInt(parts[1]) || 0;
+            const count = parseInt(parts[2]) || 0;
+            const aliasField = parts[3] || '';
 
-			// Skip category 2 (unused)
-			if (category === 2) continue;
+            if (category === 2) continue;
 
-			// Add main tag
-			tags.push({
-				tag: tag,
-				category: category,
-				count: count,
-				isAlias: false
-			});
+            tags.push({
+                tag: tag,
+                category: category,
+                count: count,
+                isAlias: false
+            });
 
-			// Parse and add aliases
-			if (aliasField) {
-				const aliases = parseAliases(aliasField);
-				for (const alias of aliases) {
-					tags.push({
-						tag: alias,
-						category: category,
-						count: count,
-						isAlias: true,
-						aliasFor: tag
-					});
-				}
-			}
-		}
+            if (aliasField) {
+                const aliases = parseAliases(aliasField);
+                for (const alias of aliases) {
+                    tags.push({
+                        tag: alias,
+                        category: category,
+                        count: count,
+                        isAlias: true,
+                        aliasFor: tag
+                    });
+                }
+            }
+        } else {
+            // TXT format: tag,count
+            const parts = line.split(',').map(p => p.trim());
+            if (parts.length < 2) continue;
 
-		// Sort by count (descending)
-		tags.sort((a, b) => b.count - a.count);
+            const tag = parts[0];
+            const count = parseInt(parts[1]) || 0;
 
-		console.log(`Loaded ${tags.length} tags from Danbooru CSV`);
-		return tags;
-	} catch (error) {
-		console.error('Error loading Danbooru tags:', error);
-		return [];
-	}
+            if (!tag) continue;
+
+            tags.push({
+                tag: tag,
+                category: 0,
+                count: count,
+                isAlias: false
+            });
+        }
+    }
+
+    console.log(`Parsed ${tags.length} tags from ${url}`);
+    return tags;
+}
+
+export async function loadAutocompleteTags(customSourcesStr = '') {
+    try {
+        const allTags = new Map();
+
+        // Load base Danbooru CSV
+        try {
+            const response = await fetch(
+                '/extensions/comfyui-mudknight-utils/danbooru.csv'
+            );
+            if (response.ok) {
+                const text = await response.text();
+                const tags = await parseTagFile(text, 'danbooru.csv');
+
+                for (const tag of tags) {
+                    allTags.set(tag.tag.toLowerCase(), tag);
+                }
+
+                console.log(
+                    `Loaded ${tags.length} tags from Danbooru CSV`
+                );
+            }
+        } catch (error) {
+            console.log('Danbooru CSV not found, skipping');
+        }
+
+        // Load custom sources
+        if (customSourcesStr && customSourcesStr.trim()) {
+            const sources = customSourcesStr
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            console.log(
+                `Loading ${sources.length} custom tag source(s)...`
+            );
+
+            for (const sourceUrl of sources) {
+                try {
+                    console.log(`Fetching ${sourceUrl}...`);
+                    const response = await fetch(sourceUrl);
+
+                    if (!response.ok) {
+                        console.error(
+                            `Failed to load ${sourceUrl}: ` +
+                            `${response.status} ${response.statusText}`
+                        );
+                        continue;
+                    }
+
+                    const contentType = response.headers.get(
+                        'content-type'
+                    ) || '';
+                    console.log(
+                        `Content-Type: ${contentType}`
+                    );
+
+                    const text = await response.text();
+                    console.log(
+                        `Fetched ${text.length} bytes from ${sourceUrl}`
+                    );
+
+                    const tags = await parseTagFile(text, sourceUrl);
+
+                    // Merge tags
+                    for (const tag of tags) {
+                        const key = tag.tag.toLowerCase();
+                        const existing = allTags.get(key);
+
+                        if (existing && !tag.isAlias) {
+                            // Inherit category from CSV sources
+                            if (existing.category !== 0) {
+                                tag.category = existing.category;
+                            }
+                            // Inherit aliases
+                            if (existing.isAlias && existing.aliasFor) {
+                                tag.aliasFor = existing.aliasFor;
+                            }
+                        }
+
+                        allTags.set(key, tag);
+                    }
+
+                    console.log(
+                        `Merged ${tags.length} tags from ${sourceUrl}`
+                    );
+                } catch (error) {
+                    console.error(
+                        `Error loading ${sourceUrl}:`,
+                        error.message || error
+                    );
+                    // Check for CORS issues
+                    if (error.message && 
+                        error.message.includes('CORS')) {
+                        console.error(
+                            'CORS error: The server must allow ' +
+                            'cross-origin requests. ' +
+                            'Check the Access-Control-Allow-Origin header.'
+                        );
+                    }
+                }
+            }
+        }
+
+        // Convert map to sorted array
+        const tags = Array.from(allTags.values());
+        tags.sort((a, b) => b.count - a.count);
+
+        console.log(
+            `Total ${tags.length} tags loaded ` +
+            `(${allTags.size} unique)`
+        );
+        return tags;
+    } catch (error) {
+        console.error('Error loading autocomplete tags:', error);
+        return [];
+    }
 }
 
 function parseCsvLine(line) {

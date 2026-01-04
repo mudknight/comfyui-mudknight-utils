@@ -29,12 +29,41 @@ app.registerExtension({
             type: "boolean",
             defaultValue: true,
             tooltip: "When enabled, aliases won't show if main tag " +
-                "is in results, unless you specifically type the alias",
+            "is in results, unless you specifically type the alias",
             onChange: (value) => {
                 localStorage.setItem(
                     "Mudknight Utils.Autocomplete.HideAliasesWithMain",
                     value
                 );
+            }
+        },
+        {
+            id: "Mudknight Utils.Autocomplete.CustomSources",
+            name: "Custom Tag Sources (comma-separated URLs)",
+            type: "text",
+            defaultValue: "",
+            tooltip: "Enter URLs to custom tag files (CSV or TXT format). " +
+            "Separate multiple URLs with commas. " +
+            "Later sources override categories/aliases from earlier ones.",
+            onChange: async (value) => {
+                // Reload tags when custom sources change
+                console.log("Reloading autocomplete tags with custom sources...");
+                try {
+                    const tags = await api.loadAutocompleteTags(value);
+                    autocompleteState.tags = tags;
+
+                    const [characterPresets, tagPresets] = await Promise.all([
+                        api.loadCharacterPresets(tags),
+                        api.loadTagPresets(tags)
+                    ]);
+
+                    autocompleteState.characterPresets = characterPresets;
+                    autocompleteState.tagPresets = tagPresets;
+
+                    console.log("Autocomplete tags reloaded successfully");
+                } catch (error) {
+                    console.error("Error reloading autocomplete tags:", error);
+                }
             }
         },
     ],
@@ -44,13 +73,13 @@ app.registerExtension({
             dropdown = document.createElement("div");
             dropdown.id = "autocompleteDropdown";
             dropdown.style.cssText = `
-                display: none; 
-                position: fixed; 
-                z-index: 999999; 
-                background: #222;
-                border: 1px solid #444;
-                pointer-events: auto;
-            `;
+            display: none; 
+            position: fixed; 
+            z-index: 999999; 
+            background: #222;
+            border: 1px solid #444;
+            pointer-events: auto;
+        `;
             document.body.appendChild(dropdown);
         }
 
@@ -65,7 +94,14 @@ app.registerExtension({
             hideAliases
         );
 
-        const tags = await api.loadAutocompleteTags();
+        // Get custom sources from settings
+        const customSources = app.ui.settings.getSettingValue(
+            "Mudknight Utils.Autocomplete.CustomSources",
+        ) || "";
+
+        console.log("Loading autocomplete with custom sources:", customSources);
+
+        const tags = await api.loadAutocompleteTags(customSources);
         autocompleteState.tags = tags;
 
         const [characterPresets, tagPresets, loras, embeds] = 
