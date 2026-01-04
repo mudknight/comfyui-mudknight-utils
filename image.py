@@ -220,7 +220,17 @@ class OpenCVDenoise:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "gpu": (list(DEVICES),),
+                "device": (list(DEVICES),),
+                "sigma_r": ("FLOAT", {
+                    "default": 0.01,
+                    "step": 0.01,
+                    "round": 0.01
+                }),
+                "sigma_color": ("FLOAT", {
+                    "default": 8,
+                    "step": 0.1,
+                    "round": 0.1
+                }),
             }
         }
 
@@ -228,23 +238,24 @@ class OpenCVDenoise:
     FUNCTION = "run"
     CATEGORY = "image/filter"
 
-    def _select_gpu(self, gpu):
-        if gpu == "CPU":
+    def _select_device(self, device):
+        if device == "CPU":
             import cv2
             cv2.ocl.setUseOpenCL(False)
             return
 
         # Set env before any OpenCV import
-        platform = DEVICES[gpu]
+        platform = DEVICES[device]
+        print(platform)
         if platform:
             os.environ["OPENCV_OPENCL_DEVICE"] = f"{platform}:GPU:0"
 
-    def run(self, image, gpu):
+    def run(self, image, device, sigma_r, sigma_color):
         # Select GPU before importing OpenCV
-        self._select_gpu(gpu)
+        self._select_device(device)
         import cv2  # deferred import
 
-        if gpu != "CPU":
+        if device != "CPU":
             cv2.ocl.setUseOpenCL(True)
         else:
             cv2.ocl.setUseOpenCL(False)
@@ -257,12 +268,13 @@ class OpenCVDenoise:
             img = img.cpu().numpy()
         img = (np.array(img) * 255.0).astype(np.uint8)
 
-        if gpu != "CPU":
+        if device != "CPU":
             img = cv2.UMat(img)
 
         # Apply filters
-        img = cv2.edgePreservingFilter(img, flags=2, sigma_s=128, sigma_r=0.01)
-        img = cv2.bilateralFilter(img, 256, 8, 60)
+        img = cv2.edgePreservingFilter(
+                img, flags=2, sigma_s=128, sigma_r=sigma_r)
+        img = cv2.bilateralFilter(img, 256, sigma_color, 60)
 
         # Convert back to numpy if UMat
         if isinstance(img, cv2.UMat):
