@@ -28,7 +28,7 @@ The main differences between easy use pipes and full pipes are:
 ### Loader (full-pipe)
 Loads a selected checkpoint, sets CLIP skip, sets a seed, and optionally applies a LoRA stack from the input.
 
-### Prompt from Presets (full-pipe)
+### Prompt (full-pipe)
 This is a combined positive and negative prompt box that lets you use pre-defined prompt text. Features include:
 - Accepts LoRA syntax
 - Ignores `#` commented lines
@@ -53,7 +53,40 @@ These nodes currently depend on other nodes from impact-pack and easy-use. I'd l
 ### Save (full-pipe)
 This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node. This uses the `Image Saver` node internally.
 
+### OpenCV Denoise
+Based on the opencv script [here](https://rentry.org/RemovingDiffusionGunk). It removes noise left behind by the diffusion process.
+
+ComfyUI seems to limit nodes to a single core, so using the CPU for this node is excruciatingly slow. If you want to use a specific gpu on a multi-gpu system, use `clinfo -l` to get a list of devices and set the environment variable `OPENCV_OPENCL_DEVICE` to `<platform>:GPU:<index>`, where `<platform>` is everything listed after `Platform #*:` and `<index>` is the `Device #`. For example:
+
+```
+Platform #0: Intel(R) OpenCL Graphics
+ `-- Device #0: Intel(R) Arc(TM) B580 Graphics
+Platform #1: rusticl
+ `-- Device #0: AMD Radeon RX 6800 (radeonsi, navi21, LLVM 21.1.6, DRM 3.64, 6.18.2-arch2-1)
+```
+
+Here you would use `OPENCV_OPENCL_DEVICE=Intel(R) OpenCL Graphics:GPU:0` or `OPENCV_OPENCL_DEVICE=rusticl:GPU:0`
+
+
+### Auto-level
+Adjusts black and white levels to the closest values within a threshold.
+
 ## Extensions
 
-### Character Editor
-The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing the `characters.jsonc` file used in the `Prompt from Presets (full-pipe)` node. This is a work-in-progress, and I'd like to include the other config files in the future and improve organization.
+### Tag Autocomplete
+This was originally just for the Preset Manager, but I now consider it an upgrade from the pythongosssss/ComfyUI-Custom-Scripts autocomplete extension. Features include:
+
+- Count-based sorting
+- Color coding based on tag category
+- Redirect tag aliases (looking_aside -> looking_to_the_side)
+- Preset Manager tags merged
+- Thumbnails for models, embeddings, and Preset Manager characters.
+
+### Preset Manager
+The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing prompt presets used in the `Prompt (full-pipe)` node.
+
+### Full Pipe Previews
+This adds previews of the completed image to the node when execution finishes, replacing the live preview.
+
+### Preview File Sizes
+This adds a label to the bottom right of an image preview, showing the filesize of the image.
