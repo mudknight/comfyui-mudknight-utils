@@ -36,7 +36,7 @@ class AutoLevelNode:
                 ),
                 "gamma_mode": (
                     ["manual", "auto_median", "auto_mean"],
-                    {"default": "auto_median"}
+                    {"default": "manual"}
                 ),
                 "gamma": (
                     "FLOAT",
@@ -206,30 +206,32 @@ class AutoLevelNode:
         return (torch.from_numpy(result),)
 
 
-DEVICES = {
-    "CPU": None,
-    "AMD": "rusticl",
-    "Intel": "Intel(R) OpenCL Graphics",
-    "NVIDIA": "NVIDIA CUDA"
-}
-
-
 class OpenCVDenoise:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
-                "device": (list(DEVICES),),
+                "device": (["CPU", "GPU"], {
+                    "default": "GPU",
+                    "tooltip": ("GPU highly recommended, "
+                                "CPU limited to single-core")
+                    }),
                 "sigma_r": ("FLOAT", {
                     "default": 0.01,
                     "step": 0.01,
-                    "round": 0.01
+                    "round": 0.01,
+                    "tooltip": (
+                        "0.1 is recommended, higher values will filter more "
+                        "noise at the expense of detail.")
                 }),
                 "sigma_color": ("FLOAT", {
                     "default": 8,
                     "step": 0.1,
-                    "round": 0.1
+                    "round": 0.1,
+                    "tooltip": (
+                        "8 is recommended, higher values cause more gradient "
+                        "banding")
                 }),
             }
         }
@@ -238,21 +240,8 @@ class OpenCVDenoise:
     FUNCTION = "run"
     CATEGORY = "image/filter"
 
-    def _select_device(self, device):
-        if device == "CPU":
-            import cv2
-            cv2.ocl.setUseOpenCL(False)
-            return
-
-        # Set env before any OpenCV import
-        platform = DEVICES[device]
-        print(platform)
-        if platform:
-            os.environ["OPENCV_OPENCL_DEVICE"] = f"{platform}:GPU:0"
-
     def run(self, image, device, sigma_r, sigma_color):
         # Select GPU before importing OpenCV
-        self._select_device(device)
         import cv2  # deferred import
 
         if device != "CPU":
