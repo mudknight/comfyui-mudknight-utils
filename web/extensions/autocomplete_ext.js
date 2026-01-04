@@ -17,23 +17,23 @@ app.registerExtension({
     name: "Mudknight Utils.Autocomplete",
     settings: [
         {
-            id: "Mudknight Utils.Autocomplete.Enabled",
-            name: "Enable Autocomplete in ComfyUI",
-            type: "boolean",
-            defaultValue: true,
-            tooltip: "Enable autocomplete for multiline strings.",
-        },
-        {
-            id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
-            name: "Hide tag aliases when main tag is present",
-            type: "boolean",
-            defaultValue: true,
-            tooltip: "When enabled, aliases won't show if main tag " +
-            "is in results, unless you specifically type the alias",
+            id: "Mudknight Utils.Autocomplete.Blacklist",
+            name: "Tag Blacklist (comma-separated)",
+            type: "text",
+            defaultValue: "",
+            tooltip: "Tags to exclude from autocomplete. " +
+            "Separate multiple tags with commas. " +
+            "Also excludes aliases of blacklisted tags.",
             onChange: (value) => {
-                localStorage.setItem(
-                    "Mudknight Utils.Autocomplete.HideAliasesWithMain",
-                    value
+                // Parse and normalize blacklist
+                const blacklist = new Set(
+                    value.split(',')
+                    .map(t => t.trim().toLowerCase().replace(/ /g, '_'))
+                    .filter(t => t.length > 0)
+                );
+                autocompleteState.blacklist = blacklist;
+                console.log(
+                    `Blacklist updated: ${blacklist.size} tag(s) blocked`
                 );
             }
         },
@@ -66,25 +66,25 @@ app.registerExtension({
             }
         },
         {
-            id: "Mudknight Utils.Autocomplete.Blacklist",
-            name: "Tag Blacklist (comma-separated)",
-            type: "text",
-            defaultValue: "",
-            tooltip: "Tags to exclude from autocomplete. " +
-            "Separate multiple tags with commas. " +
-            "Also excludes aliases of blacklisted tags.",
+            id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
+            name: "Hide tag aliases when main tag is present",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "When enabled, aliases won't show if main tag " +
+            "is in results, unless you specifically type the alias",
             onChange: (value) => {
-                // Parse and normalize blacklist
-                const blacklist = new Set(
-                    value.split(',')
-                    .map(t => t.trim().toLowerCase().replace(/ /g, '_'))
-                    .filter(t => t.length > 0)
-                );
-                autocompleteState.blacklist = blacklist;
-                console.log(
-                    `Blacklist updated: ${blacklist.size} tag(s) blocked`
+                localStorage.setItem(
+                    "Mudknight Utils.Autocomplete.HideAliasesWithMain",
+                    value
                 );
             }
+        },
+        {
+            id: "Mudknight Utils.Autocomplete.Enabled",
+            name: "Enable Autocomplete in ComfyUI",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Enable autocomplete for multiline strings.",
         },
     ],
     async setup() {
