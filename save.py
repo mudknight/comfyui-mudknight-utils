@@ -147,6 +147,9 @@ class SaveFullPipe:
                 "a1111_metadata": ("BOOLEAN", {"default": True}),
                 "comfyui_workflow": ("BOOLEAN", {"default": True}),
             },
+            "optional": {
+                "image": ("IMAGE",)
+            },
             "hidden": {
                 "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO"
@@ -158,6 +161,7 @@ class SaveFullPipe:
     OUTPUT_NODE = True
     FUNCTION = "save_images"
     CATEGORY = "custom/pipe"
+    DESCRIPTION = "Save images from full pipe or optional image input."
 
     def save_images(
         self,
@@ -167,13 +171,15 @@ class SaveFullPipe:
         extension,
         a1111_metadata,
         comfyui_workflow,
+        image=None,
         prompt=None,
         extra_pnginfo=None
     ):
         # Extract data from pipe
-        image = full_pipe.get("image")
         if image is None:
-            return {"ui": {"text": ["No image in pipe"]}}
+            image = full_pipe.get("image")
+            if image is None:
+                return {"ui": {"text": ["No image in pipe"]}}
 
         ckpt_name = full_pipe.get("ckpt_name", "unknown").split('/')[-1]
 
