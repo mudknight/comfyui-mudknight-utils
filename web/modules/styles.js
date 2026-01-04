@@ -3,6 +3,27 @@ import { getSortedNames } from './utils.js';
 import { getImageUrl } from './api.js';
 import { setupDragAndDrop } from './dragdrop.js';
 
+let imageObserver = null;
+
+function getImageObserver() {
+	if (!imageObserver) {
+		imageObserver = new IntersectionObserver((entries) => {
+			entries.forEach(entry => {
+				if (entry.isIntersecting) {
+					const card = entry.target;
+					const name = card.dataset.styleName;
+					const imageUrl = getImageUrl(name, 'style');
+					card.style.backgroundImage = `url(${imageUrl})`;
+					imageObserver.unobserve(card);
+				}
+			});
+		}, {
+			rootMargin: '50px'
+		});
+	}
+	return imageObserver;
+}
+
 export function renderStyles() {
 	const grid = document.getElementById('styleGrid');
 	const emptyState = document.getElementById('styleEmptyState');
@@ -20,18 +41,25 @@ export function renderStyles() {
 
 	const sortedNames = getSortedNames(state.styles);
 	const filteredNames = sortedNames.filter(name =>
-		name.toLowerCase().includes(state.searchTerms.style.toLowerCase())
+		name.toLowerCase().includes(
+			state.searchTerms.style.toLowerCase()
+		)
 	);
 
-	emptyState.style.display = filteredNames.length === 0 ? 'block' : 'none';
+	emptyState.style.display = 
+		filteredNames.length === 0 ? 'block' : 'none';
+
+	const observer = getImageObserver();
 
 	for (const name of filteredNames) {
 		const card = document.createElement('div');
 		card.className = 'character-card';
+		card.dataset.styleName = name;
+		
 		const hasImage = state.styleImages[name];
 		if (hasImage) {
 			card.classList.add('has-image');
-			card.style.backgroundImage = `url(${getImageUrl(name, 'style')})`;
+			observer.observe(card);
 		}
 
 		card.onclick = () => {
@@ -41,7 +69,10 @@ export function renderStyles() {
 		};
 
 		card.innerHTML = `
-			${!hasImage ? '<div class="character-card-placeholder"></div>' : ''}
+			${!hasImage ? 
+				'<div class="character-card-placeholder"></div>' : 
+				''
+			}
 			<div class="upload-hint">Drop image here</div>
 			<div class="character-card-name">${name}</div>
 		`;

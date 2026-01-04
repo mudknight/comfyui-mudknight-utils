@@ -39,7 +39,6 @@ async function loadData() {
 		);
 		autocompleteState.hideAliasesWithMain = hideAliases === 'true';
 		
-		// Load blacklist from localStorage
 		const blacklistStr = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.Blacklist"
 		) || "";
@@ -55,7 +54,6 @@ async function loadData() {
 			);
 		}
 
-		// Check for custom sources in localStorage (set by ComfyUI)
 		const customSources = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomSources"
 		) || "";
@@ -85,14 +83,15 @@ async function loadData() {
 		autocompleteState.embeddings = embeddings;
 		
 		state.characters = await api.loadCharacters();
-		await api.checkImages('character');
-		
 		state.models = await api.loadModels();
-		
 		state.styles = await api.loadStyles();
-		await api.checkImages('style');
-		
 		state.tags = await api.loadTags();
+		
+		// Check images in parallel
+		await Promise.all([
+			api.checkImages('character'),
+			api.checkImages('style')
+		]);
 		
 		renderAll();
 	} catch (error) {

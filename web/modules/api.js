@@ -124,29 +124,6 @@ function clearRemovedCaches(currentUrls) {
     }
 }
 
-export function clearAllTagCaches() {
-    try {
-        const meta = getCacheMeta();
-        let cleared = 0;
-        
-        for (const [url, urlMeta] of Object.entries(meta)) {
-            try {
-                localStorage.removeItem(urlMeta.key);
-                cleared++;
-            } catch (e) {
-                console.error(`Error clearing ${url}:`, e);
-            }
-        }
-        
-        localStorage.removeItem(TAG_CACHE_META);
-        console.log(`Cleared all tag caches (${cleared} files)`);
-        return cleared;
-    } catch (e) {
-        console.error('Error clearing all caches:', e);
-        return 0;
-    }
-}
-
 export async function loadCharacters() {
 	const response = await fetch('/character_editor');
 	if (response.ok) {
@@ -617,19 +594,37 @@ export async function checkImages(type) {
 	const endpoint = type === 'character' ? 
 		'/character_editor/image/' : '/style_editor/image/';
 
-	for (const name of Object.keys(dataMap[type])) {
-		const response = await fetch(
-			`${endpoint}${encodeName(name)}`
-		);
-		imageMap[type][name] = response.ok;
-	}
+	// Create array of all check promises
+	const checks = Object.keys(dataMap[type]).map(async (name) => {
+		try {
+			const response = await fetch(
+				`${endpoint}${encodeName(name)}`,
+				{ method: 'HEAD' }  // Use HEAD for faster checks
+			);
+			return { name, exists: response.ok };
+		} catch (e) {
+			return { name, exists: false };
+		}
+	});
+
+	// Wait for all checks to complete in parallel
+	const results = await Promise.all(checks);
+	
+	// Update state with results
+	results.forEach(({ name, exists }) => {
+		imageMap[type][name] = exists;
+	});
 }
+
+
 
 export function getImageUrl(name, type = 'character') {
 	const endpoint = type === 'character' ? 
 		'/character_editor/image/' : '/style_editor/image/';
-	return `${endpoint}${encodeName(name)}?t=${Date.now()}`;
+	// Remove timestamp to allow browser caching
+	return `${endpoint}${encodeName(name)}`;
 }
+
 
 export async function uploadImage(file, name, type = 'character') {
 	return new Promise((resolve) => {

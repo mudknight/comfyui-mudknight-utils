@@ -19,22 +19,21 @@ function getPreviewUrl(nameOrPath, type) {
 	if (type === 'character') {
 		return getImageUrl(nameOrPath, 'character');
 	} else if (type === 'lora') {
-		// URL encode the name for the API
 		return `/lora_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
 	} else if (type === 'embedding') {
-		// URL encode the path for the API
 		return `/embedding_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
 	}
 	return null;
 }
 
-function showThumbnailForElement(element, nameOrPath, previewType, immediate = false) {
-	// Create a unique key for this preview
+function showThumbnailForElement(
+	element, nameOrPath, previewType, immediate = false
+) {
 	const previewKey = `${previewType}:${nameOrPath}`;
 	
-	// If we're already showing this exact preview, don't redraw
-	if (currentPreviewKey === previewKey && sharedThumbnail && sharedThumbnail.style.display === 'block') {
-		// Just update position in case the element moved
+	if (currentPreviewKey === previewKey && 
+	    sharedThumbnail && 
+	    sharedThumbnail.style.display === 'block') {
 		if (immediate) {
 			const rect = element.getBoundingClientRect();
 			const thumbnailWidth = 128 + 8;
@@ -63,7 +62,6 @@ function showThumbnailForElement(element, nameOrPath, previewType, immediate = f
 		return;
 	}
 	
-	// Clear any existing timeout
 	if (thumbnailTimeout) {
 		clearTimeout(thumbnailTimeout);
 		thumbnailTimeout = null;
@@ -77,38 +75,32 @@ function showThumbnailForElement(element, nameOrPath, previewType, immediate = f
 		return;
 	}
 	
-	// Update the current preview key
 	currentPreviewKey = previewKey;
 	
-	// Update image if needed
 	const img = thumbnail.querySelector('img');
 	if (!img || img.src !== previewUrl) {
-		thumbnail.innerHTML = `<img src="${previewUrl}" alt="${nameOrPath}" />`;
+		thumbnail.innerHTML = 
+			`<img src="${previewUrl}" alt="${nameOrPath}" />`;
 	}
 	
 	const showThumbnail = () => {
 		const rect = element.getBoundingClientRect();
-		const thumbnailWidth = 128 + 8; // image width + padding
+		const thumbnailWidth = 128 + 8;
 		const thumbnailHeight = 128 + 8;
 		const viewportWidth = window.innerWidth;
 		const viewportHeight = window.innerHeight;
 		
-		// Position thumbnail to the right of the dropdown item
 		let left = rect.right + 10;
 		let top = rect.top;
 		
-		// Adjust if thumbnail would go off-screen to the right
 		if (left + thumbnailWidth > viewportWidth) {
-			// Position to the left instead
 			left = rect.left - thumbnailWidth - 10;
 		}
 		
-		// Adjust if thumbnail would go off-screen at the bottom
 		if (top + thumbnailHeight > viewportHeight) {
 			top = viewportHeight - thumbnailHeight - 10;
 		}
 		
-		// Ensure thumbnail doesn't go off-screen at the top
 		if (top < 10) {
 			top = 10;
 		}
@@ -121,7 +113,6 @@ function showThumbnailForElement(element, nameOrPath, previewType, immediate = f
 	if (immediate) {
 		showThumbnail();
 	} else {
-		// Show thumbnail after a short delay
 		thumbnailTimeout = setTimeout(showThumbnail, 300);
 	}
 }
