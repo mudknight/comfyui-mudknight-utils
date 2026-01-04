@@ -39,6 +39,22 @@ async function loadData() {
 		);
 		autocompleteState.hideAliasesWithMain = hideAliases === 'true';
 		
+		// Load blacklist from localStorage
+		const blacklistStr = localStorage.getItem(
+			"Comfy.Settings.Mudknight Utils.Autocomplete.Blacklist"
+		) || "";
+		const blacklist = new Set(
+			blacklistStr.split(',')
+			.map(t => t.trim().toLowerCase().replace(/ /g, '_'))
+			.filter(t => t.length > 0)
+		);
+		autocompleteState.blacklist = blacklist;
+		if (blacklist.size > 0) {
+			console.log(
+				`Preset Manager: Blacklist loaded: ${blacklist.size} tag(s)`
+			);
+		}
+
 		// Check for custom sources in localStorage (set by ComfyUI)
 		const customSources = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomSources"

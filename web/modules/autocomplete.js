@@ -282,22 +282,38 @@ function showAutocomplete(input, context) {
 		
 		// Convert map back to array and filter matching tags
 		let matching = Array.from(tagMap.values())
-			.filter(item => 
-				item.tag.toLowerCase().includes(searchLower)
-			)
+			.filter(item => {
+				// Check blacklist
+				const tagKey = item.tag.toLowerCase().trim();
+				const aliasKey = item.aliasFor ? 
+					item.aliasFor.toLowerCase().trim() : null;
+
+				// Block if tag itself is blacklisted
+				if (autocompleteState.blacklist.has(tagKey)) {
+					return false;
+				}
+
+				// Block if this is an alias of a blacklisted tag
+				if (aliasKey && autocompleteState.blacklist.has(aliasKey)) {
+					return false;
+				}
+
+				// Then check search match
+				return item.tag.toLowerCase().includes(searchLower);
+			})
 			.map(item => ({
 				display: item.tag.replace(/_/g, ' '),
 				value: item.isAlias ? 
-					item.aliasFor.replace(/_/g, ' ') : 
-					item.tag.replace(/_/g, ' '),
+				item.aliasFor.replace(/_/g, ' ') : 
+				item.tag.replace(/_/g, ' '),
 				count: item.count,
 				category: item.category,
 				isAlias: item.isAlias,
 				aliasFor: item.aliasFor ? 
-					item.aliasFor.replace(/_/g, ' ') : undefined,
+				item.aliasFor.replace(/_/g, ' ') : undefined,
 				isPreset: item.isPreset || false,
 				presetType: item.presetType,
-				characterName: item.characterName,  // For image lookup
+				characterName: item.characterName,
 				hasImage: item.hasImage || false,
 				type: 'tag'
 			}));

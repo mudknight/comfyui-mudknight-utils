@@ -65,6 +65,27 @@ app.registerExtension({
                 }
             }
         },
+        {
+            id: "Mudknight Utils.Autocomplete.Blacklist",
+            name: "Tag Blacklist (comma-separated)",
+            type: "text",
+            defaultValue: "",
+            tooltip: "Tags to exclude from autocomplete. " +
+            "Separate multiple tags with commas. " +
+            "Also excludes aliases of blacklisted tags.",
+            onChange: (value) => {
+                // Parse and normalize blacklist
+                const blacklist = new Set(
+                    value.split(',')
+                    .map(t => t.trim().toLowerCase().replace(/ /g, '_'))
+                    .filter(t => t.length > 0)
+                );
+                autocompleteState.blacklist = blacklist;
+                console.log(
+                    `Blacklist updated: ${blacklist.size} tag(s) blocked`
+                );
+            }
+        },
     ],
     async setup() {
         let dropdown = document.getElementById("autocompleteDropdown");
@@ -92,6 +113,20 @@ app.registerExtension({
             "Mudknight Utils.Autocomplete.HideAliasesWithMain",
             hideAliases
         );
+
+        // Initialize blacklist
+        const blacklistStr = app.ui.settings.getSettingValue(
+            "Mudknight Utils.Autocomplete.Blacklist",
+        ) || "";
+        const blacklist = new Set(
+            blacklistStr.split(',')
+            .map(t => t.trim().toLowerCase().replace(/ /g, '_'))
+            .filter(t => t.length > 0)
+        );
+        autocompleteState.blacklist = blacklist;
+        if (blacklist.size > 0) {
+            console.log(`Blacklist loaded: ${blacklist.size} tag(s)`);
+        }
 
         // Get custom sources from settings
         const customSources = app.ui.settings.getSettingValue(

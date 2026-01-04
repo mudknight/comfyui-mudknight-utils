@@ -40,5 +40,6 @@ export const autocompleteState = {
 	tagPresets: [],
 	contextType: 'tag',
 	insertComma: true,
-	presetsFirst: false  // Configurable: show presets above regular tags
+	presetsFirst: false,
+	blacklist: new Set()
 };
