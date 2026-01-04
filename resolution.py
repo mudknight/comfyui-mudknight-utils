@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import torch
+
 
 class ResolutionSelector:
     """
@@ -42,11 +44,47 @@ class ResolutionSelector:
         return (width, height)
 
 
+class ResolutionPipe:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "full_pipe": ("FULL_PIPE",),
+                "width": ("INT", {
+                    "default": 832,
+                    "steps": 8,
+                    }),
+                "height": ("INT", {
+                    "default": 1216,
+                    "steps": 8,
+                    }),
+                }
+            }
+    RETURN_TYPES = ("FULL_PIPE",)
+    RETURN_NAMES = ("full_pipe",)
+    FUNCTION = "get_latent"
+    CATEGORY = "image/resolution"
+
+    def get_latent(self, full_pipe, width, height):
+        latent_width = width // 8
+        latent_height = height // 8
+
+        samples = torch.zeros(
+            [1, 4, latent_height, latent_width]
+        )
+
+        new_pipe = full_pipe.copy()
+        new_pipe["latent"] = {"samples": samples}
+        return (new_pipe,)
+
+
 # Node registration for ComfyUI
 NODE_CLASS_MAPPINGS = {
-    "ResolutionSelector": ResolutionSelector
+    "ResolutionSelector": ResolutionSelector,
+    "ResolutionPipe": ResolutionPipe
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ResolutionSelector": "Resolution Selector"
+    "ResolutionSelector": "Resolution Selector",
+    "ResolutionPipe": "Resolution (full-pipe)"
 }
