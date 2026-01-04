@@ -41,17 +41,13 @@ This is a combined positive and negative prompt box that lets you use pre-define
 This is the base image generation node. By default it will use an empty latent with the dimensions defined by the node, but it also has an `image` input and `denoise` parameter for img2img generation.
 
 ### Upscale (full-pipe)
-This is an upscaling node that uses simple lanczos scaling and sampling. I've never found that an upscale model is necessary, so it's not included in the node.
+This is an upscaling node that will upscale using lanczos and an upscale model (or none) to a target scale value and then resample the image.
 
 ### FastDetailer
 The FastDetailer nodes are an alternative to FaceDetailer that are intended to be faster and more detailed, at the (potential) cost of cohesion with the rest of the image. It simply crops a region, upscales it to 1MP, samples the image, scales it back down to its original size, and uncrops it. The `bbox_fallback` model will run if no SEGS were detected with the primary model, with the use-case to be used with models like `full_eyes_detect_v1.pt` and `Eyes.pt` as a fallback if only one eye is detected.
 
-`FastDetailer (full-pipe)` uses `full_pipe`, as the name implies.
-
-These nodes currently depend on other nodes from impact-pack and easy-use. I'd like to move away from these in the future.
-
 ### Save (full-pipe)
-This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node. This uses the `Image Saver` node internally.
+This node saves the image with the ComfyUI workflow and A1111 metadata. I use a tool on my images that pulls the A1111 prompt (since pulling a prompt from a comfy workflow isn't standardized in any way), so that's the main focus of the node.
 
 ### OpenCV Denoise
 Based on the opencv script [here](https://rentry.org/RemovingDiffusionGunk). It removes noise left behind by the diffusion process.
@@ -74,13 +70,15 @@ Adjusts black and white levels to the closest values within a threshold.
 ## Extensions
 
 ### Tag Autocomplete
-This was originally just for the Preset Manager, but I now consider it an upgrade from the pythongosssss/ComfyUI-Custom-Scripts autocomplete extension. Features include:
+This was originally just for the Preset Manager, but I now consider it an upgrade from the [pythongosssss/ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) autocomplete extension. Features include:
 
 - Count-based sorting
 - Color coding based on tag category
 - Redirect tag aliases (looking_aside -> looking_to_the_side)
 - Preset Manager tags merged
-- Thumbnails for models, embeddings, and Preset Manager characters.
+- Thumbnails for LoRAs, embeddings, and Preset Manager characters. LoRA and embedding thumbnails pull from image previews from [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
+- Custom tag sources
+- Tag blacklist
 
 ### Preset Manager
 The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing prompt presets used in the `Prompt (full-pipe)` node.
