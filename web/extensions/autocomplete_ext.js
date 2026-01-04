@@ -44,9 +44,8 @@ app.registerExtension({
             defaultValue: "",
             tooltip: "Enter URLs to custom tag files (CSV or TXT format). " +
             "Separate multiple URLs with commas. " +
-            "Later sources override categories/aliases from earlier ones.",
+            "Files are cached for 24 hours.",
             onChange: async (value) => {
-                // Reload tags when custom sources change
                 console.log("Reloading autocomplete tags with custom sources...");
                 try {
                     const tags = await api.loadAutocompleteTags(value);

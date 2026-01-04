@@ -1,6 +1,152 @@
 import { state } from './state.js';
 import { encodeName } from './utils.js';
 
+const TAG_CACHE_PREFIX = 'mudknight_tag_cache_';
+const TAG_CACHE_META = 'mudknight_tag_cache_meta';
+const CACHE_EXPIRY_HOURS = 24;
+
+function getCacheKey(url) {
+    // Create a safe key from URL
+    return TAG_CACHE_PREFIX + btoa(url).replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function getCacheMeta() {
+    try {
+        const meta = localStorage.getItem(TAG_CACHE_META);
+        return meta ? JSON.parse(meta) : {};
+    } catch {
+        return {};
+    }
+}
+
+function setCacheMeta(meta) {
+    try {
+        localStorage.setItem(TAG_CACHE_META, JSON.stringify(meta));
+    } catch (e) {
+        console.error('Failed to save cache metadata:', e);
+    }
+}
+
+function getCachedFile(url) {
+    try {
+        const key = getCacheKey(url);
+        const meta = getCacheMeta();
+        const urlMeta = meta[url];
+
+        if (!urlMeta) return null;
+
+        // Check if cache is expired
+        const cacheAge = Date.now() - urlMeta.timestamp;
+        const maxAge = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+
+        if (cacheAge > maxAge) {
+            console.log(`Cache expired for ${url}`);
+            return null;
+        }
+
+        const cached = localStorage.getItem(key);
+        if (cached) {
+            console.log(
+                `Using cached file for ${url} ` +
+                `(${(cacheAge / 1000 / 60).toFixed(0)} minutes old)`
+            );
+            return cached;
+        }
+    } catch (e) {
+        console.error(`Error reading cache for ${url}:`, e);
+    }
+    return null;
+}
+
+function setCachedFile(url, text) {
+    try {
+        const key = getCacheKey(url);
+        const meta = getCacheMeta();
+
+        // Try to store the file
+        localStorage.setItem(key, text);
+
+        // Update metadata
+        meta[url] = {
+            timestamp: Date.now(),
+            size: text.length,
+            key: key
+        };
+        setCacheMeta(meta);
+
+        console.log(
+            `Cached ${(text.length / 1024).toFixed(1)}KB for ${url}`
+        );
+        return true;
+    } catch (e) {
+        // localStorage quota exceeded
+        if (e.name === 'QuotaExceededError' || 
+            e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+            console.warn(
+                `Cache full, cannot cache ${url}. ` +
+                `Consider clearing old caches.`
+            );
+        } else {
+            console.error(`Error caching ${url}:`, e);
+        }
+        return false;
+    }
+}
+
+function clearRemovedCaches(currentUrls) {
+    try {
+        const meta = getCacheMeta();
+        const currentUrlSet = new Set(
+            currentUrls.map(u => u.trim()).filter(Boolean)
+        );
+        
+        let cleared = 0;
+        for (const [url, urlMeta] of Object.entries(meta)) {
+            if (!currentUrlSet.has(url)) {
+                // URL was removed, clear its cache
+                try {
+                    localStorage.removeItem(urlMeta.key);
+                    delete meta[url];
+                    cleared++;
+                    console.log(`Cleared cache for removed URL: ${url}`);
+                } catch (e) {
+                    console.error(`Error clearing cache for ${url}:`, e);
+                }
+            }
+        }
+        
+        if (cleared > 0) {
+            setCacheMeta(meta);
+            console.log(`Cleared ${cleared} removed cache(s)`);
+        }
+    } catch (e) {
+        console.error('Error clearing removed caches:', e);
+    }
+}
+
+export function clearAllTagCaches() {
+    try {
+        const meta = getCacheMeta();
+        let cleared = 0;
+        
+        for (const [url, urlMeta] of Object.entries(meta)) {
+            try {
+                localStorage.removeItem(urlMeta.key);
+                cleared++;
+            } catch (e) {
+                console.error(`Error clearing ${url}:`, e);
+            }
+        }
+        
+        localStorage.removeItem(TAG_CACHE_META);
+        console.log(`Cleared all tag caches (${cleared} files)`);
+        return cleared;
+    } catch (e) {
+        console.error('Error clearing all caches:', e);
+        return 0;
+    }
+}
+
 export async function loadCharacters() {
 	const response = await fetch('/character_editor');
 	if (response.ok) {
@@ -107,6 +253,17 @@ export async function loadAutocompleteTags(customSourcesStr = '') {
     try {
         const allTags = new Map();
 
+        // Parse custom sources first to clear removed caches
+        const sources = customSourcesStr && customSourcesStr.trim()
+            ? customSourcesStr
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            : [];
+
+        // Clear caches for removed URLs
+        clearRemovedCaches(sources);
+
         // Load base Danbooru CSV
         try {
             const response = await fetch(
@@ -129,40 +286,45 @@ export async function loadAutocompleteTags(customSourcesStr = '') {
         }
 
         // Load custom sources
-        if (customSourcesStr && customSourcesStr.trim()) {
-            const sources = customSourcesStr
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-
+        if (sources.length > 0) {
             console.log(
                 `Loading ${sources.length} custom tag source(s)...`
             );
 
             for (const sourceUrl of sources) {
                 try {
-                    console.log(`Fetching ${sourceUrl}...`);
-                    const response = await fetch(sourceUrl);
+                    console.log(`Checking ${sourceUrl}...`);
 
-                    if (!response.ok) {
-                        console.error(
-                            `Failed to load ${sourceUrl}: ` +
-                            `${response.status} ${response.statusText}`
+                    // Try to get cached version first
+                    let text = getCachedFile(sourceUrl);
+
+                    if (!text) {
+                        // Fetch from network
+                        console.log(`Fetching ${sourceUrl}...`);
+                        const response = await fetch(sourceUrl);
+
+                        if (!response.ok) {
+                            console.error(
+                                `Failed to load ${sourceUrl}: ` +
+                                `${response.status} ${response.statusText}`
+                            );
+                            continue;
+                        }
+
+                        const contentType = response.headers.get(
+                            'content-type'
+                        ) || '';
+                        console.log(`Content-Type: ${contentType}`);
+
+                        text = await response.text();
+                        console.log(
+                            `Fetched ${(text.length / 1024).toFixed(1)}KB ` +
+                            `from ${sourceUrl}`
                         );
-                        continue;
+
+                        // Cache the file
+                        setCachedFile(sourceUrl, text);
                     }
-
-                    const contentType = response.headers.get(
-                        'content-type'
-                    ) || '';
-                    console.log(
-                        `Content-Type: ${contentType}`
-                    );
-
-                    const text = await response.text();
-                    console.log(
-                        `Fetched ${text.length} bytes from ${sourceUrl}`
-                    );
 
                     const tags = await parseTagFile(text, sourceUrl);
 
@@ -193,13 +355,11 @@ export async function loadAutocompleteTags(customSourcesStr = '') {
                         `Error loading ${sourceUrl}:`,
                         error.message || error
                     );
-                    // Check for CORS issues
                     if (error.message && 
                         error.message.includes('CORS')) {
                         console.error(
                             'CORS error: The server must allow ' +
-                            'cross-origin requests. ' +
-                            'Check the Access-Control-Allow-Origin header.'
+                            'cross-origin requests.'
                         );
                     }
                 }
