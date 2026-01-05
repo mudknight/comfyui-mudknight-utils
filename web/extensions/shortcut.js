@@ -10,6 +10,8 @@ app.registerExtension({
             name: "Enable Alt+Up/Down Batch Shortcuts",
             type: "boolean",
             defaultValue: true,
+            tooltip: "Alt+Up/Down to change batch count by 1" +
+            "Shift+Alt+Up/Down to double/halve batch count"
         });
 
         console.log("[Mudknight Shortcuts] Extension loaded");
