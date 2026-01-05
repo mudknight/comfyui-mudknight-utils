@@ -160,6 +160,22 @@ def get_ultralytics_model_list():
     return ["bbox/face_yolov8m.pt"]
 
 
+def resize_to_megapixel(width, height):
+    # Calculate aspect ratio
+    aspect_ratio = width / height
+
+    # Calculate new dimensions maintaining aspect ratio at 1MP
+    target_pixels = 1_000_000
+    new_height = (target_pixels / aspect_ratio) ** 0.5
+    new_width = aspect_ratio * new_height
+
+    # Round to nearest multiple of 8
+    new_width = round(new_width / 8) * 8
+    new_height = round(new_height / 8) * 8
+
+    return int(new_width), int(new_height)
+
+
 def process_segs(
         image, model, vae,
         positive, negative, seed, steps, cfg, sampler, scheduler,
@@ -195,9 +211,13 @@ def process_segs(
             upscaled_image = crop_image
 
         # Step 5: Scale cropped image
-        scale_node = common.Node("ImageScaleToTotalPixels")
+        # Use regular ImageScale instead of ImageScaleToTotalPixels to set
+        # dimensions to multiples of 8, otherwise the image won't stitch
+        # back in correctly.
+        nw, nh = resize_to_megapixel(crop_image.shape[2], crop_image.shape[1])
+        scale_node = common.Node("ImageScale")
         scaled_image = scale_node.function(
-                upscaled_image, upscale_method, 1, 1)[0]
+                upscaled_image, upscale_method, nw, nh, 0)[0]
 
         # Step 6: Encode to latent
         vae_encode = nodes.VAEEncode()
