@@ -118,12 +118,12 @@ app.registerExtension({
                 const rectWidth = textWidth + padding_x * 2;
                 const rectHeight = fontSize + padding_y * 2;
 
-                ctx.fillStyle = '#2b303b';
+                ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR; // Use node titlebar color
                 ctx.beginPath();
                 ctx.roundRect(rectX, rectY, rectWidth, rectHeight, borderRadius);
                 ctx.fill();
 
-                ctx.fillStyle = '#d8dee9';
+                ctx.fillStyle = LiteGraph.NODE_TITLE_COLOR;
                 ctx.fillText(text, x, y);
 
                 ctx.restore();
