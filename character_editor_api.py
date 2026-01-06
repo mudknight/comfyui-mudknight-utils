@@ -746,3 +746,23 @@ async def get_embedding_list(request):
             {"error": str(e)},
             status=500
         )
+
+
+@server.PromptServer.instance.routes.get('/tag_usage')
+async def get_tag_usage(request):
+    """Get tag usage counts for autocomplete"""
+    try:
+        usage_file = CONFIG_DIR / "tag_usage.json"
+        if not usage_file.exists():
+            return web.json_response({})
+
+        with open(usage_file, 'r', encoding='utf-8') as f:
+            usage = json.load(f)
+
+        return web.json_response(usage)
+    except Exception as e:
+        print(f"Error loading tag usage: {e}")
+        return web.json_response({}, status=500)
+
+
+print("Tag usage API routes registered")

@@ -7,7 +7,46 @@ import re
 import folder_paths
 import comfy.sd
 import comfy.utils
+import json
+from pathlib import Path
 from . import common
+
+USAGE_FILE = Path(__file__).parent / "config" / "tag_usage.json"
+
+
+def load_tag_usage():
+    """Load tag usage counts from file."""
+    if not USAGE_FILE.exists():
+        return {}
+    try:
+        with open(USAGE_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading tag usage: {e}")
+        return {}
+
+
+def save_tag_usage(usage_dict):
+    """Save tag usage counts to file."""
+    try:
+        USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(USAGE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(usage_dict, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving tag usage: {e}")
+
+
+def increment_tag_usage(tags_dict):
+    """Increment usage count for tags."""
+    usage = load_tag_usage()
+
+    for tag in tags_dict.keys():
+        # Normalize: remove escape backslashes, lowercase, replace spaces
+        normalized = tag.replace('\\(', '(').replace('\\)', ')')
+        normalized = normalized.lower().replace(' ', '_')
+        usage[normalized] = usage.get(normalized, 0) + 1
+
+    save_tag_usage(usage)
 
 
 def parse_lora_syntax(lora_string):
@@ -517,6 +556,16 @@ class PromptConditioningNode:
             all_positive_tags.update(
                 tag.lower() for tag in tag_dicts[key].keys()
             )
+
+        # Track tag usage for autocomplete
+        try:
+            all_tags_used = {}
+            for key in positive_keys:
+                all_tags_used.update(tag_dicts[key])
+            increment_tag_usage(all_tags_used)
+        except Exception as e:
+            # Don't fail the node if usage tracking fails
+            print(f"Tag usage tracking error: {e}")
 
         # Deduplicate negative prompts if enabled
         if deduplicate_tags:

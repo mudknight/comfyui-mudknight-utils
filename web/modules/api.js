@@ -355,6 +355,29 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
             console.log(`Added ${customTags.length} custom tags`);
         }
 
+        try {
+            const tagUsage = await loadTagUsage();
+            const usageCount = Object.keys(tagUsage).length;
+
+            if (usageCount > 0) {
+                console.log(`Applying usage counts for ${usageCount} tags...`);
+                let appliedCount = 0;
+
+                for (const [key, tag] of allTags.entries()) {
+                    const usage = tagUsage[key] || 0;
+                    if (usage > 0) {
+                        // Boost used tags significantly
+                        tag.count = (tag.count || 0) + usage;
+                        appliedCount++;
+                    }
+                }
+
+                console.log(`Applied usage boost to ${appliedCount} tags`);
+            }
+        } catch (error) {
+            console.error('Error applying tag usage:', error);
+        }
+
         // Convert map to sorted array
         const tags = Array.from(allTags.values());
         tags.sort((a, b) => b.count - a.count);
@@ -755,5 +778,36 @@ export async function loadEmbeddings() {
 	} catch (error) {
 		console.error('Error loading embeddings:', error);
 		return [];
+	}
+}
+
+export async function loadTagUsage() {
+	try {
+		const response = await fetch('/tag_usage');
+		if (!response.ok) {
+			console.log('No tag usage data available');
+			return {};
+		}
+		const usage = await response.json();
+		console.log(`Loaded usage data for ${Object.keys(usage).length} tags`);
+		return usage;
+	} catch (error) {
+		console.error('Error loading tag usage:', error);
+		return {};
+	}
+}
+
+export async function resetTagUsage() {
+	try {
+		const response = await fetch('/tag_usage/reset', {
+			method: 'POST'
+		});
+		if (!response.ok) {
+			throw new Error('Failed to reset tag usage');
+		}
+		return true;
+	} catch (error) {
+		console.error('Error resetting tag usage:', error);
+		return false;
 	}
 }

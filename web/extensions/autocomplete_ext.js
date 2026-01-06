@@ -176,6 +176,43 @@ app.registerExtension({
         const tags = await api.loadAutocompleteTags(customSources, customTags);
         autocompleteState.tags = tags;
 
+        // Listen for prompt execution to reload tags
+        const originalExecute = app.queuePrompt;
+        app.queuePrompt = async function(...args) {
+            const result = await originalExecute.apply(this, args);
+
+            // Reload tags after execution to pick up new usage counts
+            setTimeout(async () => {
+                try {
+                    const customSources = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomSources",
+                    ) || "";
+                    const customTags = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomTags",
+                    ) || "";
+
+                    console.log("Reloading autocomplete with updated usage...");
+                    const tags = await api.loadAutocompleteTags(
+                        customSources,
+                        customTags
+                    );
+                    autocompleteState.tags = tags;
+
+                    const [characterPresets, tagPresets] = await Promise.all([
+                        api.loadCharacterPresets(tags),
+                        api.loadTagPresets(tags)
+                    ]);
+
+                    autocompleteState.characterPresets = characterPresets;
+                    autocompleteState.tagPresets = tagPresets;
+                } catch (error) {
+                    console.error("Error reloading tags after execution:", error);
+                }
+            }, 1000); // Wait 1 second after execution
+
+            return result;
+        };
+
         const [characterPresets, tagPresets, loras, embeds] = 
             await Promise.all([
                 api.loadCharacterPresets(tags),

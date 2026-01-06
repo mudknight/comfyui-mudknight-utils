@@ -73,6 +73,15 @@ async function loadData() {
 		);
 		autocompleteState.tags = autocompleteTags;
 		
+		// Merge usage counts for Preset Manager
+		const tagUsage = await api.loadTagUsage();
+		if (Object.keys(tagUsage).length > 0) {
+			autocompleteState.tags = autocompleteState.tags.map(tag => ({
+				...tag,
+				count: (tag.count || 0) + ((tagUsage[tag.tag.toLowerCase()] || 0) * 10)
+			}));
+		}
+
 		const characterPresets = await api.loadCharacterPresets(
 			autocompleteTags
 		);
