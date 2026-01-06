@@ -58,15 +58,9 @@ class LoaderFullPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        ckpt_names = folder_paths.get_filename_list("checkpoints")
-        ckpt_default = 'Illustrious/prefectIllustriousXL_v3.safetensors'
-        if ckpt_default in ckpt_names:
-            ckpt_names.insert(
-                    0, ckpt_names.pop(ckpt_names.index(ckpt_default)))
-
         return {
             "required": {
-                "ckpt_name": (ckpt_names,),
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
                 "stop_at_clip_layer": (
                     "INT", {
                         "default": -2, "min": -24, "max": -1, "step": 1,
