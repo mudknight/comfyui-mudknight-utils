@@ -44,7 +44,7 @@ class ResolutionSelector:
         return (width, height)
 
 
-class ResolutionPipe:
+class CustomResolutionPipe:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -58,19 +58,22 @@ class ResolutionPipe:
                     "default": 1216,
                     "steps": 8,
                     }),
-                }
+                "batch_size": ("INT", {
+                    "default": 1
+                    })
+                },
             }
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "get_latent"
     CATEGORY = "image/resolution"
 
-    def get_latent(self, full_pipe, width, height):
+    def get_latent(self, full_pipe, width, height, batch_size):
         latent_width = width // 8
         latent_height = height // 8
 
         samples = torch.zeros(
-            [1, 4, latent_height, latent_width]
+            [batch_size, 4, latent_height, latent_width]
         )
 
         new_pipe = full_pipe.copy()
@@ -81,10 +84,10 @@ class ResolutionPipe:
 # Node registration for ComfyUI
 NODE_CLASS_MAPPINGS = {
     "ResolutionSelector": ResolutionSelector,
-    "ResolutionPipe": ResolutionPipe
+    "CustomResolutionPipe": CustomResolutionPipe
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ResolutionSelector": "Resolution Selector",
-    "ResolutionPipe": "Resolution (full-pipe)"
+    "CustomResolutionPipe": "Custom Resolution (full-pipe)"
 }
