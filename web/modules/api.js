@@ -226,7 +226,7 @@ async function parseTagFile(text, url) {
     return tags;
 }
 
-export async function loadAutocompleteTags(customSourcesStr = '') {
+export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr = '') {
     try {
         const allTags = new Map();
 
@@ -343,6 +343,18 @@ export async function loadAutocompleteTags(customSourcesStr = '') {
             }
         }
 
+        if (customTagsStr && customTagsStr.trim()) {
+            console.log('Parsing custom tags...');
+            const customTags = parseCustomTags(customTagsStr);
+
+            for (const tag of customTags) {
+                const key = tag.tag.toLowerCase();
+                allTags.set(key, tag);
+            }
+
+            console.log(`Added ${customTags.length} custom tags`);
+        }
+
         // Convert map to sorted array
         const tags = Array.from(allTags.values());
         tags.sort((a, b) => b.count - a.count);
@@ -357,6 +369,33 @@ export async function loadAutocompleteTags(customSourcesStr = '') {
         return [];
     }
 }
+
+
+function parseCustomTags(customTagsStr) {
+    if (!customTagsStr || !customTagsStr.trim()) {
+        return [];
+    }
+
+    const tags = [];
+    const entries = customTagsStr
+        .split(',')
+        .map(e => e.trim())
+        .filter(Boolean);
+
+    for (const entry of entries) {
+        const tagName = entry.replace(/ /g, '_');
+
+        tags.push({
+            tag: tagName,
+            category: 0,  // General category
+            count: 0,
+            isAlias: false
+        });
+    }
+
+    return tags;
+}
+
 
 function parseCsvLine(line) {
 	const parts = [];

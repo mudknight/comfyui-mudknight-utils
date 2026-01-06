@@ -57,6 +57,10 @@ async function loadData() {
 		const customSources = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomSources"
 		) || "";
+
+		const customTags = localStorage.getItem(
+			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomTags"
+		) || "";
 		
 		console.log(
 			"Preset Manager: Loading with custom sources:",
@@ -64,7 +68,8 @@ async function loadData() {
 		);
 		
 		const autocompleteTags = await api.loadAutocompleteTags(
-			customSources
+			customSources,
+			customTags
 		);
 		autocompleteState.tags = autocompleteTags;
 		

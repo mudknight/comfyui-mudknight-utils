@@ -66,6 +66,40 @@ app.registerExtension({
             }
         },
         {
+            id: "Mudknight Utils.Autocomplete.CustomTags",
+            name: "Custom Tags (comma-separated)",
+            type: "text",
+            defaultValue: "",
+            tooltip: "Add custom tags separated by commas. " +
+            "Example: my_tag, another_tag, custom_character",
+            onChange: async (value) => {
+                console.log("Reloading autocomplete with custom tags...");
+                try {
+                    const customSources = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomSources",
+                    ) || "";
+
+                    const tags = await api.loadAutocompleteTags(
+                        customSources,
+                        value
+                    );
+                    autocompleteState.tags = tags;
+
+                    const [characterPresets, tagPresets] = await Promise.all([
+                        api.loadCharacterPresets(tags),
+                        api.loadTagPresets(tags)
+                    ]);
+
+                    autocompleteState.characterPresets = characterPresets;
+                    autocompleteState.tagPresets = tagPresets;
+
+                    console.log("Autocomplete reloaded with custom tags");
+                } catch (error) {
+                    console.error("Error reloading autocomplete:", error);
+                }
+            }
+        },
+        {
             id: "Mudknight Utils.Autocomplete.HideAliasesWithMain",
             name: "Hide tag aliases when main tag is present",
             type: "boolean",
@@ -133,9 +167,13 @@ app.registerExtension({
             "Mudknight Utils.Autocomplete.CustomSources",
         ) || "";
 
+        const customTags = app.ui.settings.getSettingValue(
+            "Mudknight Utils.Autocomplete.CustomTags",
+        ) || "";
+
         console.log("Loading autocomplete with custom sources:", customSources);
 
-        const tags = await api.loadAutocompleteTags(customSources);
+        const tags = await api.loadAutocompleteTags(customSources, customTags);
         autocompleteState.tags = tags;
 
         const [characterPresets, tagPresets, loras, embeds] = 
