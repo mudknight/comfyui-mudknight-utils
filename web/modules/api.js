@@ -389,7 +389,8 @@ function parseCustomTags(customTagsStr) {
             tag: tagName,
             category: 0,  // General category
             count: 0,
-            isAlias: false
+            isAlias: false,
+            isCustom: true
         });
     }
 

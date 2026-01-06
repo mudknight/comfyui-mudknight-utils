@@ -303,6 +303,7 @@ function showAutocomplete(input, context) {
 				aliasFor: item.aliasFor ? 
 				item.aliasFor.replace(/_/g, ' ') : undefined,
 				isPreset: item.isPreset || false,
+				isCustom: item.isCustom || false,
 				presetType: item.presetType,
 				characterName: item.characterName,
 				hasImage: item.hasImage || false,
@@ -388,10 +389,12 @@ function showAutocomplete(input, context) {
 		// Different display based on type
 		if (item.type === 'tag') {
 			if (item.isAlias) {
-				// Alias format: alias -> tag (category) [PRESET] count
+				// Alias format: alias -> tag (category) [PRESET] [CUSTOM] count
 				const categoryLabel = getCategoryLabel(item.category);
 				const presetLabel = item.isPreset ? 
 					' <span class="preset-label">PRESET</span>' : '';
+				const customLabel = item.isCustom ?
+					' <span class="preset-label">CUSTOM</span>' : '';
 				div.innerHTML = `
 					<span class="autocomplete-tag">
 						<span class="alias-name">${item.display}</span>
@@ -400,22 +403,24 @@ function showAutocomplete(input, context) {
 						${categoryLabel ? 
 							`<span class="category-label">
 								${categoryLabel}
-							</span>` : ''}${presetLabel}
+							</span>` : ''}${presetLabel}${customLabel}
 					</span>
 					<span class="autocomplete-count">${item.count}</span>
 				`;
 			} else {
-				// Regular tag format: tag (category) [PRESET] count
+				// Regular tag format: tag (category) [PRESET] [CUSTOM] count
 				const categoryLabel = getCategoryLabel(item.category);
 				const presetLabel = item.isPreset ? 
 					' <span class="preset-label">PRESET</span>' : '';
+				const customLabel = item.isCustom ?
+					' <span class="preset-label">CUSTOM</span>' : '';
 				div.innerHTML = `
 					<span class="autocomplete-tag">
 						${item.display}
 						${categoryLabel ? 
 							`<span class="category-label">
 								${categoryLabel}
-							</span>` : ''}${presetLabel}
+							</span>` : ''}${presetLabel}${customLabel}
 					</span>
 					<span class="autocomplete-count">${item.count}</span>
 				`;
