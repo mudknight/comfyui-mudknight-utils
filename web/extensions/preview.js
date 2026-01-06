@@ -20,7 +20,7 @@ app.registerExtension({
             const origOnExecuted = node.onExecuted;
             
             node.onExecuted = function(message) {
-                console.log("onExecuted called with:", message);
+                // console.log("onExecuted called with:", message);
                 
                 // Aggressively clear everything
                 this.imgs = null;
@@ -60,19 +60,19 @@ app.registerExtension({
                             }`
                         );
                         
-                        console.log("Loading image from:", imageUrl);
+                        // console.log("Loading image from:", imageUrl);
                         
                         const img = new Image();
                         img.onload = () => {
-                            console.log(
-                                "Image loaded, setting imgs"
-                            );
+                            // console.log(
+                            //     "Image loaded, setting imgs"
+                            // );
                             this.imgs = [img];
                             this.imageIndex = 0;
                             app.graph.setDirtyCanvas(true, true);
                         };
                         img.onerror = (e) => {
-                            console.error("Failed to load:", e);
+                            // console.error("Failed to load:", e);
                         };
                         img.src = imageUrl;
                     }, 100);
