@@ -322,9 +322,91 @@ class DetailerNode:
                 edge_erosion, context_padding, extra_pnginfo=None):
         """Main processing function."""
 
+        # Handle batched images
+        batch_size = image.shape[0]
+
+        if batch_size == 1:
+            # Single image - process normally
+            return self._process_single_image(
+                    bbox_model, fallback_model, image, model, vae,
+                    positive, negative, seed, steps, cfg, sampler, scheduler,
+                    denoise, upscale_method, upscale_model, threshold, feather,
+                    edge_erosion, context_padding, extra_pnginfo
+                    )
+        else:
+            # Batch processing - process each image separately
+            all_final_images = []
+            all_cropped_images = []
+
+            for i in range(batch_size):
+                # Extract single image from batch
+                single_image = image[i:i+1]
+
+                # Process it
+                result = self._process_single_image(
+                        bbox_model, fallback_model, single_image, model, vae,
+                        positive, negative, seed + i, steps, cfg, sampler,
+                        scheduler, denoise, upscale_method, upscale_model,
+                        threshold, feather, edge_erosion, context_padding,
+                        extra_pnginfo
+                        )
+
+                # Handle both dict and tuple returns
+                if isinstance(result, dict):
+                    final_img, cropped_img = result["result"]
+                else:
+                    final_img, cropped_img = result
+
+                all_final_images.append(final_img)
+                all_cropped_images.append(cropped_img)
+
+            # Combine batches
+            final_batch = torch.cat(all_final_images, dim=0)
+
+            # Pad cropped images to same size for batching
+            if all_cropped_images and all_cropped_images[0].shape[0] > 0:
+                max_h = max(img.shape[1] for img in all_cropped_images)
+                max_w = max(img.shape[2] for img in all_cropped_images)
+
+                padded_crops = []
+                for crop in all_cropped_images:
+                    if crop.shape[0] == 0:
+                        continue
+                    h, w = crop.shape[1], crop.shape[2]
+                    if h < max_h or w < max_w:
+                        pad_h = max_h - h
+                        pad_w = max_w - w
+                        padded = torch.nn.functional.pad(
+                                crop, (0, 0, 0, pad_w, 0, pad_h),
+                                mode='constant', value=0
+                                )
+                        padded_crops.append(padded)
+                    else:
+                        padded_crops.append(crop)
+
+                cropped_batch = torch.cat(padded_crops, dim=0)
+            else:
+                cropped_batch = torch.zeros(
+                        (1, 1, 1, 3), dtype=image.dtype, device=image.device
+                        )
+
+            return common.return_preview(
+                    (final_batch, cropped_batch),
+                    cropped_batch,
+                    extra_pnginfo
+                    )
+
+    def _process_single_image(
+            self, bbox_model, fallback_model, image, model, vae,
+            positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, threshold, feather,
+            edge_erosion, context_padding, extra_pnginfo=None):
+        """Process a single image (batch size must be 1)."""
+
         # Create placeholder for early returns
-        placeholder = torch.zeros((1, 1, 1, 3), dtype=image.dtype,
-                                  device=image.device)
+        placeholder = torch.zeros(
+                (1, 1, 1, 3), dtype=image.dtype, device=image.device
+                )
 
         # Create the primary bbox detector
         ultralytics_provider = common.Node("UltralyticsDetectorProvider")
@@ -336,42 +418,40 @@ class DetailerNode:
             fallback_provider = common.Node("UltralyticsDetectorProvider")
             bbox_fallback = fallback_provider(fallback_model)[0]
 
-        # Step 1: Detect bounding boxes
-        # (using default values for dilation, crop_factor, drop_size)
+        # Detect bounding boxes
         bbox_detector_node = common.Node("BboxDetectorSEGS")
         segs_result = bbox_detector_node.function(
-            bbox_detector, image, threshold, 10, 3.0, 10, "all"
-        )
+                bbox_detector, image, threshold, 10, 3.0, 10, "all"
+                )
         segs = segs_result[0]
 
-        # If no detections and fallback is available, try fallback
+        # If no detections and fallback available, try fallback
         if (not segs or len(segs[1]) == 0) and bbox_fallback is not None:
             segs_result = bbox_detector_node.function(
-                bbox_fallback, image, threshold, 10, 3.0, 10, "all"
-            )
+                    bbox_fallback, image, threshold, 10, 3.0, 10, "all"
+                    )
             segs = segs_result[0]
 
         # If still no detections, return original image
         if not segs or len(segs[1]) == 0:
             return (image, placeholder)
 
-        # Store the processed crop, bbox, and mask for later compositing
+        # Process segments
         processed_crops, eroded_crops, bboxes = process_segs(
-            image, model, vae,
-            positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, feather,
-            edge_erosion, context_padding, segs)
+                image, model, vae,
+                positive, negative, seed, steps, cfg, sampler, scheduler,
+                denoise, upscale_method, upscale_model, feather,
+                edge_erosion, context_padding, segs
+                )
 
         if not processed_crops:
             return (image, placeholder)
 
-        # Pad all crops to the same size so they can be batched
+        # Pad crops for batching
         if len(processed_crops) > 0:
-            # Find the maximum dimensions for both outputs
             max_height = max(crop.shape[1] for crop in processed_crops)
             max_width = max(crop.shape[2] for crop in processed_crops)
 
-            # Pad eroded crops
             padded_eroded = []
             for crop in processed_crops:
                 h, w = crop.shape[1], crop.shape[2]
@@ -379,9 +459,9 @@ class DetailerNode:
                     pad_h = max_height - h
                     pad_w = max_width - w
                     padded = torch.nn.functional.pad(
-                        crop, (0, 0, 0, pad_w, 0, pad_h),
-                        mode='constant', value=0
-                    )
+                            crop, (0, 0, 0, pad_w, 0, pad_h),
+                            mode='constant', value=0
+                            )
                     padded_eroded.append(padded)
                 else:
                     padded_eroded.append(crop)
@@ -390,22 +470,19 @@ class DetailerNode:
         else:
             eroded_samples_batch = image[:0]
 
-        # Step 11: Uncrop all processed regions back onto the original image
+        # Uncrop all processed regions
         final_image = image
 
-        for eroded_image, bbox in zip(
-                eroded_crops, bboxes):
-            # Parameters: original_image, crop_image, bbox, border_blending,
-            # use_square_mask, optional_mask
+        for eroded_image, bbox in zip(eroded_crops, bboxes):
             final_image = uncrop_image_by_bbox(
-                final_image, eroded_image, bbox, feather=feather
-            )
+                    final_image, eroded_image, bbox, feather=feather
+                    )
 
         return common.return_preview(
-            (final_image, eroded_samples_batch,),
-            eroded_samples_batch,
-            extra_pnginfo
-        )
+                (final_image, eroded_samples_batch,),
+                eroded_samples_batch,
+                extra_pnginfo
+                )
 
 
 class MaskDetailerNode:

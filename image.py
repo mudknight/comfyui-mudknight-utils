@@ -249,32 +249,33 @@ class OpenCVDenoise:
         else:
             cv2.ocl.setUseOpenCL(False)
 
-        # Extract first batch image
-        img = image[0]
+        batch_size = image.shape[0]
+        result_images = []
 
-        # Convert to numpy whether it's torch tensor or already numpy
-        if isinstance(img, torch.Tensor):
-            img = img.cpu().numpy()
-        img = (np.array(img) * 255.0).astype(np.uint8)
+        for i in range(batch_size):
+            # Process each image in the batch
+            img = image[i].cpu().numpy()
+            img_uint8 = (img * 255.0).astype(np.uint8)
 
-        if device != "CPU":
-            img = cv2.UMat(img)
+            if device != "CPU":
+                img_uint8 = cv2.UMat(img_uint8)
 
-        # Apply filters
-        img = cv2.edgePreservingFilter(
-                img, flags=2, sigma_s=128, sigma_r=sigma_r)
-        img = cv2.bilateralFilter(img, 256, sigma_color, 60)
+            # Apply filters
+            processed = cv2.edgePreservingFilter(
+                img_uint8, flags=2, sigma_s=128, sigma_r=sigma_r
+            )
+            processed = cv2.bilateralFilter(processed, 256, sigma_color, 60)
 
-        # Convert back to numpy if UMat
-        if isinstance(img, cv2.UMat):
-            img = img.get()
+            if isinstance(processed, cv2.UMat):
+                processed = processed.get()
 
-        # Convert back to 0-1 float and restore batch dimension
-        img = img.astype(np.float32) / 255.0
-        img = np.expand_dims(img, axis=0)
-        img = torch.from_numpy(img)
+            # Convert back to 0-1 float
+            processed_float = processed.astype(np.float32) / 255.0
+            result_images.append(processed_float)
 
-        return (img,)
+        # Stack all processed images back into a single tensor
+        result = np.stack(result_images, axis=0)
+        return (torch.from_numpy(result),)
 
 
 class ImageFileSize:
