@@ -1,83 +1,92 @@
-// custom_nodes/comfyui-mudknight-utils/web/extensions/previews.js
-
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
 app.registerExtension({
-    name: "mudknight.BaseNodePreview",
-    
+    name: "mudknight.Preview",
+
     async nodeCreated(node) {
-        const nodeTypesWithPreview = [
-            "BaseNode",
-            "UpscaleNode",
-            "DetailerNode",
-            "DetailerPipeNode",
-            "MaskDetailerNode",
-            "MaskDetailerPipeNode"
+        const nodeTypes = [
+            "BaseNode", "UpscaleNode", "DetailerNode",
+            "DetailerPipeNode", "MaskDetailerNode", "MaskDetailerPipeNode"
         ];
-        
-        if (nodeTypesWithPreview.includes(node.comfyClass)) {
-            const origOnExecuted = node.onExecuted;
-            
-            node.onExecuted = function(message) {
-                // console.log("onExecuted called with:", message);
-                
-                // Aggressively clear everything
-                this.imgs = null;
-                this.imageIndex = null;
-                
-                // Remove all widgets to prevent conflicts
-                if (this.widgets) {
-                    const widgetsToRemove = this.widgets.filter(
-                        w => w.type === "image_preview" || 
-                             w.name?.includes("image")
+
+        if (!nodeTypes.includes(node.comfyClass)) return;
+
+        node._customImgs = null;
+        node._isExecutionFinished = false;
+
+        const origOnExecuted = node.onExecuted;
+        node.onExecuted = function (message) {
+            if (origOnExecuted) origOnExecuted.apply(this, arguments);
+
+            if (!message?.images?.length) return;
+
+            const promises = message.images.map(imgData => {
+                return new Promise((resolve) => {
+                    const url = api.apiURL(
+                        `/view?filename=${encodeURIComponent(imgData.filename)}` +
+                        `&type=${imgData.type}` +
+                        `&subfolder=${encodeURIComponent(imgData.subfolder || "")}`
                     );
-                    widgetsToRemove.forEach(w => {
-                        const idx = this.widgets.indexOf(w);
-                        if (idx !== -1) {
-                            this.widgets.splice(idx, 1);
-                        }
-                    });
+                    const img = new Image();
+                    img.onload = () => {
+                        img.format = imgData.format;
+                        resolve(img);
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = url;
+                });
+            });
+
+            Promise.all(promises).then(images => {
+                const validImages = images.filter(i => i !== null);
+                if (validImages.length > 0) {
+                    // Mark execution as finished to lock the images
+                    this._isExecutionFinished = true;
+                    this._customImgs = validImages;
+
+                    // Directly set the property
+                    this.imgs = validImages;
+                    this.imageIndex = validImages.length === 1 ? 0 : null;
+
+                    // Manually trigger the widget update
+                    const pw = this.widgets?.find(w => w.name === "image_preview");
+                    if (pw && pw.onHasImages) {
+                        pw.onHasImages(validImages);
+                    }
+
+                    this.setDirtyCanvas(true, true);
                 }
-                
-                // Call original
-                if (origOnExecuted) {
-                    origOnExecuted.call(this, message);
+            });
+        };
+
+        const origOnExecutionStart = node.onExecutionStart;
+        node.onExecutionStart = function() {
+            if (origOnExecutionStart) origOnExecutionStart.apply(this, arguments);
+            this._isExecutionFinished = false;
+            this._customImgs = null;
+        };
+
+        // The "Sentinel": This ensures that the imgs property 
+        // always returns our high-res images if they exist, 
+        // even if ComfyUI tries to null them out in the background.
+        const originalImgsDescriptor = Object.getOwnPropertyDescriptor(node, "imgs");
+
+        Object.defineProperty(node, "imgs", {
+            get: function() {
+                return this._customImgs || this._internalImgs;
+            },
+            set: function(val) {
+                // If we are finished and have high-res images, 
+                // ignore incoming live-preview blobs.
+                if (this._isExecutionFinished && this._customImgs) {
+                    if (val && val.length > 0 && val[0].src?.startsWith("blob:")) {
+                        return; 
+                    }
                 }
-                
-                // Handle images after a delay
-                if (message?.images && message.images.length > 0) {
-                    // Wait a bit to let everything clear
-                    setTimeout(() => {
-                        const imageData = message.images[0];
-                        const imageUrl = api.apiURL(
-                            `/view?filename=${encodeURIComponent(
-                                imageData.filename
-                            )}&type=${imageData.type}&subfolder=${
-                                encodeURIComponent(
-                                    imageData.subfolder || ""
-                                )
-                            }`
-                        );
-                        
-                        // console.log("Loading image from:", imageUrl);
-                        
-                        const img = new Image();
-                        img.onload = () => {
-                            // console.log(
-                            //     "Image loaded, setting imgs"
-                            // );
-                            this.imgs = [img];
-                            this.imageIndex = 0;
-                            app.graph.setDirtyCanvas(true, true);
-                        };
-                        img.onerror = (e) => {
-                            // console.error("Failed to load:", e);
-                        };
-                        img.src = imageUrl;
-                    }, 100);
-                }
-            };
-        }
+                this._internalImgs = val;
+            },
+            configurable: true
+        });
     }
 });
