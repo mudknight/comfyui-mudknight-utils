@@ -32,9 +32,7 @@ Loads a selected checkpoint, sets CLIP skip, sets a seed, and optionally applies
 This is a combined positive and negative prompt box that lets you use pre-defined prompt text. Features include:
 - Accepts LoRA syntax
 - Ignores `#` commented lines
-- Auto-expands character tags that are defined in `config/characters.jsonc`, along with `top` and `bottom` to use the defined portions of their default outfit.
-- Lets you select between pre-defined style presets defined in `config/styles.jsonc`
-- Automatically applies quality tags and embeddings when enabled for model families as defined in `config/models.jsonc`
+- Automatically applies quality tags, embeddings, style tags, character tags, and preset tags from Preset Manager.
 - Splits quality tags+embeddings, style tags, character tags, and the main prompt into separate conditionings and then concatenates the conditionings.
 
 ### Base (full-pipe)
@@ -74,6 +72,9 @@ Here you would use `OPENCV_OPENCL_DEVICE=Intel(R) OpenCL Graphics:GPU:0` or `OPE
 ### Auto-level
 Adjusts black and white levels to the closest values within a threshold.
 
+## Preset Manager
+The Preset Manager is a web interface that lets you define all of your prompt prests, with sections for characters, models, styles, and tags.
+
 ## Extensions
 
 ### Tag Autocomplete
@@ -87,11 +88,11 @@ This was originally just for the Preset Manager, but I now consider it an upgrad
 - Custom tag sources
 - Tag blacklist
 
-### Preset Manager
+### Preset Manager Button
 The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing prompt presets used in the `Prompt (full-pipe)` node.
 
 ### Full Pipe Previews
-This adds previews of the completed image to the node when execution finishes, replacing the live preview.
+This adds previews of the completed image to in-pack generation nodes when execution finishes, replacing the live preview.
 
 ### Preview File Sizes
 This adds a label to the bottom right of an image preview, showing the filesize of the image.
@@ -99,3 +100,6 @@ This adds a label to the bottom right of an image preview, showing the filesize 
 ### Keyboard shortcuts
 - Alt+Up/Down will increment/decrement the batch count by 1
 - Shift+Alt+Up/Down will double/halve the batch count
+
+### Node Runtime
+This shows how long nodes take to execute. Code taken from `comfyui-easy-use`.
