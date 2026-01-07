@@ -52,7 +52,13 @@ This node saves the image with the ComfyUI workflow and A1111 metadata. I use a 
 ### OpenCV Denoise
 Based on the opencv script [here](https://rentry.org/RemovingDiffusionGunk). It removes noise left behind by the diffusion process.
 
-ComfyUI seems to limit nodes to a single core, so using the CPU for this node is excruciatingly slow. If you want to use a specific gpu on a multi-gpu system, use `clinfo -l` to get a list of devices and set the environment variable `OPENCV_OPENCL_DEVICE` to `<platform>:GPU:<index>`, where `<platform>` is everything listed after `Platform #*:` and `<index>` is the `Device #`. For example:
+ComfyUI seems to limit nodes to a single core, so using the CPU for this node is excruciatingly slow. 
+
+<details>
+
+<summary> GPU selection on multi-GPU systems </summary>
+
+If you want to use a specific gpu on a multi-gpu system, use `clinfo -l` to get a list of devices and set the environment variable `OPENCV_OPENCL_DEVICE` to `<platform>:GPU:<index>`, where `<platform>` is everything listed after `Platform #*:` and `<index>` is the `Device #`. For example:
 
 ```
 Platform #0: Intel(R) OpenCL Graphics
@@ -63,6 +69,7 @@ Platform #1: rusticl
 
 Here you would use `OPENCV_OPENCL_DEVICE=Intel(R) OpenCL Graphics:GPU:0` or `OPENCV_OPENCL_DEVICE=rusticl:GPU:0`
 
+</details>
 
 ### Auto-level
 Adjusts black and white levels to the closest values within a threshold.
