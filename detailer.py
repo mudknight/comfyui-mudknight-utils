@@ -66,17 +66,9 @@ DETAILER_INPUTS = {
         "default": 0.25, "min": 0, "max": 1,
         "tooltip": ("Percentage of image to feather when "
                     "uncropping")}),
-    # Edge erosion to remove artifacts
-    "edge_erosion": ("INT", {
-        "default": 10, "min": 0, "max": 100,
-        "tooltip": ("Amount of pixels to remove from the edge of"
-                    " the detected region to remove noise")}),
-    "context_padding": ("INT", {
-        "default": 0, "min": 0, "max": 512, "step": 8,
-        "tooltip": ("Inset pixels from crop to use for context. "
-                    "0 = no context (faster), "
-                    "32 = minimal context (SD-WebUI default), "
-                    "64-128 = recommended for better blending")}),
+    "context_padding": ("FLOAT", {
+        "default": 0.25, "min": 0, "max": 1,
+        "tooltip": ("Percentage of image to use for context from edge")}),
 }
 
 
@@ -180,10 +172,10 @@ def process_segs(
         image, model, vae,
         positive, negative, seed, steps, cfg, sampler, scheduler,
         denoise, upscale_method, upscale_model, feather,
-        edge_erosion, context_padding_pixels, segs):
+        context_padding, segs):
     """Process segments with optional context padding via inset mask."""
     processed_crops = []
-    eroded_crops = []
+    crops = []
     bboxes = []
 
     # Iterate through all detected segments
@@ -224,6 +216,8 @@ def process_segs(
         latent = vae_encode.encode(vae, scaled_image)[0]
 
         # Step 6.5: Apply inset latent noise mask if context padding > 0
+        context_padding_pixels = (
+                int(min(nw, nh) * (context_padding / 2)) // 8) * 8
         if context_padding_pixels > 0:
             # Get dimensions of scaled image
             img_height = scaled_image.shape[1]
@@ -269,17 +263,12 @@ def process_segs(
             orig_width, orig_height, "disabled"
         )[0]
 
-        # Step 10.5: Create eroded mask to remove edge artifacts
-        bbox_inset_and_crop = common.Node("BBoxInsetAndCrop")
-        eroded_image, eroded_bbox = bbox_inset_and_crop.function(
-                resized_image, bbox, edge_erosion)
-
         # Store the processed crop, bbox, and mask
         processed_crops.append(resized_image)
-        eroded_crops.append(eroded_image)
-        bboxes.append(eroded_bbox)
+        bboxes.append(bbox)
+        crops.append(decoded_image)
 
-    return (processed_crops, eroded_crops, bboxes)
+    return (processed_crops, crops, bboxes)
 
 
 class DetailerNode:
@@ -319,7 +308,7 @@ class DetailerNode:
     def process(self, bbox_model, fallback_model, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion, context_padding, extra_pnginfo=None):
+                context_padding, extra_pnginfo=None):
         """Main processing function."""
 
         # Handle batched images
@@ -331,7 +320,7 @@ class DetailerNode:
                 bbox_model, fallback_model, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion, context_padding, extra_pnginfo
+                context_padding, extra_pnginfo
             )
         else:
             # Batch processing - process each image separately
@@ -347,7 +336,7 @@ class DetailerNode:
                     bbox_model, fallback_model, single_image, model, vae,
                     positive, negative, seed + i, steps, cfg, sampler,
                     scheduler, denoise, upscale_method, upscale_model,
-                    threshold, feather, edge_erosion, context_padding,
+                    threshold, feather, context_padding,
                     extra_pnginfo
                 )
 
@@ -400,7 +389,7 @@ class DetailerNode:
             self, bbox_model, fallback_model, image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion, context_padding, extra_pnginfo=None):
+            context_padding, extra_pnginfo=None):
         """Process a single image (batch size must be 1)."""
 
         # Create placeholder for early returns
@@ -437,24 +426,24 @@ class DetailerNode:
             return (image, placeholder)
 
         # Process segments
-        processed_crops, eroded_crops, bboxes = process_segs(
+        processed_crops, crops, bboxes = process_segs(
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, feather,
-            edge_erosion, context_padding, segs
+            context_padding, segs
         )
 
         if not processed_crops:
             return (image, placeholder)
 
         # Pad crops for batching
-        if len(processed_crops) > 0:
-            max_height = max(crop.shape[1] for crop in processed_crops)
-            max_width = max(crop.shape[2] for crop in processed_crops)
+        if len(crops) > 0:
+            max_height = max(crop.shape[1] for crop in crops)
+            max_width = max(crop.shape[2] for crop in crops)
 
             # Pad eroded crops
             padded_eroded = []
-            for crop in processed_crops:
+            for crop in crops:
                 h, w = crop.shape[1], crop.shape[2]
                 if h < max_height or w < max_width:
                     pad_h = max_height - h
@@ -474,9 +463,9 @@ class DetailerNode:
         # Uncrop all processed regions
         final_image = image
 
-        for eroded_image, bbox in zip(eroded_crops, bboxes):
+        for processed_crop, bbox in zip(processed_crops, bboxes):
             final_image = uncrop_image_by_bbox(
-                final_image, eroded_image, bbox, feather=feather
+                final_image, processed_crop, bbox, feather=feather
             )
 
         return common.return_preview(
@@ -518,7 +507,7 @@ class MaskDetailerNode:
     def process(self, image, mask, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                edge_erosion, context_padding, extra_pnginfo=None):
+                context_padding, extra_pnginfo=None):
         """Main processing function."""
 
         # Generate SEGS from mask
@@ -529,21 +518,21 @@ class MaskDetailerNode:
         if not segs or len(segs[1]) == 0:
             return (image, None)
 
-        processed_crops, eroded_crops, bboxes = process_segs(
+        processed_crops, crops, bboxes = process_segs(
             image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, feather,
-            edge_erosion, context_padding, segs)
+            context_padding, segs)
 
         # Pad all crops to the same size so they can be batched
-        if len(processed_crops) > 0:
+        if len(crops) > 0:
             # Find the maximum dimensions for both outputs
-            max_height = max(crop.shape[1] for crop in processed_crops)
-            max_width = max(crop.shape[2] for crop in processed_crops)
+            max_height = max(crop.shape[1] for crop in crops)
+            max_width = max(crop.shape[2] for crop in crops)
 
             # Pad eroded crops
             padded_eroded = []
-            for crop in processed_crops:
+            for crop in crops:
                 h, w = crop.shape[1], crop.shape[2]
                 if h < max_height or w < max_width:
                     pad_h = max_height - h
@@ -563,12 +552,12 @@ class MaskDetailerNode:
         # Step 11: Uncrop all processed regions back onto the original image
         final_image = image
 
-        for eroded_image, bbox in zip(
-                eroded_crops, bboxes):
+        for processed_crop, bbox in zip(
+                processed_crops, bboxes):
             # Parameters: original_image, crop_image, bbox, border_blending,
             # use_square_mask, optional_mask
             final_image = uncrop_image_by_bbox(
-                final_image, eroded_image, bbox, feather=feather
+                final_image, processed_crop, bbox, feather=feather
             )
 
         return common.return_preview(
@@ -612,8 +601,8 @@ class DetailerPipeNode(DetailerNode):
 
     def process_pipe(self, bbox_model, fallback_model, full_pipe, steps, cfg,
                      sampler, scheduler, denoise, upscale_method,
-                     upscale_model, threshold, feather, edge_erosion,
-                     context_padding, extra_pnginfo=None):
+                     upscale_model, threshold, feather, context_padding,
+                     extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         image = full_pipe.get("image")
@@ -640,7 +629,7 @@ class DetailerPipeNode(DetailerNode):
             bbox_model, fallback_model, image, model_checkpoint, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            edge_erosion, context_padding
+            context_padding
         )
 
         # Handle both dict (with preview) and tuple (no preview) returns
@@ -693,7 +682,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
     def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
-                     threshold, feather, edge_erosion, context_padding,
+                     threshold, feather, context_padding,
                      image=None, extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
@@ -722,7 +711,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
             image, mask, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            context_padding, edge_erosion
+            context_padding,
         )
 
         # Handle both dict (with preview) and tuple (no preview) returns
