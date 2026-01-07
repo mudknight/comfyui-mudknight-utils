@@ -765,4 +765,40 @@ async def get_tag_usage(request):
         return web.json_response({}, status=500)
 
 
+@server.PromptServer.instance.routes.get('/autocomplete_settings')
+async def get_autocomplete_settings(request):
+    """Get autocomplete settings"""
+    try:
+        settings_file = CONFIG_DIR / "autocomplete_settings.json"
+        if not settings_file.exists():
+            return web.json_response({"collect_tag_usage": True})
+
+        with open(settings_file, 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+        return web.json_response(settings)
+    except Exception as e:
+        print(f"Error loading autocomplete settings: {e}")
+        return web.json_response(
+            {"collect_tag_usage": True},
+            status=500
+        )
+
+
+@server.PromptServer.instance.routes.post('/autocomplete_settings')
+async def update_autocomplete_settings(request):
+    """Update autocomplete settings"""
+    try:
+        data = await request.json()
+        settings_file = CONFIG_DIR / "autocomplete_settings.json"
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        return web.json_response({"success": True})
+    except Exception as e:
+        print(f"Error saving autocomplete settings: {e}")
+        return web.json_response(
+            {"error": str(e)},
+            status=500
+        )
+
+
 print("Tag usage API routes registered")

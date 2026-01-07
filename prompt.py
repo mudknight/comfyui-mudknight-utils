@@ -13,6 +13,26 @@ from . import common
 
 USAGE_FILE = Path(__file__).parent / "config" / "tag_usage.json"
 
+SETTINGS_FILE = Path(__file__).parent / "config" / "autocomplete_settings.json"
+
+
+def load_autocomplete_settings():
+    """Load autocomplete settings from file."""
+    if not SETTINGS_FILE.exists():
+        return {"collect_tag_usage": True}
+    try:
+        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading autocomplete settings: {e}")
+        return {"collect_tag_usage": True}
+
+
+def should_collect_tag_usage():
+    """Check if tag usage collection is enabled."""
+    settings = load_autocomplete_settings()
+    return settings.get("collect_tag_usage", True)
+
 
 def load_tag_usage():
     """Load tag usage counts from file."""
@@ -558,14 +578,15 @@ class PromptConditioningNode:
             )
 
         # Track tag usage for autocomplete
-        try:
-            all_tags_used = {}
-            for key in positive_keys:
-                all_tags_used.update(tag_dicts[key])
-            increment_tag_usage(all_tags_used)
-        except Exception as e:
-            # Don't fail the node if usage tracking fails
-            print(f"Tag usage tracking error: {e}")
+        if should_collect_tag_usage():
+            try:
+                all_tags_used = {}
+                for key in positive_keys:
+                    all_tags_used.update(tag_dicts[key])
+                increment_tag_usage(all_tags_used)
+            except Exception as e:
+                # Don't fail the node if usage tracking fails
+                print(f"Tag usage tracking error: {e}")
 
         # Deduplicate negative prompts if enabled
         if deduplicate_tags:

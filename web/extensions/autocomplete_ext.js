@@ -17,6 +17,42 @@ app.registerExtension({
     name: "Mudknight Utils.Autocomplete",
     settings: [
         {
+            id: "Mudknight Utils.Autocomplete.UsageOnlyExisting",
+            name: "Only Apply Usage to Pre-existing Tags",
+            type: "boolean",
+            defaultValue: false,
+            tooltip: "Only boost tags that already exist in your tag " +
+            "sources. Prevents creating new tags from usage data.",
+        },
+        {
+            id: "Mudknight Utils.Autocomplete.ApplyUsage",
+            name: "Apply Tag Usage to Autocomplete",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Boost autocomplete priority for tags you've used " +
+            "before. Requires reload to take effect.",
+        },
+        {
+            id: "Mudknight Utils.Autocomplete.CollectUsage",
+            name: "Collect Tag Usage Data",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Track which tags you use in prompts to boost " +
+            "their autocomplete priority. Requires restart to take effect.",
+            onChange: async (value) => {
+                try {
+                    const settings = await api.loadAutocompleteSettings();
+                    settings.collect_tag_usage = value;
+                    await api.saveAutocompleteSettings(settings);
+                    console.log(
+                        `Tag usage collection ${value ? 'enabled' : 'disabled'}`
+                    );
+                } catch (error) {
+                    console.error('Error updating collection setting:', error);
+                }
+            }
+        },
+        {
             id: "Mudknight Utils.Autocomplete.Blacklist",
             name: "Tag Blacklist (comma-separated)",
             type: "text",
@@ -225,6 +261,14 @@ app.registerExtension({
         autocompleteState.tagPresets = tagPresets;
         autocompleteState.loras = loras;
         autocompleteState.embeddings = embeds;
+
+        // Load and sync collection setting
+        const settings = await api.loadAutocompleteSettings();
+        const collectUsage = settings.collect_tag_usage !== false;
+        app.ui.settings.setSettingValue(
+            "Mudknight Utils.Autocomplete.CollectUsage",
+            collectUsage
+        );
 
         // Setup MutationObserver for Vue nodes (Nodes 2.0)
         this.setupVueNodeObserver();

@@ -360,19 +360,50 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
             const usageCount = Object.keys(tagUsage).length;
 
             if (usageCount > 0) {
-                console.log(`Applying usage counts for ${usageCount} tags...`);
-                let appliedCount = 0;
+                // Check if usage boost is enabled
+                const applyUsage = localStorage.getItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.ApplyUsage"
+                ) !== 'false';
 
-                for (const [key, tag] of allTags.entries()) {
-                    const usage = tagUsage[key] || 0;
-                    if (usage > 0) {
-                        // Boost used tags significantly
-                        tag.count = (tag.count || 0) + usage;
-                        appliedCount++;
+                const onlyExistingTags = localStorage.getItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete" +
+                    ".UsageOnlyExisting"
+                ) === 'true';
+
+                if (applyUsage) {
+                    console.log(
+                        `Applying usage counts for ${usageCount} tags...`
+                    );
+                    let appliedCount = 0;
+
+                    // Filter usage to only existing tags if enabled
+                    let filteredUsage = tagUsage;
+                    if (onlyExistingTags) {
+                        filteredUsage = {};
+                        for (const [key, usage] of Object.entries(tagUsage)) {
+                            if (allTags.has(key)) {
+                                filteredUsage[key] = usage;
+                            }
+                        }
+                        console.log(
+                            `Filtered to ${Object.keys(filteredUsage).length}` +
+                            ` existing tags`
+                        );
                     }
-                }
 
-                console.log(`Applied usage boost to ${appliedCount} tags`);
+                    for (const [key, tag] of allTags.entries()) {
+                        const usage = filteredUsage[key] || 0;
+                        if (usage > 0) {
+                            // Boost used tags significantly
+                            tag.count = (tag.count || 0) + usage;
+                            appliedCount++;
+                        }
+                    }
+
+                    console.log(`Applied usage boost to ${appliedCount} tags`);
+                } else {
+                    console.log('Tag usage boost disabled');
+                }
             }
         } catch (error) {
             console.error('Error applying tag usage:', error);
@@ -808,6 +839,33 @@ export async function resetTagUsage() {
 		return true;
 	} catch (error) {
 		console.error('Error resetting tag usage:', error);
+		return false;
+	}
+}
+
+export async function loadAutocompleteSettings() {
+	try {
+		const response = await fetch('/autocomplete_settings');
+		if (!response.ok) {
+			return { collect_tag_usage: true };
+		}
+		return await response.json();
+	} catch (error) {
+		console.error('Error loading autocomplete settings:', error);
+		return { collect_tag_usage: true };
+	}
+}
+
+export async function saveAutocompleteSettings(settings) {
+	try {
+		const response = await fetch('/autocomplete_settings', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(settings)
+		});
+		return response.ok;
+	} catch (error) {
+		console.error('Error saving autocomplete settings:', error);
 		return false;
 	}
 }
