@@ -3,6 +3,7 @@ import numpy as np
 import os
 import io
 from PIL import Image
+from . import common
 
 
 class AutoLevelNode:
@@ -317,14 +318,123 @@ class ImageFileSize:
         return {"ui": {"text": size_str}, "result": (size_str,)}
 
 
+class ImageDifference:
+    """
+    Calculates the difference between two images. Scales the smaller image
+    to the larger using bicubic interpolation if dimensions mismatch.
+    """
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image_a": ("IMAGE",),
+                "image_b": ("IMAGE",),
+                "scale_diff": ("FLOAT", {
+                    "default": 1.0, "min": 1.0, "max": 10.0, "step": 0.1,
+                    "tooltip": "Multiplies difference to improve visibility"
+                }),
+                "crop": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Crop around the changed region of the image"
+                }),
+                "sensitivity": ("FLOAT", {
+                    "default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Sensitivity for cropping"
+                }),
+                "padding": ("INT", {
+                    "default": 20, "min": 0, "max": 512, "step": 1,
+                    "tooltip": "Padding around cropped image"
+                }),
+            },
+            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "process_difference"
+    CATEGORY = "image/effects"
+    OUTPUT_NODE = True
+    DESCRIPTION = (
+        "Show the difference between 2 images, with optional cropping "
+        "around the detected changed area.")
+
+    def process_difference(self, image_a, image_b, scale_diff, crop,
+                           sensitivity, padding, extra_pnginfo):
+
+        # Determine total pixels (H * W)
+        size_a = image_a.shape[1] * image_a.shape[2]
+        size_b = image_b.shape[1] * image_b.shape[2]
+
+        # Scale smaller to larger if mismatch exists
+        if image_a.shape != image_b.shape:
+            if size_a >= size_b:
+                target_shape = (image_a.shape[1], image_a.shape[2])
+                # Permute to [B, C, H, W] for interpolation
+                img_to_resize = image_b.permute(0, 3, 1, 2)
+                resized = torch.nn.functional.interpolate(
+                        img_to_resize, size=target_shape,
+                        mode='bicubic', align_corners=False)
+                image_b = resized.permute(0, 2, 3, 1)
+            else:
+                target_shape = (image_b.shape[1], image_b.shape[2])
+                img_to_resize = image_a.permute(0, 3, 1, 2)
+                resized = torch.nn.functional.interpolate(
+                        img_to_resize, size=target_shape,
+                        mode='bicubic', align_corners=False)
+                image_a = resized.permute(0, 2, 3, 1)
+
+        # Calculate absolute difference
+        diff = torch.abs(image_a - image_b)
+        diff_out = torch.clamp(diff * scale_diff, 0.0, 1.0)
+
+        if not crop:
+            return common.return_preview(
+                (diff_out,),
+                diff_out,
+                extra_pnginfo
+            )
+
+        # Masking for crop logic
+        mask = torch.max(diff, dim=-1)[0] > sensitivity
+        coords = torch.nonzero(mask)
+
+        if coords.size(0) == 0:
+            return common.return_preview(
+                (diff_out,),
+                diff_out,
+                extra_pnginfo
+            )
+
+        y_min, x_min = torch.min(coords[:, 1]), torch.min(coords[:, 2])
+        y_max, x_max = torch.max(coords[:, 1]), torch.max(coords[:, 2])
+
+        h, w = diff_out.shape[1], diff_out.shape[2]
+        y_start = max(0, y_min - padding)
+        x_start = max(0, x_min - padding)
+        y_end = min(h, y_max + padding)
+        x_end = min(w, x_max + padding)
+
+        cropped_diff = diff_out[:, y_start:y_end, x_start:x_end, :]
+
+        return common.return_preview(
+            (cropped_diff,),
+            cropped_diff,
+            extra_pnginfo
+        )
+
+
 NODE_CLASS_MAPPINGS = {
     "AutoLevelNode": AutoLevelNode,
     "OpenCVDenoise": OpenCVDenoise,
     "ImageFileSize": ImageFileSize,
+    "ImageDifference": ImageDifference,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AutoLevelNode": "Auto Level",
     "OpenCVDenoise": "OpenCV Denoise",
     "ImageFileSize": "Image File Size",
+    "ImageDifference": "Image Difference",
 }
