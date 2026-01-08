@@ -129,7 +129,7 @@ function init() {
 	initCategories();
 	initSearch();
 	initWeightAdjustment();
-	setupModalEventListeners();
+	// setupModalEventListeners();
 	
 	window.renderAll = renderAll;
 	window.renderCharacters = renderCharacters;
