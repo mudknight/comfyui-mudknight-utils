@@ -7,10 +7,62 @@ let thumbnailTimeout = null;
 let currentPreviewKey = null; // Track current preview to avoid redrawing
 let autocompleteTimeout = null;
 
+function getCanvasScale() {
+	if (window.app?.canvas?.ds) {
+		return window.app.canvas.ds.scale || 1;
+	}
+	return 1;
+}
+
+function getCaretCoordinates(element) {
+	const caretPos = element.selectionStart;
+	const rect = element.getBoundingClientRect();
+	const scale = getCanvasScale();
+	const div = document.createElement('div');
+	const style = window.getComputedStyle(element);
+
+	const layoutStyles = [
+		'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+		'letterSpacing', 'textTransform', 'wordSpacing',
+		'textIndent', 'whiteSpace', 'paddingLeft', 'paddingRight',
+		'paddingTop', 'paddingBottom', 'lineHeight', 'width', 'boxSizing'
+	];
+
+	div.style.position = 'absolute';
+	div.style.visibility = 'hidden';
+	div.style.whiteSpace = 'pre-wrap';
+	div.style.wordWrap = 'break-word';
+	layoutStyles.forEach(prop => div.style[prop] = style[prop]);
+
+	div.textContent = element.value.substring(0, caretPos);
+	const span = document.createElement('span');
+	span.textContent = element.value.substring(caretPos) || '.';
+	div.appendChild(span);
+
+	document.body.appendChild(div);
+	const spanOffsetLeft = (span.offsetLeft - element.scrollLeft) * scale;
+	const spanOffsetTop = (span.offsetTop - element.scrollTop) * scale;
+
+	const lineHeight = parseFloat(style.lineHeight) ||
+		parseFloat(style.fontSize) * 1.2;
+	const scaledLineHeight = lineHeight * scale;
+
+	document.body.removeChild(div);
+
+	return {
+		left: rect.left + spanOffsetLeft,
+		top: rect.top + spanOffsetTop,
+		fontSize: parseFloat(style.fontSize) * scale + 'px',
+		lineHeight: scaledLineHeight
+	};
+}
+
 function getOrCreateThumbnail() {
 	if (!sharedThumbnail) {
 		sharedThumbnail = document.createElement('div');
 		sharedThumbnail.className = 'autocomplete-thumbnail';
+		sharedThumbnail.style.position = 'fixed';
+		sharedThumbnail.style.zIndex = '10001';
 		document.body.appendChild(sharedThumbnail);
 	}
 	return sharedThumbnail;
@@ -27,42 +79,34 @@ function getPreviewUrl(nameOrPath, type) {
 	return null;
 }
 
-function showThumbnailForElement(
-	element, nameOrPath, previewType, immediate = false
-) {
-	const previewKey = `${previewType}:${nameOrPath}`;
-	
-	if (currentPreviewKey === previewKey && 
-	    sharedThumbnail && 
-	    sharedThumbnail.style.display === 'block') {
-		if (immediate) {
-			const rect = element.getBoundingClientRect();
-			const thumbnailWidth = 128 + 8;
-			const thumbnailHeight = 128 + 8;
-			const viewportWidth = window.innerWidth;
-			const viewportHeight = window.innerHeight;
-			
-			let left = rect.right + 10;
-			let top = rect.top;
-			
-			if (left + thumbnailWidth > viewportWidth) {
-				left = rect.left - thumbnailWidth - 10;
-			}
-			
-			if (top + thumbnailHeight > viewportHeight) {
-				top = viewportHeight - thumbnailHeight - 10;
-			}
-			
-			if (top < 10) {
-				top = 10;
-			}
-			
-			sharedThumbnail.style.left = left + 'px';
-			sharedThumbnail.style.top = top + 'px';
-		}
+function repositionThumbnail(dropdown) {
+	if (!sharedThumbnail || sharedThumbnail.style.display !== 'block') {
 		return;
 	}
-	
+
+	const dropRect = dropdown.getBoundingClientRect();
+	const thumbnailWidth = 128 + 10;
+
+	let left = dropRect.right + 10;
+	if (left + thumbnailWidth > window.innerWidth) {
+		left = dropRect.left - thumbnailWidth;
+	}
+
+	sharedThumbnail.style.left = left + 'px';
+	sharedThumbnail.style.top = dropRect.top + 'px';
+}
+
+function showThumbnailForElement(
+	dropdown, nameOrPath, previewType, immediate = false
+) {
+	const previewKey = `${previewType}:${nameOrPath}`;
+
+	if (currentPreviewKey === previewKey &&
+		sharedThumbnail?.style.display === 'block') {
+		repositionThumbnail(dropdown);
+		return;
+	}
+
 	if (thumbnailTimeout) {
 		clearTimeout(thumbnailTimeout);
 		thumbnailTimeout = null;
@@ -78,43 +122,20 @@ function showThumbnailForElement(
 	
 	currentPreviewKey = previewKey;
 	
-	const img = thumbnail.querySelector('img');
-	if (!img || img.src !== previewUrl) {
-		thumbnail.innerHTML = 
-			`<img src="${previewUrl}" alt="${nameOrPath}" />`;
-	}
-	
-	const showThumbnail = () => {
-		const rect = element.getBoundingClientRect();
-		const thumbnailWidth = 128 + 8;
-		const thumbnailHeight = 128 + 8;
-		const viewportWidth = window.innerWidth;
-		const viewportHeight = window.innerHeight;
-		
-		let left = rect.right + 10;
-		let top = rect.top;
-		
-		if (left + thumbnailWidth > viewportWidth) {
-			left = rect.left - thumbnailWidth - 10;
+	const renderAndPosition = () => {
+		const currentImg = thumbnail.querySelector('img');
+		if (!currentImg || currentImg.src !== previewUrl) {
+			thumbnail.innerHTML = `<img src="${previewUrl}" ` +
+				`style="width:128px;height:auto;display:block;" />`;
 		}
-		
-		if (top + thumbnailHeight > viewportHeight) {
-			top = viewportHeight - thumbnailHeight - 10;
-		}
-		
-		if (top < 10) {
-			top = 10;
-		}
-		
 		thumbnail.style.display = 'block';
-		thumbnail.style.left = left + 'px';
-		thumbnail.style.top = top + 'px';
+		repositionThumbnail(dropdown);
 	};
-	
+
 	if (immediate) {
-		showThumbnail();
+		renderAndPosition();
 	} else {
-		thumbnailTimeout = setTimeout(showThumbnail, 300);
+		thumbnailTimeout = setTimeout(renderAndPosition, 300);
 	}
 }
 
@@ -263,20 +284,17 @@ function showAutocomplete(input, context) {
 		
 		// First, add all regular tags
 		autocompleteState.tags.forEach(tag => {
-			const key = tag.tag.toLowerCase().trim();
-			tagMap.set(key, tag);
+			tagMap.set(tag.tag.toLowerCase().trim(), tag);
 		});
 		
 		// Then, override with character presets
 		autocompleteState.characterPresets.forEach(preset => {
-			const key = preset.tag.toLowerCase().trim();
-			tagMap.set(key, preset);
+			tagMap.set(preset.tag.toLowerCase().trim(), preset);
 		});
 		
 		// Finally, override with tag presets
 		autocompleteState.tagPresets.forEach(preset => {
-			const key = preset.tag.toLowerCase().trim();
-			tagMap.set(key, preset);
+			tagMap.set(preset.tag.toLowerCase().trim(), preset);
 		});
 		
 		// Convert map back to array and filter matching tags
@@ -381,110 +399,82 @@ function showAutocomplete(input, context) {
 	autocompleteState.wordStart = start;
 
 	const dropdown = document.getElementById('autocompleteDropdown');
+	const coords = getCaretCoordinates(input);
+
 	dropdown.innerHTML = '';
+	dropdown.style.display = 'block';
+	dropdown.style.position = 'fixed';
+	dropdown.style.fontSize = coords.fontSize;
 
 	filtered.forEach((item, index) => {
 		const div = document.createElement('div');
-		div.className = 'autocomplete-item';
-		if (index === 0) {
-			div.classList.add('selected');
-		}
+		div.className = 'autocomplete-item' +
+			(index === 0 ? ' selected' : '');
 
-		// Add category class for tags
 		if (item.type === 'tag' && item.category !== undefined) {
 			div.classList.add(`tag-category-${item.category}`);
 		}
 
-		// Different display based on type
 		if (item.type === 'tag') {
+			const categoryLabel = getCategoryLabel(item.category);
+			const presetLabel = item.isPreset ? 
+				' <span class="preset-label">PRESET</span>' : '';
+			const customLabel = item.isCustom ?
+				' <span class="preset-label">CUSTOM</span>' : '';
+			
 			if (item.isAlias) {
-				// Alias format: alias -> tag (category) [PRESET] [CUSTOM] count
-				const categoryLabel = getCategoryLabel(item.category);
-				const presetLabel = item.isPreset ? 
-					' <span class="preset-label">PRESET</span>' : '';
-				const customLabel = item.isCustom ?
-					' <span class="preset-label">CUSTOM</span>' : '';
 				div.innerHTML = `
 					<span class="autocomplete-tag">
 						<span class="alias-name">${item.display}</span>
 						<span class="alias-arrow"> → </span>
 						<span class="alias-target">${item.value}</span>
 						${categoryLabel ? 
-							`<span class="category-label">
+							`<span class="category-label" style="color: grey;">
 								${categoryLabel}
 							</span>` : ''}${presetLabel}${customLabel}
 					</span>
 					<span class="autocomplete-count">${item.count}</span>
 				`;
 			} else {
-				// Regular tag format: tag (category) [PRESET] [CUSTOM] count
-				const categoryLabel = getCategoryLabel(item.category);
-				const presetLabel = item.isPreset ? 
-					' <span class="preset-label">PRESET</span>' : '';
-				const customLabel = item.isCustom ?
-					' <span class="preset-label">CUSTOM</span>' : '';
 				div.innerHTML = `
 					<span class="autocomplete-tag">
 						${item.display}
 						${categoryLabel ? 
-							`<span class="category-label">
+							`<span class="category-label" style="color: grey;">
 								${categoryLabel}
 							</span>` : ''}${presetLabel}${customLabel}
 					</span>
 					<span class="autocomplete-count">${item.count}</span>
 				`;
 			}
+
+			if (item.isPreset && item.presetType === 'character' && 
+				item.hasImage && item.characterName) {
+				div.dataset.characterName = item.characterName;
+				div.dataset.previewType = 'character';
+			}
 		} else {
-			// LoRA/embedding format
-			div.innerHTML = `
-				<span class="autocomplete-tag">${item.display}</span>
-			`;
+			div.innerHTML = `<span class="autocomplete-tag">` +
+				`${item.display}</span>`;
+			if (item.hasPreview) {
+				div.dataset.previewType = item.type;
+				div.dataset.previewPath = item.previewPath;
+				div.dataset.previewName = item.previewName;
+			}
 		}
 
 		div.onclick = () => selectAutocomplete(index);
-		
-		// Store preview info in data attributes for selection-based display
-		if (item.type === 'tag' && item.isPreset && 
-		    item.presetType === 'character' && item.hasImage && 
-		    item.characterName) {
-			div.dataset.characterName = item.characterName;
-			div.dataset.previewType = 'character';
-			setupThumbnailHover(div, item.characterName, 'character');
-		} else if (item.type === 'lora' && item.hasPreview) {
-			// Try previewPath first (full path), then fall back to previewName
-			const previewIdentifier = item.previewPath || item.previewName;
-			if (previewIdentifier) {
-				div.dataset.previewName = item.previewName;
-				div.dataset.previewPath = item.previewPath;
-				div.dataset.previewType = 'lora';
-				setupThumbnailHover(div, previewIdentifier, 'lora');
-			}
-		} else if (item.type === 'embedding' && item.hasPreview && item.previewPath) {
-			div.dataset.previewPath = item.previewPath;
-			div.dataset.previewType = 'embedding';
-			setupThumbnailHover(div, item.previewPath, 'embedding');
-		}
-		
 		dropdown.appendChild(div);
 	});
 
-	const rect = input.getBoundingClientRect();
-	dropdown.style.left = rect.left + 'px';
-	dropdown.style.top = (rect.bottom + 5) + 'px';
-	dropdown.style.width = rect.width + 'px';
-	dropdown.style.display = 'block';
+	let top = coords.top + coords.lineHeight + 5;
+	if (top + dropdown.offsetHeight > window.innerHeight) {
+		top = coords.top - dropdown.offsetHeight - 5;
+	}
+
+	dropdown.style.left = coords.left + 'px';
+	dropdown.style.top = top + 'px';
 	
-	// Set  cursor is over dropdown but not over a specific item
-	dropdown.addEventListener('mouseenter', () => {
-		updateThumbnailForSelectedItem();
-	});
-	
-	dropdown.addEventListener('mouseleave', () => {
-		// When leaving dropdown entirely, hide thumbnail
-		hideThumbnail();
-	});
-	
-	// Show thumbnail for initially selected item if it has a character image
 	updateThumbnailForSelectedItem();
 }
 
@@ -494,78 +484,17 @@ function updateThumbnailForSelectedItem() {
 		return;
 	}
 	
-	const selectedIndex = autocompleteState.selectedIndex;
-	if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
-		const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
-		if (selectedElement) {
-			// Check what type of preview the selected item has
-			const previewType = selectedElement.dataset.previewType;
-			if (previewType === 'character' && selectedElement.dataset.characterName) {
-				showThumbnailForElement(selectedElement, selectedElement.dataset.characterName, 'character', true);
-			} else if (previewType === 'lora') {
-				// Try previewPath first, then fall back to previewName
-				const previewIdentifier = selectedElement.dataset.previewPath || selectedElement.dataset.previewName;
-				if (previewIdentifier) {
-					showThumbnailForElement(selectedElement, previewIdentifier, 'lora', true);
-				} else {
-					hideThumbnail();
-				}
-			} else if (previewType === 'embedding' && selectedElement.dataset.previewPath) {
-				showThumbnailForElement(selectedElement, selectedElement.dataset.previewPath, 'embedding', true);
-			} else {
-				hideThumbnail();
-			}
-		} else {
-			hideThumbnail();
-		}
+	const selectedElement = 
+		dropdown.querySelector('.autocomplete-item.selected');
+	if (selectedElement && selectedElement.dataset.previewType) {
+		const type = selectedElement.dataset.previewType;
+		const id = selectedElement.dataset.previewPath ||
+					 selectedElement.dataset.characterName ||
+					 selectedElement.dataset.previewName;
+		showThumbnailForElement(dropdown, id, type, true);
 	} else {
 		hideThumbnail();
 	}
-}
-
-function setupThumbnailHover(element, nameOrPath, previewType) {
-	element.addEventListener('mouseenter', () => {
-		// Show thumbnail on hover with delay
-		showThumbnailForElement(element, nameOrPath, previewType, false);
-	});
-	
-	element.addEventListener('mouseleave', () => {
-		// When leaving, check if there's a selected item to show instead
-		const dropdown = document.getElementById('autocompleteDropdown');
-		if (dropdown && dropdown.style.display === 'block') {
-			const selectedIndex = autocompleteState.selectedIndex;
-			if (selectedIndex >= 0 && selectedIndex < autocompleteState.filteredTags.length) {
-				const selectedItem = autocompleteState.filteredTags[selectedIndex];
-				const selectedElement = dropdown.querySelector('.autocomplete-item.selected');
-				
-				if (selectedElement) {
-					// Check what type of preview the selected item has
-					const selectedPreviewType = selectedElement.dataset.previewType;
-					if (selectedPreviewType === 'character' && selectedElement.dataset.characterName) {
-						showThumbnailForElement(selectedElement, selectedElement.dataset.characterName, 'character', true);
-					} else if (selectedPreviewType === 'lora') {
-						// Try previewPath first, then fall back to previewName
-						const previewIdentifier = selectedElement.dataset.previewPath || selectedElement.dataset.previewName;
-						if (previewIdentifier) {
-							showThumbnailForElement(selectedElement, previewIdentifier, 'lora', true);
-						} else {
-							hideThumbnail();
-						}
-					} else if (selectedPreviewType === 'embedding' && selectedElement.dataset.previewPath) {
-						showThumbnailForElement(selectedElement, selectedElement.dataset.previewPath, 'embedding', true);
-					} else {
-						hideThumbnail();
-					}
-				} else {
-					hideThumbnail();
-				}
-			} else {
-				hideThumbnail();
-			}
-		} else {
-			hideThumbnail();
-		}
-	});
 }
 
 function getCategoryLabel(category) {
@@ -580,9 +509,10 @@ function getCategoryLabel(category) {
 
 export function hideAutocomplete() {
 	const dropdown = document.getElementById('autocompleteDropdown');
-	dropdown.style.display = 'none';
+	if (dropdown) {
+		dropdown.style.display = 'none';
+	}
 	
-	// Hide thumbnail
 	hideThumbnail();
 	
 	autocompleteState.activeElement = null;
@@ -600,72 +530,38 @@ function selectAutocomplete(index) {
 	
 	const input = autocompleteState.activeElement;
 	const item = autocompleteState.filteredTags[index];
+	const context = detectContext(input);
 	const text = input.value;
-	const cursorPos = input.selectionStart;
+	const suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	
 	let newText, newCursorPos;
 	
 	if (autocompleteState.contextType === 'lora') {
-		// Complete LoRA syntax: <lora:name:1.0>
-		const beforeLora = text.lastIndexOf('<lora:', cursorPos) + 6;
-		const afterCursor = text.substring(cursorPos);
-		
-		// Find the end of the lora tag
-		let endPos = cursorPos;
-		if (afterCursor.includes('>')) {
-			endPos = cursorPos + afterCursor.indexOf('>') + 1;
-		}
-		
-		const before = text.substring(0, beforeLora);
-		const after = text.substring(endPos);
-		
-		// Don't add comma for LoRA tags
-		newText = `${before}${item.value}:1.0>${after}`;
-		newCursorPos = before.length + item.value.length + 5;
+		const beforeLora = 
+			text.lastIndexOf('<lora:', input.selectionStart) + 6;
+		const rest = text.substring(input.selectionStart);
+		const after = rest.includes('>')
+			? rest.substring(rest.indexOf('>') + 1)
+			: rest;
+		newText = `${text.substring(0, beforeLora)}${item.value}:1.0>${after}`;
+		newCursorPos = beforeLora + item.value.length + 5;
 		
 	} else if (autocompleteState.contextType === 'embedding') {
-		// Complete embedding syntax: embedding:name
 		const beforeEmbed = 
-			text.lastIndexOf('embedding:', cursorPos) + 10;
-		const before = text.substring(0, beforeEmbed);
-		
-		// Find next comma or end
-		let endPos = cursorPos;
-		const afterCursor = text.substring(cursorPos);
-		const commaPos = afterCursor.indexOf(',');
-		if (commaPos !== -1) {
-			endPos = cursorPos + commaPos;
-		} else {
-			endPos = text.length;
-		}
-		
-		const after = text.substring(endPos);
-		
-		// Check if comma insertion is enabled
-		const insertComma = autocompleteState.insertComma !== false;
-		const suffix = insertComma ? ', ' : '';
-		
-		newText = `${before}${item.value}${suffix}${after}`;
-		newCursorPos = before.length + item.value.length + suffix.length;
+			text.lastIndexOf('embedding:', input.selectionStart) + 10;
+		const rest = text.substring(input.selectionStart);
+		const after = rest.includes(',')
+			? rest.substring(rest.indexOf(','))
+			: rest;
+		newText = 
+			`${text.substring(0, beforeEmbed)}${item.value}${suffix}${after}`;
+		newCursorPos = beforeEmbed + item.value.length + suffix.length;
 		
 	} else {
-		// Tag completion (existing logic with insertComma support)
-		let selectedTag = item.value;
-		selectedTag = selectedTag.replace(/_/g, ' ');
-		selectedTag = selectedTag.replace(
-			/\(/g, '\\('
-		).replace(/\)/g, '\\)');
-		
-		const context = detectContext(input);
-		const before = text.substring(0, context.start);
-		const after = text.substring(context.end || cursorPos);
-		
-		// Check if comma insertion is enabled
-		const insertComma = autocompleteState.insertComma !== false;
-		const suffix = insertComma ? ', ' : '';
-		
-		newText = before + selectedTag + suffix + after;
-		newCursorPos = before.length + selectedTag.length + suffix.length;
+		let tag = item.value.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+		newText = text.substring(0, context.start) + tag + suffix + 
+			text.substring(context.end || input.selectionStart);
+		newCursorPos = context.start + tag.length + suffix.length;
 	}
 	
 	input.value = newText;
@@ -684,24 +580,21 @@ function handleAutocompleteKeydown(e, input) {
 	
 	if (e.key === 'ArrowDown') {
 		e.preventDefault();
-		if (autocompleteState.selectedIndex <
-		    autocompleteState.filteredTags.length - 1) {
-			autocompleteState.selectedIndex++;
-			updateAutocompleteSelection();
-		}
+		autocompleteState.selectedIndex = 
+			(autocompleteState.selectedIndex + 1) % 
+			autocompleteState.filteredTags.length;
+		updateAutocompleteSelection();
 	} else if (e.key === 'ArrowUp') {
 		e.preventDefault();
-		if (autocompleteState.selectedIndex > 0) {
-			autocompleteState.selectedIndex--;
-			updateAutocompleteSelection();
-		}
+		autocompleteState.selectedIndex = 
+			(autocompleteState.selectedIndex - 1 + 
+			autocompleteState.filteredTags.length) % 
+			autocompleteState.filteredTags.length;
+		updateAutocompleteSelection();
 	} else if (e.key === 'Enter' || e.key === 'Tab') {
-		if (autocompleteState.selectedIndex >= 0) {
-			e.preventDefault();
-			selectAutocomplete(autocompleteState.selectedIndex);
-		}
-	} else if (e.key === 'Escape') {
 		e.preventDefault();
+		selectAutocomplete(autocompleteState.selectedIndex);
+	} else if (e.key === 'Escape') {
 		hideAutocomplete();
 	}
 }
@@ -709,11 +602,10 @@ function handleAutocompleteKeydown(e, input) {
 function updateAutocompleteSelection() {
 	const items = document.querySelectorAll('.autocomplete-item');
 	items.forEach((item, index) => {
+		item.classList.toggle('selected', 
+			index === autocompleteState.selectedIndex);
 		if (index === autocompleteState.selectedIndex) {
-			item.classList.add('selected');
 			item.scrollIntoView({ block: 'nearest' });
-		} else {
-			item.classList.remove('selected');
 		}
 	});
 	
@@ -738,8 +630,7 @@ export function setupAutocomplete(input, insertComma = true) {
 
 			autocompleteTimeout = setTimeout(() => {
 				autocompleteState.insertComma = input._insertComma;
-				const context = detectContext(input);
-				showAutocomplete(input, context);
+				showAutocomplete(input, detectContext(input));
 			}, 100);
 		});
 
@@ -768,10 +659,11 @@ export function setupAutocomplete(input, insertComma = true) {
 export function initAutocomplete() {
 	document.addEventListener('click', (e) => {
 		const dropdown = document.getElementById('autocompleteDropdown');
+		const active = autocompleteState.activeElement;
 		if (dropdown && 
 		    dropdown.style.display === 'block' && 
 		    !dropdown.contains(e.target) && 
-		    e.target !== autocompleteState.activeElement) {
+		    e.target !== active) {
 			hideAutocomplete();
 		}
 	});
