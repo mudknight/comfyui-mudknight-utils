@@ -209,58 +209,33 @@ app.registerExtension({
 
         console.log("Loading autocomplete with custom sources:", customSources);
 
-        const tags = await api.loadAutocompleteTags(customSources, customTags);
-        autocompleteState.tags = tags;
+        // Use cached data loader
+        const data = await api.loadAllAutocompleteData(
+            customSources,
+            customTags
+        );
 
-        // Listen for prompt execution to reload tags
+        Object.assign(autocompleteState, data);
+
+        // Listen for prompt execution to update tag usage
         const originalExecute = app.queuePrompt;
         app.queuePrompt = async function(...args) {
             const result = await originalExecute.apply(this, args);
 
-            // Reload tags after execution to pick up new usage counts
+            // Update usage counts after execution
             setTimeout(async () => {
                 try {
-                    const customSources = app.ui.settings.getSettingValue(
-                        "Mudknight Utils.Autocomplete.CustomSources",
-                    ) || "";
-                    const customTags = app.ui.settings.getSettingValue(
-                        "Mudknight Utils.Autocomplete.CustomTags",
-                    ) || "";
-
-                    console.log("Reloading autocomplete with updated usage...");
-                    const tags = await api.loadAutocompleteTags(
-                        customSources,
-                        customTags
+                    console.log("Updating tag usage counts...");
+                    autocompleteState.tags = await api.updateTagUsageCounts(
+                        autocompleteState.tags
                     );
-                    autocompleteState.tags = tags;
-
-                    const [characterPresets, tagPresets] = await Promise.all([
-                        api.loadCharacterPresets(tags),
-                        api.loadTagPresets(tags)
-                    ]);
-
-                    autocompleteState.characterPresets = characterPresets;
-                    autocompleteState.tagPresets = tagPresets;
                 } catch (error) {
-                    console.error("Error reloading tags after execution:", error);
+                    console.error("Error updating tag usage:", error);
                 }
-            }, 1000); // Wait 1 second after execution
+            }, 1000);
 
             return result;
         };
-
-        const [characterPresets, tagPresets, loras, embeds] = 
-            await Promise.all([
-                api.loadCharacterPresets(tags),
-                api.loadTagPresets(tags),
-                api.loadLoras(),
-                api.loadEmbeddings()
-            ]);
-
-        autocompleteState.characterPresets = characterPresets;
-        autocompleteState.tagPresets = tagPresets;
-        autocompleteState.loras = loras;
-        autocompleteState.embeddings = embeds;
 
         // Load and sync collection setting
         const settings = await api.loadAutocompleteSettings();

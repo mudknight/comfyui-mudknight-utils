@@ -5,6 +5,9 @@ const TAG_CACHE_PREFIX = 'mudknight_tag_cache_';
 const TAG_CACHE_META = 'mudknight_tag_cache_meta';
 const CACHE_EXPIRY_HOURS = 24;
 
+const AUTOCOMPLETE_CACHE_KEY = 'mudknight_autocomplete_data';
+const AUTOCOMPLETE_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
 function getCacheKey(url) {
     // Create a safe key from URL
     return TAG_CACHE_PREFIX + btoa(url).replace(/[^a-zA-Z0-9]/g, '_');
@@ -122,6 +125,25 @@ function clearRemovedCaches(currentUrls) {
     } catch (e) {
         console.error('Error clearing removed caches:', e);
     }
+}
+
+export async function loadAllAutocompleteData(
+    customSources = '',
+    customTags = ''
+) {
+    console.log('Loading autocomplete data...');
+    
+    const tags = await loadAutocompleteTags(customSources, customTags);
+    
+    const [characterPresets, tagPresets, loras, embeddings] = 
+        await Promise.all([
+            loadCharacterPresets(tags),
+            loadTagPresets(tags),
+            loadLoras(),
+            loadEmbeddings()
+        ]);
+    
+    return { tags, characterPresets, tagPresets, loras, embeddings };
 }
 
 export async function loadCharacters() {
@@ -841,6 +863,64 @@ export async function resetTagUsage() {
 		console.error('Error resetting tag usage:', error);
 		return false;
 	}
+}
+
+export async function updateTagUsageCounts(tags, usageMultiplier = 1) {
+    try {
+        const tagUsage = await loadTagUsage();
+        if (Object.keys(tagUsage).length === 0) {
+            return tags;
+        }
+
+        const applyUsage = localStorage.getItem(
+            "Comfy.Settings.Mudknight Utils.Autocomplete.ApplyUsage"
+        ) !== 'false';
+
+        if (!applyUsage) {
+            console.log('Tag usage boost disabled');
+            return tags;
+        }
+
+        const onlyExistingTags = localStorage.getItem(
+            "Comfy.Settings.Mudknight Utils.Autocomplete" +
+            ".UsageOnlyExisting"
+        ) === 'true';
+
+        console.log(
+            `Updating usage counts for ${Object.keys(tagUsage).length}` +
+            ` tags...`
+        );
+
+        // Create usage map
+        let filteredUsage = tagUsage;
+        if (onlyExistingTags) {
+            const existingTags = new Set(
+                tags.map(t => t.tag.toLowerCase())
+            );
+            filteredUsage = {};
+            for (const [key, usage] of Object.entries(tagUsage)) {
+                if (existingTags.has(key)) {
+                    filteredUsage[key] = usage;
+                }
+            }
+        }
+
+        // Update counts in place
+        let updatedCount = 0;
+        tags.forEach(tag => {
+            const usage = filteredUsage[tag.tag.toLowerCase()] || 0;
+            if (usage > 0) {
+                tag.count = (tag.count || 0) + (usage * usageMultiplier);
+                updatedCount++;
+            }
+        });
+
+        console.log(`Updated usage for ${updatedCount} tags`);
+        return tags;
+    } catch (error) {
+        console.error('Error updating tag usage:', error);
+        return tags;
+    }
 }
 
 export async function loadAutocompleteSettings() {

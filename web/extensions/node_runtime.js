@@ -79,15 +79,17 @@ function draw_time(ctx, seconds) {
     const text = `${seconds.toFixed(3)}s`;
 
     ctx.save();
-    ctx.font = LiteGraph.NODE_TEXT_FONT;
+    // ctx.font = LiteGraph.NODE_TEXT_FONT;
+    ctx.font = "12px sans-serif"
 
-    const padding = 6;
+    const padding = 4;
     const w = ctx.measureText(text).width + padding * 2;
     const h = LiteGraph.NODE_TITLE_HEIGHT - 10;
     const x = 0;
-    const y = -LiteGraph.NODE_TITLE_HEIGHT - 20;
+    const y = -LiteGraph.NODE_TITLE_HEIGHT - 22;
     const r = 4;
 
+    // ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR; // Use node titlebar color
     ctx.fillStyle = LiteGraph.NODE_DEFAULT_BGCOLOR;
     rounded_rect(ctx, x, y, w, h, r);
     ctx.fill();

@@ -30,15 +30,13 @@ function renderAll() {
 	renderTags();
 }
 
-
-
 async function loadData() {
 	try {
 		const hideAliases = localStorage.getItem(
 			"Mudknight Utils.Autocomplete.HideAliasesWithMain"
 		);
 		autocompleteState.hideAliasesWithMain = hideAliases === 'true';
-		
+
 		const blacklistStr = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.Blacklist"
 		) || "";
@@ -61,52 +59,42 @@ async function loadData() {
 		const customTags = localStorage.getItem(
 			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomTags"
 		) || "";
-		
+
 		console.log(
 			"Preset Manager: Loading with custom sources:",
 			customSources
 		);
-		
-		const autocompleteTags = await api.loadAutocompleteTags(
+
+		// Use cached data loader
+		const autocompleteData = await api.loadAllAutocompleteData(
 			customSources,
 			customTags
 		);
-		autocompleteState.tags = autocompleteTags;
-		
-		// Merge usage counts for Preset Manager
+
+		Object.assign(autocompleteState, autocompleteData);
+
+		// Apply tag usage boost (Preset Manager specific)
 		const tagUsage = await api.loadTagUsage();
 		if (Object.keys(tagUsage).length > 0) {
 			autocompleteState.tags = autocompleteState.tags.map(tag => ({
 				...tag,
-				count: (tag.count || 0) + ((tagUsage[tag.tag.toLowerCase()] || 0) * 10)
+				count: (tag.count || 0) + 
+				((tagUsage[tag.tag.toLowerCase()] || 0) * 10)
 			}));
 		}
 
-		const characterPresets = await api.loadCharacterPresets(
-			autocompleteTags
-		);
-		autocompleteState.characterPresets = characterPresets;
-		
-		const tagPresets = await api.loadTagPresets(autocompleteTags);
-		autocompleteState.tagPresets = tagPresets;
-		
-		const loras = await api.loadLoras();
-		autocompleteState.loras = loras;
-		
-		const embeddings = await api.loadEmbeddings();
-		autocompleteState.embeddings = embeddings;
-		
+		// Load preset manager data
 		state.characters = await api.loadCharacters();
 		state.models = await api.loadModels();
 		state.styles = await api.loadStyles();
 		state.tags = await api.loadTags();
-		
+
 		// Check images in parallel
 		await Promise.all([
 			api.checkImages('character'),
 			api.checkImages('style')
 		]);
-		
+
 		renderAll();
 	} catch (error) {
 		console.error('Load error:', error);
