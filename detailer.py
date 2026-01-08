@@ -266,6 +266,55 @@ def process_segs(
     return (processed_crops, crops, bboxes)
 
 
+def pad_crops(image, crops):
+    # Pad crops for batching
+    if len(crops) > 0:
+        max_height = max(crop.shape[1] for crop in crops)
+        max_width = max(crop.shape[2] for crop in crops)
+
+        padded_crops = []
+        for crop in crops:
+            # Ensure we are working with RGBA [B, H, W, 4]
+            if crop.shape[-1] == 3:
+                alpha = torch.ones(
+                    (crop.shape[0], crop.shape[1], crop.shape[2], 1),
+                    dtype=crop.dtype,
+                    device=crop.device
+                )
+                crop = torch.cat([crop, alpha], dim=3)
+
+            h, w = crop.shape[1], crop.shape[2]
+            if h < max_height or w < max_width:
+                pad_h = max_height - h
+                pad_w = max_width - w
+
+                # Center the padding
+                pad_top = pad_h // 2
+                pad_bottom = pad_h - pad_top
+                pad_left = pad_w // 2
+                pad_right = pad_w - pad_left
+
+                # Pad with transparent pixels (RGBA = [0, 0, 0, 0])
+                padded = torch.nn.functional.pad(
+                    crop,
+                    (0, 0, pad_left, pad_right, pad_top, pad_bottom),
+                    mode='constant',
+                    value=0
+                )
+                padded_crops.append(padded)
+            else:
+                padded_crops.append(crop)
+
+        cropped_batch = torch.cat(padded_crops, dim=0)
+    else:
+        # Consistent 4-channel placeholder prevents (1, 1, 5) error
+        cropped_batch = torch.zeros(
+                (1, 64, 64, 4), dtype=image.dtype, device=image.device
+                )
+
+    return cropped_batch
+
+
 class DetailerNode:
     """Single node that handles detection,
     crop, detail, and uncrop operations."""
@@ -352,35 +401,11 @@ class DetailerNode:
             final_batch = torch.cat(all_final_images, dim=0)
 
             # Pad cropped images to same size for batching
-            if all_cropped_images and all_cropped_images[0].shape[0] > 0:
-                max_h = max(img.shape[1] for img in all_cropped_images)
-                max_w = max(img.shape[2] for img in all_cropped_images)
-
-                padded_crops = []
-                for crop in all_cropped_images:
-                    if crop.shape[0] == 0:
-                        continue
-                    h, w = crop.shape[1], crop.shape[2]
-                    if h < max_h or w < max_w:
-                        pad_h = max_h - h
-                        pad_w = max_w - w
-                        padded = torch.nn.functional.pad(
-                            crop, (0, 0, 0, pad_w, 0, pad_h),
-                            mode='constant', value=0
-                        )
-                        padded_crops.append(padded)
-                    else:
-                        padded_crops.append(crop)
-
-                cropped_batch = torch.cat(padded_crops, dim=0)
-            else:
-                cropped_batch = torch.zeros(
-                    (1, 1, 1, 3), dtype=image.dtype, device=image.device
-                )
+            padded_crops_batch = pad_crops(image, all_cropped_images)
 
             return common.return_preview(
-                (final_batch, cropped_batch),
-                cropped_batch,
+                (final_batch, padded_crops_batch),
+                padded_crops_batch,
                 extra_pnginfo
             )
 
@@ -435,41 +460,16 @@ class DetailerNode:
         if not processed_crops:
             return (image, placeholder)
 
-        # Pad crops for batching
-        if len(crops) > 0:
-            max_height = max(crop.shape[1] for crop in crops)
-            max_width = max(crop.shape[2] for crop in crops)
-
-            # Pad eroded crops
-            padded_eroded = []
-            for crop in crops:
-                h, w = crop.shape[1], crop.shape[2]
-                if h < max_height or w < max_width:
-                    pad_h = max_height - h
-                    pad_w = max_width - w
-                    padded = torch.nn.functional.pad(
-                        crop, (0, 0, 0, pad_w, 0, pad_h),
-                        mode='constant', value=0
-                    )
-                    padded_eroded.append(padded)
-                else:
-                    padded_eroded.append(crop)
-
-            eroded_samples_batch = torch.cat(padded_eroded, dim=0)
-        else:
-            eroded_samples_batch = image[:0]
-
-        # Uncrop all processed regions
-        final_image = image
+        padded_crops_batch = pad_crops(image, crops)
 
         for processed_crop, bbox in zip(processed_crops, bboxes):
             final_image = uncrop_image_by_bbox(
-                final_image, processed_crop, bbox, feather=feather
+                image, processed_crop, bbox, feather=feather
             )
 
         return common.return_preview(
-            (final_image, eroded_samples_batch,),
-            eroded_samples_batch,
+            (final_image, padded_crops_batch,),
+            padded_crops_batch,
             extra_pnginfo
         )
 
@@ -522,29 +522,7 @@ class MaskDetailerNode:
             context_padding, segs)
 
         # Pad all crops to the same size so they can be batched
-        if len(crops) > 0:
-            # Find the maximum dimensions for both outputs
-            max_height = max(crop.shape[1] for crop in crops)
-            max_width = max(crop.shape[2] for crop in crops)
-
-            # Pad eroded crops
-            padded_eroded = []
-            for crop in crops:
-                h, w = crop.shape[1], crop.shape[2]
-                if h < max_height or w < max_width:
-                    pad_h = max_height - h
-                    pad_w = max_width - w
-                    padded = torch.nn.functional.pad(
-                        crop, (0, 0, 0, pad_w, 0, pad_h),
-                        mode='constant', value=0
-                    )
-                    padded_eroded.append(padded)
-                else:
-                    padded_eroded.append(crop)
-
-            eroded_samples_batch = torch.cat(padded_eroded, dim=0)
-        else:
-            eroded_samples_batch = None
+        padded_crops_batch = pad_crops(image, crops)
 
         # Step 11: Uncrop all processed regions back onto the original image
         final_image = image
@@ -558,8 +536,8 @@ class MaskDetailerNode:
             )
 
         return common.return_preview(
-            (final_image, eroded_samples_batch,),
-            eroded_samples_batch,
+            (final_image, padded_crops_batch,),
+            padded_crops_batch,
             extra_pnginfo
         )
 
