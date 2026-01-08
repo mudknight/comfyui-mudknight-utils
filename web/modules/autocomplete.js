@@ -5,6 +5,7 @@ import { getImageUrl } from './api.js';
 let sharedThumbnail = null;
 let thumbnailTimeout = null;
 let currentPreviewKey = null; // Track current preview to avoid redrawing
+let autocompleteTimeout = null;
 
 function getOrCreateThumbnail() {
 	if (!sharedThumbnail) {
@@ -19,9 +20,9 @@ function getPreviewUrl(nameOrPath, type) {
 	if (type === 'character') {
 		return getImageUrl(nameOrPath, 'character');
 	} else if (type === 'lora') {
-		return `/lora_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
+		return `/lora_preview/${encodeURIComponent(nameOrPath)}`;
 	} else if (type === 'embedding') {
-		return `/embedding_preview/${encodeURIComponent(nameOrPath)}?t=${Date.now()}`;
+		return `/embedding_preview/${encodeURIComponent(nameOrPath)}`;
 	}
 	return null;
 }
@@ -195,6 +196,13 @@ function showAutocomplete(input, context) {
 
 	const { type, searchTerm, start } = context;
 
+	// Early exit for all types if search is too short
+	const minLength = type === 'tag' ? 2 : 1;
+	if (!searchTerm || searchTerm.length < minLength) {
+		hideAutocomplete();
+		return;
+	}
+
 	// For LoRA and embedding, show immediately after typing prefix
 	// For tags, require at least 2 characters
 	if (type === 'tag' && (!searchTerm || searchTerm.length < 2)) {
@@ -355,6 +363,7 @@ function showAutocomplete(input, context) {
 		} else {
 			// Just sort by count
 			matching.sort((a, b) => b.count - a.count);
+			filtered = matching.slice(0, 50);  // Only sort/process top 50, show 10
 		}
 		
 		filtered = matching.slice(0, 10);
@@ -718,14 +727,20 @@ export function setupAutocomplete(input, insertComma = true) {
 		input._insertComma = insertComma;
 
 		input.addEventListener('input', (e) => {
-			// Default to true if the check function doesn't exist
 			const enabled = input._checkEnabled ? 
 				input._checkEnabled() : true;
 			if (!enabled) return;
 
-			autocompleteState.insertComma = input._insertComma;
-			const context = detectContext(input);
-			showAutocomplete(input, context);
+			// Debounce: wait 100ms after typing stops
+			if (autocompleteTimeout) {
+				clearTimeout(autocompleteTimeout);
+			}
+
+			autocompleteTimeout = setTimeout(() => {
+				autocompleteState.insertComma = input._insertComma;
+				const context = detectContext(input);
+				showAutocomplete(input, context);
+			}, 100);
 		});
 
 		input.addEventListener('keydown', (e) => {
