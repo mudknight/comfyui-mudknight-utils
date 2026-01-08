@@ -57,18 +57,13 @@ UPSCALER_INPUTS = {
 }
 
 DETAILER_INPUTS = {
-    # Detection parameters (MOVE THIS)
-    "threshold": ("FLOAT", {
-        "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
-        "tooltip": "Detection threshold"}),
     # Feather mask parameter (uniform)
     "feather": ("FLOAT", {
-        "default": 0.25, "min": 0, "max": 1,
-        "tooltip": ("Percentage of image to feather when "
-                    "uncropping")}),
+        "default": 0.2, "min": 0, "max": 1,
+        "tooltip": "Percentage of image to feather when uncropping"}),
     "context_padding": ("FLOAT", {
-        "default": 0.25, "min": 0, "max": 1,
-        "tooltip": ("Percentage of image to use for context from edge")}),
+        "default": 0.1, "min": 0, "max": 1,
+        "tooltip": "Percentage of image to use for context from edge"}),
 }
 
 
@@ -285,6 +280,10 @@ class DetailerNode:
                 # Detection models at the top
                 "bbox_model": (model_list,),
                 "fallback_model": (fallback_list,),
+                # Detection parameters
+                "threshold": ("FLOAT", {
+                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Detection threshold"}),
                 # Core inputs
                 **CORE_INPUTS,
                 # KSampler parameters
@@ -305,9 +304,9 @@ class DetailerNode:
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process(self, bbox_model, fallback_model, image, model, vae,
+    def process(self, bbox_model, fallback_model, threshold, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
-                denoise, upscale_method, upscale_model, threshold, feather,
+                denoise, upscale_method, upscale_model, feather,
                 context_padding, extra_pnginfo=None):
         """Main processing function."""
 
@@ -504,10 +503,9 @@ class MaskDetailerNode:
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process(self, image, mask, model, vae,
-                positive, negative, seed, steps, cfg, sampler, scheduler,
-                denoise, upscale_method, upscale_model, threshold, feather,
-                context_padding, extra_pnginfo=None):
+    def process(self, image, mask, model, vae, positive, negative, seed, steps,
+                cfg, sampler, scheduler, denoise, upscale_method,
+                upscale_model, feather, context_padding, extra_pnginfo=None):
         """Main processing function."""
 
         # Generate SEGS from mask
@@ -519,9 +517,8 @@ class MaskDetailerNode:
             return (image, None)
 
         processed_crops, crops, bboxes = process_segs(
-            image, model, vae,
-            positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, feather,
+            image, model, vae, positive, negative, seed, steps, cfg, sampler,
+            scheduler, denoise, upscale_method, upscale_model, feather,
             context_padding, segs)
 
         # Pad all crops to the same size so they can be batched
@@ -580,6 +577,10 @@ class DetailerPipeNode(DetailerNode):
                 # Detection models at the top
                 "bbox_model": (model_list,),
                 "fallback_model": (fallback_list,),
+                # Detection parameters
+                "threshold": ("FLOAT", {
+                    "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Detection threshold"}),
                 # Full pipe input
                 "full_pipe": ("FULL_PIPE",),
                 # KSampler parameters
@@ -599,9 +600,9 @@ class DetailerPipeNode(DetailerNode):
     DESCRIPTION = ("Crops, upscales, samples, downscales, "
                    "and uncrops the detected bbox")
 
-    def process_pipe(self, bbox_model, fallback_model, full_pipe, steps, cfg,
-                     sampler, scheduler, denoise, upscale_method,
-                     upscale_model, threshold, feather, context_padding,
+    def process_pipe(self, bbox_model, fallback_model, threshold, full_pipe,
+                     steps, cfg, sampler, scheduler, denoise, upscale_method,
+                     upscale_model, feather, context_padding,
                      extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
@@ -626,10 +627,9 @@ class DetailerPipeNode(DetailerNode):
 
         # Call parent class process method
         result = self.process(
-            bbox_model, fallback_model, image, model_checkpoint, vae,
-            positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, threshold, feather,
-            context_padding
+            bbox_model, fallback_model, threshold, image, model_checkpoint,
+            vae, positive, negative, seed, steps, cfg, sampler, scheduler,
+            denoise, upscale_method, upscale_model, feather, context_padding
         )
 
         # Handle both dict (with preview) and tuple (no preview) returns
@@ -682,7 +682,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
     def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
-                     threshold, feather, context_padding,
+                     feather, context_padding,
                      image=None, extra_pnginfo=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
@@ -710,7 +710,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
         result = self.process(
             image, mask, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
-            denoise, upscale_method, upscale_model, threshold, feather,
+            denoise, upscale_method, upscale_model, feather,
             context_padding,
         )
 
