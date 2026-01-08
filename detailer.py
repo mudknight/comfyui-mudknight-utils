@@ -152,7 +152,7 @@ def resize_to_megapixel(width, height):
     aspect_ratio = width / height
 
     # Calculate new dimensions maintaining aspect ratio at 1MP
-    target_pixels = 1_000_000
+    target_pixels = 1_048_576
     new_height = (target_pixels / aspect_ratio) ** 0.5
     new_width = aspect_ratio * new_height
 
