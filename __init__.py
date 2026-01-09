@@ -7,7 +7,7 @@ Automatically merges NODE_CLASS_MAPPINGS from all modules.
 import importlib
 from pathlib import Path
 # Manually import the API module
-from . import character_editor_api  # noqa: F401
+from . import api  # noqa: F401
 
 # Define package constants
 PACKAGE_ROOT = Path(__file__).resolve().parent

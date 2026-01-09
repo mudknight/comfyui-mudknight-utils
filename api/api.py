@@ -16,7 +16,7 @@ import server
 
 
 # Get the config path
-CONFIG_DIR = Path(__file__).parent / "config"
+CONFIG_DIR = Path(__file__).parent.parent / "config"
 CHARACTERS_FILE = CONFIG_DIR / "characters.jsonc"
 IMAGES_DIR = CONFIG_DIR / "character_images"
 STYLE_IMAGES_DIR = CONFIG_DIR / "style_images"
@@ -471,7 +471,7 @@ print("LoRA and Embedding list API routes registered")
 
 
 # Preview image cache directory
-PREVIEW_CACHE_DIR = Path(__file__).parent / "config" / "preview_cache"
+PREVIEW_CACHE_DIR = CONFIG_DIR / "preview_cache"
 PREVIEW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEW_SIZE = 256  # Size for cached preview images
 
