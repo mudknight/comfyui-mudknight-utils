@@ -17,7 +17,7 @@ WEB_DIRECTORY = "web"
 # Modules to exclude from auto-loading
 EXCLUDE_MODULES = {
     '__init__',
-    'character_editor_api',  # API module, not nodes
+    'api',  # API module, not nodes
     'common',                # Utility functions only
 }
 
