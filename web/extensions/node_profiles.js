@@ -411,8 +411,16 @@ app.registerExtension({
             buttonGroup.className = "comfyui-button-group";
             buttonGroup.appendChild(profileButton);
 
-            // Insert as the first element in the horizontal list
-            container.prepend(buttonGroup);
+            // Always insert after preset manager button if it exists
+            const presetManagerButton = container.querySelector(
+                "#preset-manager-button"
+            )?.parentElement;
+
+            if (presetManagerButton) {
+                presetManagerButton.after(buttonGroup);
+            } else {
+                container.prepend(buttonGroup);
+            }
 
             return true;
         };

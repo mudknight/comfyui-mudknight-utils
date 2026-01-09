@@ -38,8 +38,16 @@ app.registerExtension({
             buttonGroup.className = "comfyui-button-group";
             buttonGroup.appendChild(editorButton);
 
-            // Insert as the very first element in the horizontal list
-            container.prepend(buttonGroup);
+            // Insert after existing buttons, before any mudknight buttons
+            const existingMudknightButton = container.querySelector(
+                "#node-profiles-button"
+            )?.parentElement;
+
+            if (existingMudknightButton) {
+                container.insertBefore(buttonGroup, existingMudknightButton);
+            } else {
+                container.prepend(buttonGroup);
+            }
 
             return true;
         };
