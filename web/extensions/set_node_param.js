@@ -307,17 +307,17 @@ app.registerExtension({
             }
         };
         
-        console.log("SetNodeParam loaded. Available functions:");
-        console.log("  saveNodeParams(name) - Save to named profile");
-        console.log(
-            "  restoreNodeParams(name) - Restore from named profile"
-        );
-        console.log("  listProfiles() - List all saved profiles");
-        console.log("  getProfile(name) - View specific profile");
-        console.log("  deleteProfile(name) - Delete a profile");
-        console.log("  renameProfile(old, new) - Rename a profile");
-        console.log(
-            "  setNodeParam(class, param, value) - Set specific param"
-        );
+        // console.log("SetNodeParam loaded. Available functions:");
+        // console.log("  saveNodeParams(name) - Save to named profile");
+        // console.log(
+        //     "  restoreNodeParams(name) - Restore from named profile"
+        // );
+        // console.log("  listProfiles() - List all saved profiles");
+        // console.log("  getProfile(name) - View specific profile");
+        // console.log("  deleteProfile(name) - Delete a profile");
+        // console.log("  renameProfile(old, new) - Rename a profile");
+        // console.log(
+        //     "  setNodeParam(class, param, value) - Set specific param"
+        // );
     }
 });
