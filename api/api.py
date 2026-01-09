@@ -5,18 +5,16 @@ API endpoints for Preset Manager
 
 import json
 import os
-import re
 import base64
 import folder_paths
-from pathlib import Path
 from aiohttp import web
 from PIL import Image
 from io import BytesIO
 import server
-
+from . import common
 
 # Get the config path
-CONFIG_DIR = Path(__file__).parent.parent / "config"
+CONFIG_DIR = common.CONFIG_DIR
 CHARACTERS_FILE = CONFIG_DIR / "characters.jsonc"
 IMAGES_DIR = CONFIG_DIR / "character_images"
 STYLE_IMAGES_DIR = CONFIG_DIR / "style_images"
@@ -31,19 +29,6 @@ print(f"[Preset Manager] File exists: {CHARACTERS_FILE.exists()}")
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def decode_name(b64_name: str) -> str:
-    return base64.b64decode(b64_name).decode("utf-8")
-
-
-def strip_jsonc_comments(content):
-    """Remove comments from JSONC content"""
-    # Remove single-line comments
-    content = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
-    # Remove multi-line comments
-    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-    return content
-
-
 def load_characters():
     """Load characters from JSONC file"""
     if not CHARACTERS_FILE.exists():
@@ -52,7 +37,7 @@ def load_characters():
         return {}
 
     content = CHARACTERS_FILE.read_text(encoding='utf-8')
-    clean_content = strip_jsonc_comments(content)
+    clean_content = common.strip_jsonc_comments(content)
     return json.loads(clean_content)
 
 
@@ -197,8 +182,7 @@ async def rename_character(request):
 async def get_character_image(request):
     """Get character image"""
     try:
-        from urllib.parse import unquote
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         # print(f"Getting image for character: {repr(name)}")
         image_path = get_image_path(name)
         # print(f"Image path: {image_path}")
@@ -222,8 +206,7 @@ async def get_character_image(request):
 async def upload_character_image(request):
     """Upload character image"""
     try:
-        from urllib.parse import unquote
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         print(f"Uploading image for character: {repr(name)}")
         data = await request.json()
 
@@ -272,8 +255,7 @@ async def upload_character_image(request):
 async def delete_character_image(request):
     """Delete character image"""
     try:
-        from urllib.parse import unquote
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         print(f"Deleting image for character: {repr(name)}")
         image_path = get_image_path(name)
 
@@ -294,7 +276,7 @@ async def delete_character_image(request):
 async def get_style_image(request):
     """Get style image"""
     try:
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         image_path = get_style_image_path(name)
 
         if not image_path.exists():
@@ -310,7 +292,7 @@ async def get_style_image(request):
 async def upload_style_image(request):
     """Upload style image"""
     try:
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         print(f"Uploading image for style: {repr(name)}")
         data = await request.json()
 
@@ -354,7 +336,7 @@ async def upload_style_image(request):
 async def delete_style_image(request):
     """Delete style image"""
     try:
-        name = decode_name(request.match_info['name'])
+        name = common.decode_name(request.match_info['name'])
         print(f"Deleting image for style: {repr(name)}")
         image_path = get_style_image_path(name)
 
@@ -376,9 +358,9 @@ async def get_models(request):
         models_file = CONFIG_DIR / "models.jsonc"
         if not models_file.exists():
             return web.json_response({})
-        
+
         content = models_file.read_text(encoding='utf-8')
-        clean_content = strip_jsonc_comments(content)
+        clean_content = common.strip_jsonc_comments(content)
         models = json.loads(clean_content)
         return web.json_response(models)
     except Exception as e:
@@ -408,7 +390,7 @@ async def get_styles(request):
             return web.json_response({})
 
         content = styles_file.read_text(encoding='utf-8')
-        clean_content = strip_jsonc_comments(content)
+        clean_content = common.strip_jsonc_comments(content)
         styles = json.loads(clean_content)
         return web.json_response(styles)
     except Exception as e:
@@ -444,7 +426,7 @@ async def get_tags(request):
             return web.json_response({})
 
         content = tags_file.read_text(encoding='utf-8')
-        clean_content = strip_jsonc_comments(content)
+        clean_content = common.strip_jsonc_comments(content)
         tags = json.loads(clean_content)
         return web.json_response(tags)
     except Exception as e:
@@ -479,29 +461,30 @@ PREVIEW_SIZE = 256  # Size for cached preview images
 def get_lora_preview_path(lora_name_or_path):
     """Get the preview image path for a LoRA"""
     lora_file = None
-    
-    # First, try using folder_paths.get_full_path which handles subdirectories properly
-    # This is the most reliable method
+
+    # First, try using folder_paths.get_full_path which handles subdirectories
+    # properly. This is the most reliable method
     try:
         # Try with the path as-is (might already include extension)
         full_path = folder_paths.get_full_path("loras", lora_name_or_path)
         if full_path and os.path.exists(full_path):
             lora_file = full_path
-    except:
+    except:  # noqa
         pass
-    
+
     # If that didn't work, try adding common extensions
     if not lora_file:
         for ext in ['.safetensors', '.ckpt', '.pt', '.bin']:
             try:
                 # Try with extension appended
-                full_path = folder_paths.get_full_path("loras", lora_name_or_path + ext)
+                full_path = folder_paths.get_full_path(
+                        "loras", lora_name_or_path + ext)
                 if full_path and os.path.exists(full_path):
                     lora_file = full_path
                     break
-            except:
+            except:  # noqa
                 continue
-    
+
     # If still not found, try direct path search (fallback)
     if not lora_file:
         lora_paths = folder_paths.get_folder_paths("loras")
@@ -514,27 +497,29 @@ def get_lora_preview_path(lora_name_or_path):
                     break
             if lora_file:
                 break
-    
+
     if lora_file:
         # Check for preview files in the same directory as the LoRA file
         base_name = os.path.splitext(os.path.basename(lora_file))[0]
         preview_dir = os.path.dirname(lora_file)
-        
+
         # First check for .preview.* files
-        for ext in ['.preview.png', '.preview.jpeg', '.preview.jpg', '.preview.webp']:
+        for ext in [
+                '.preview.png', '.preview.jpeg',
+                '.preview.jpg', '.preview.webp']:
             preview_path = os.path.join(preview_dir, base_name + ext)
             if os.path.exists(preview_path):
                 return preview_path
-        
-        # Also check for image files with same base name (without .preview. prefix)
-        # Common image extensions
+
+        # Also check for image files with same base name (without .preview.
+        # prefix) using common image extensions
         for ext in ['.png', '.jpeg', '.jpg', '.webp', '.gif', '.bmp']:
             preview_path = os.path.join(preview_dir, base_name + ext)
             if os.path.exists(preview_path):
                 # Make sure it's not the LoRA file itself
                 if preview_path != lora_file:
                     return preview_path
-    
+
     return None
 
 
@@ -549,27 +534,29 @@ def get_embedding_preview_path(embedding_path):
             if os.path.exists(test_path):
                 emb_file = test_path
                 break
-        
+
         if emb_file:
             # Check for preview files
             base_name = os.path.splitext(os.path.basename(emb_file))[0]
             preview_dir = os.path.dirname(emb_file)
-            
+
             # First check for .preview.* files
-            for ext in ['.preview.png', '.preview.jpeg', '.preview.jpg', '.preview.webp']:
+            for ext in [
+                    '.preview.png', '.preview.jpeg',
+                    '.preview.jpg', '.preview.webp']:
                 preview_path = os.path.join(preview_dir, base_name + ext)
                 if os.path.exists(preview_path):
                     return preview_path
-            
-            # Also check for image files with same base name (without .preview. prefix)
-            # Common image extensions
+
+            # Also check for image files with same base name (without .preview.
+            # prefix) using common image extensions
             for ext in ['.png', '.jpeg', '.jpg', '.webp', '.gif', '.bmp']:
                 preview_path = os.path.join(preview_dir, base_name + ext)
                 if os.path.exists(preview_path):
                     # Make sure it's not the embedding file itself
                     if preview_path != emb_file:
                         return preview_path
-    
+
     return None
 
 
@@ -579,20 +566,20 @@ def get_cached_preview_path(original_path, cache_key):
     import hashlib
     cache_hash = hashlib.md5(cache_key.encode()).hexdigest()
     cache_path = PREVIEW_CACHE_DIR / f"{cache_hash}.jpg"
-    
+
     # Check if cache exists and is newer than original
     if cache_path.exists():
         try:
             if os.path.getmtime(cache_path) >= os.path.getmtime(original_path):
                 return cache_path
-        except:
+        except:  # noqa
             pass
-    
+
     # Create cached version
     try:
         img = Image.open(original_path)
         img = img.convert('RGB')
-        
+
         # Resize with center crop to square
         width, height = img.size
         if width > height:
@@ -601,10 +588,11 @@ def get_cached_preview_path(original_path, cache_key):
         else:
             top = (height - width) / 2
             img = img.crop((0, top, width, top + width))
-        
+
         # Resize to preview size
-        img = img.resize((PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.LANCZOS)
-        
+        img = img.resize((
+            PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.LANCZOS)
+
         # Save as JPEG
         img.save(cache_path, 'JPEG', quality=85, optimize=True)
         return cache_path
@@ -621,7 +609,7 @@ async def get_lora_preview(request):
         name = unquote(request.match_info['name'])
         # Try to find preview using the name
         preview_path = get_lora_preview_path(name)
-        
+
         # If not found, try to find the LoRA in the list and use its full path
         if not preview_path or not os.path.exists(preview_path):
             # Try to find the LoRA in the list to get its full path
@@ -635,12 +623,12 @@ async def get_lora_preview(request):
                         preview_path = get_lora_preview_path(lora)
                         if preview_path and os.path.exists(preview_path):
                             break
-            except:
+            except:  # noqa
                 pass
-        
+
         if not preview_path or not os.path.exists(preview_path):
             return web.Response(status=404)
-        
+
         # Use cached version if available
         cache_path = get_cached_preview_path(preview_path, f"lora:{name}")
         return web.FileResponse(cache_path)
@@ -658,10 +646,10 @@ async def get_embedding_preview(request):
         from urllib.parse import unquote
         path = unquote(request.match_info['path'])
         preview_path = get_embedding_preview_path(path)
-        
+
         if not preview_path or not os.path.exists(preview_path):
             return web.Response(status=404)
-        
+
         # Use cached version if available
         cache_path = get_cached_preview_path(preview_path, f"embedding:{path}")
         return web.FileResponse(cache_path)
@@ -680,10 +668,10 @@ async def get_lora_list(request):
         for lora in loras:
             # Remove extension for name
             name = os.path.splitext(lora)[0]
-            # Try both the name (without extension) and the full path for preview detection
-            # The full path might include subdirectories
-            has_preview = (get_lora_preview_path(name) is not None or 
-                          get_lora_preview_path(lora) is not None)
+            # Try both the name (without extension) and the full path for
+            # preview detection. The full path might include subdirectories
+            has_preview = (get_lora_preview_path(name) is not None or
+                           get_lora_preview_path(lora) is not None)
             lora_list.append({
                 "name": name,
                 "path": lora,
@@ -723,7 +711,8 @@ async def get_embedding_list(request):
                             os.path.join(root, file),
                             emb_path
                         )
-                        has_preview = get_embedding_preview_path(rel_path) is not None
+                        has_preview = get_embedding_preview_path(
+                                rel_path) is not None
                         embeddings.append({
                             "name": name,
                             "path": rel_path,
