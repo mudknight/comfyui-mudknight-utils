@@ -48,25 +48,6 @@ def save_characters(characters):
     CHARACTERS_FILE.write_text(content, encoding='utf-8')
 
 
-def get_image_path(character_name):
-    """Get the image path for a character"""
-    # Use base64 encoding to create a safe filename that preserves the
-    # original name
-    import base64
-    safe_name = base64.urlsafe_b64encode(
-        character_name.encode('utf-8')
-    ).decode('ascii')
-    return IMAGES_DIR / f"{safe_name}.jpg"
-
-
-def get_style_image_path(style_name):
-    """Get the image path for a style"""
-    safe_name = base64.urlsafe_b64encode(
-        style_name.encode('utf-8')
-    ).decode('ascii')
-    return STYLE_IMAGES_DIR / f"{safe_name}.jpg"
-
-
 @server.PromptServer.instance.routes.get('/character_editor')
 async def get_characters(request):
     """Get all characters"""
@@ -106,7 +87,7 @@ async def delete_character(request):
             save_characters(characters)
 
             # Delete image if it exists
-            image_path = get_image_path(name)
+            image_path = common.get_image_path(IMAGES_DIR, name)
             if image_path.exists():
                 image_path.unlink()
 
@@ -161,9 +142,9 @@ async def rename_character(request):
         save_characters(characters)
 
         # Rename image if it exists
-        old_image_path = get_image_path(old_name)
+        old_image_path = common.get_image_path(IMAGES_DIR, old_name)
         if old_image_path.exists():
-            new_image_path = get_image_path(new_name)
+            new_image_path = common.get_image_path(IMAGES_DIR, new_name)
             old_image_path.rename(new_image_path)
             print(f"Renamed image from {old_image_path} to {new_image_path}")
 
@@ -184,7 +165,7 @@ async def get_character_image(request):
     try:
         name = common.decode_name(request.match_info['name'])
         # print(f"Getting image for character: {repr(name)}")
-        image_path = get_image_path(name)
+        image_path = common.get_image_path(IMAGES_DIR, name)
         # print(f"Image path: {image_path}")
         # print(f"File exists: {image_path.exists()}")
 
@@ -236,7 +217,7 @@ async def upload_character_image(request):
         img = img.resize((size, size), Image.Resampling.LANCZOS)
 
         # Save as JPEG
-        image_path = get_image_path(name)
+        image_path = common.get_image_path(IMAGES_DIR, name)
         print(f"Saving image to: {image_path}")
         img.save(image_path, 'JPEG', quality=85, optimize=True)
 
@@ -257,7 +238,7 @@ async def delete_character_image(request):
     try:
         name = common.decode_name(request.match_info['name'])
         print(f"Deleting image for character: {repr(name)}")
-        image_path = get_image_path(name)
+        image_path = common.get_image_path(IMAGES_DIR, name)
 
         if image_path.exists():
             image_path.unlink()
@@ -277,7 +258,7 @@ async def get_style_image(request):
     """Get style image"""
     try:
         name = common.decode_name(request.match_info['name'])
-        image_path = get_style_image_path(name)
+        image_path = common.get_image_path(STYLE_IMAGES_DIR, name)
 
         if not image_path.exists():
             return web.Response(status=404)
@@ -322,7 +303,7 @@ async def upload_style_image(request):
         img = img.resize((size, size), Image.Resampling.LANCZOS)
 
         # Save as JPEG
-        image_path = get_style_image_path(name)
+        image_path = common.get_image_path(STYLE_IMAGES_DIR, name)
         print(f"Saving style image to: {image_path}")
         img.save(image_path, 'JPEG', quality=85, optimize=True)
 
@@ -338,7 +319,7 @@ async def delete_style_image(request):
     try:
         name = common.decode_name(request.match_info['name'])
         print(f"Deleting image for style: {repr(name)}")
-        image_path = get_style_image_path(name)
+        image_path = common.get_image_path(STYLE_IMAGES_DIR, name)
 
         if image_path.exists():
             image_path.unlink()
@@ -790,151 +771,3 @@ async def update_autocomplete_settings(request):
 
 
 print("Tag usage API routes registered")
-
-
-# Node parameter profiles endpoints
-PROFILES_FILE = CONFIG_DIR / "node_profiles.json"
-
-
-def load_profiles():
-    """Load profiles from JSON file"""
-    if not PROFILES_FILE.exists():
-        return {}
-    try:
-        with open(PROFILES_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading profiles: {e}")
-        return {}
-
-
-def save_profiles(profiles):
-    """Save profiles to JSON file"""
-    try:
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(PROFILES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(profiles, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error saving profiles: {e}")
-        return False
-
-
-@server.PromptServer.instance.routes.get('/node_profiles')
-async def get_profiles(request):
-    """Get all profiles"""
-    try:
-        profiles = load_profiles()
-        return web.json_response(profiles)
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-@server.PromptServer.instance.routes.get('/node_profiles/{name}')
-async def get_profile(request):
-    """Get a specific profile"""
-    try:
-        name = request.match_info['name']
-        profiles = load_profiles()
-
-        if name not in profiles:
-            return web.json_response(
-                {"error": "Profile not found"},
-                status=404
-            )
-
-        return web.json_response(profiles[name])
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-@server.PromptServer.instance.routes.post('/node_profiles/{name}')
-async def save_profile(request):
-    """Save or update a profile"""
-    try:
-        name = request.match_info['name']
-        data = await request.json()
-
-        profiles = load_profiles()
-        profiles[name] = data
-
-        if save_profiles(profiles):
-            return web.json_response({"success": True})
-        else:
-            return web.json_response(
-                {"error": "Failed to save"},
-                status=500
-            )
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-@server.PromptServer.instance.routes.delete('/node_profiles/{name}')
-async def delete_profile(request):
-    """Delete a profile"""
-    try:
-        name = request.match_info['name']
-        profiles = load_profiles()
-
-        if name not in profiles:
-            return web.json_response(
-                {"error": "Profile not found"},
-                status=404
-            )
-
-        del profiles[name]
-
-        if save_profiles(profiles):
-            return web.json_response({"success": True})
-        else:
-            return web.json_response(
-                {"error": "Failed to save"},
-                status=500
-            )
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-@server.PromptServer.instance.routes.post('/node_profiles/rename')
-async def rename_profile(request):
-    """Rename a profile"""
-    try:
-        data = await request.json()
-        old_name = data.get('oldName')
-        new_name = data.get('newName')
-
-        if not old_name or not new_name:
-            return web.json_response(
-                {"error": "Missing old or new name"},
-                status=400
-            )
-
-        profiles = load_profiles()
-
-        if old_name not in profiles:
-            return web.json_response(
-                {"error": "Profile not found"},
-                status=404
-            )
-
-        if new_name in profiles and new_name != old_name:
-            return web.json_response(
-                {"error": "Profile with new name already exists"},
-                status=400
-            )
-
-        profiles[new_name] = profiles[old_name]
-        del profiles[old_name]
-
-        if save_profiles(profiles):
-            return web.json_response({"success": True})
-        else:
-            return web.json_response(
-                {"error": "Failed to save"},
-                status=500
-            )
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-print("Node Profile API routes registered")

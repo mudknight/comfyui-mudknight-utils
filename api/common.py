@@ -16,3 +16,11 @@ def strip_jsonc_comments(content):
     # Remove multi-line comments
     content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
     return content
+
+
+def get_image_path(path, name):
+    """Get the image path"""
+    safe_name = base64.urlsafe_b64encode(
+        name.encode('utf-8')
+    ).decode('ascii')
+    return path / f"{safe_name}.jpg"
