@@ -286,7 +286,9 @@ button.save:hover {
     border-bottom: 1px solid rgba(255,255,255,0.2);
 }
 .button-cancel {
-    padding: 10px 10px;
+    padding: 0px 15px;
+    aspect-ratio: 1;
+    background: #1a1a1a;
 }
 
 .field-group {
