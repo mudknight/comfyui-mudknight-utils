@@ -439,12 +439,12 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
         keywords.forEach(keyword => {
             const existing = tags.find(t => t.tag === keyword);
             if (existing) {
-                existing.count += 10000;
+                existing.count = 9999999;
             } else {
                 tags.push({
                     tag: keyword,
                     category: 5, // meta
-                    count: 10000,
+                    count: 9999999,
                     isAlias: false,
                     isKeyword: true
                 });

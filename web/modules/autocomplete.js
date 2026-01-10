@@ -623,26 +623,34 @@ export function hideAutocomplete() {
 
 function selectAutocomplete(index) {
 	if (!autocompleteState.activeElement || 
-	    index < 0 || 
-	    index >= autocompleteState.filteredTags.length) {
-		return;
-	}
+		index < 0 || 
+		index >= autocompleteState.filteredTags.length) { return; }
 	
 	const input = autocompleteState.activeElement;
 	const item = autocompleteState.filteredTags[index];
 	const context = detectContext(input);
 	const text = input.value;
-	// const suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	
 	let newText, newCursorPos;
 	
-	// Determine suffix based on context
+	// Determine suffix based on context and item type
 	let suffix;
-	if (autocompleteState.contextType === 'character' ||
-	    autocompleteState.contextType === 'character-outfit' ||
-	    autocompleteState.contextType === 'tagpreset') {
-		// Jump to next colon for these types
+	
+	// Check if this is a keyword (character, tag, embedding)
+	const isKeyword = ['character', 'tag', 'embedding'].includes(
+		item.value.toLowerCase()
+	);
+	
+	if (isKeyword && autocompleteState.contextType === 'tag') {
+		// Keywords get colon when selected from normal tag context
 		suffix = ':';
+	} else if (autocompleteState.contextType === 'character' ||
+		autocompleteState.contextType === 'character-outfit') {
+		// Jump to next colon for character contexts
+		suffix = ':';
+	} else if (autocompleteState.contextType === 'tagpreset') {
+		// Tag presets end with comma, not colon
+		suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	} else if (autocompleteState.contextType === 'character-part') {
 		// End with comma for outfit parts
 		suffix = autocompleteState.insertComma !== false ? ', ' : '';
@@ -676,9 +684,16 @@ function selectAutocomplete(index) {
 		const beforeChar = 
 			text.lastIndexOf('character:', input.selectionStart) + 10;
 		const rest = text.substring(input.selectionStart);
-		// Find next comma or end
-		const nextComma = rest.indexOf(',');
-		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
+		
+		// Find the actual end boundary (comma, newline, or end of string)
+		let endPos = input.selectionStart;
+		while (endPos < text.length && 
+			text[endPos] !== ',' && 
+			text[endPos] !== '\n') {
+			endPos++;
+		}
+		
+		const after = text.substring(endPos);
 		newText = 
 			`${text.substring(0, beforeChar)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeChar + item.value.length + suffix.length;
@@ -689,9 +704,16 @@ function selectAutocomplete(index) {
 			text.lastIndexOf('character:', input.selectionStart);
 		const firstColon = text.indexOf(':', charStart + 10);
 		const beforeOutfit = firstColon + 1;
-		const rest = text.substring(input.selectionStart);
-		const nextComma = rest.indexOf(',');
-		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
+		
+		// Find the actual end boundary
+		let endPos = input.selectionStart;
+		while (endPos < text.length && 
+			text[endPos] !== ',' && 
+			text[endPos] !== '\n') {
+			endPos++;
+		}
+		
+		const after = text.substring(endPos);
 		newText = 
 			`${text.substring(0, beforeOutfit)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeOutfit + item.value.length + suffix.length;
@@ -703,9 +725,16 @@ function selectAutocomplete(index) {
 		const firstColon = text.indexOf(':', charStart + 10);
 		const secondColon = text.indexOf(':', firstColon + 1);
 		const beforePart = secondColon + 1;
-		const rest = text.substring(input.selectionStart);
-		const nextComma = rest.indexOf(',');
-		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
+		
+		// Find the actual end boundary
+		let endPos = input.selectionStart;
+		while (endPos < text.length && 
+			text[endPos] !== ',' && 
+			text[endPos] !== '\n') {
+			endPos++;
+		}
+		
+		const after = text.substring(endPos);
 		newText = 
 			`${text.substring(0, beforePart)}${item.value}${suffix}${after}`;
 		newCursorPos = beforePart + item.value.length + suffix.length;
@@ -713,10 +742,16 @@ function selectAutocomplete(index) {
 	} else if (autocompleteState.contextType === 'tagpreset') {
 		const beforeTag = 
 			text.lastIndexOf('tag:', input.selectionStart) + 4;
-		const rest = text.substring(input.selectionStart);
-		const after = rest.includes(',')
-			? rest.substring(rest.indexOf(','))
-			: rest;
+		
+		// Find the actual end boundary
+		let endPos = input.selectionStart;
+		while (endPos < text.length && 
+			text[endPos] !== ',' && 
+			text[endPos] !== '\n') {
+			endPos++;
+		}
+		
+		const after = text.substring(endPos);
 		newText = 
 			`${text.substring(0, beforeTag)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeTag + item.value.length + suffix.length;
@@ -734,6 +769,15 @@ function selectAutocomplete(index) {
 	
 	hideAutocomplete();
 	input.focus();
+	
+	// If we just inserted a colon, immediately show autocomplete for next part
+	if (suffix === ':') {
+		// Small delay to let the input update
+		setTimeout(() => {
+			const context = detectContext(input);
+			showAutocomplete(input, context);
+		}, 10);
+	}
 }
 
 function handleAutocompleteKeydown(e, input) {
