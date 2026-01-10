@@ -1,6 +1,15 @@
 import { state } from './state.js';
 import { showStatus } from './utils.js';
-import { getImageUrl, saveCharacters, saveModels, saveStyles, saveTags, renameCharacter, deleteImage } from './api.js';
+import {
+	getImageUrl,
+	saveCharacters,
+	saveModels,
+	saveStyles,
+	saveTags,
+	renameCharacter,
+	deleteImage,
+	uploadImage,
+} from './api.js';
 import { setupAutocomplete } from './autocomplete.js';
 import { setupModalDragAndDrop } from './dragdrop.js';
 import { setupWeightAdjustment } from './weight-adjustment.js';
@@ -366,7 +375,7 @@ export async function saveItem(type) {
 
 		const fileInput = document.getElementById('editStyleImage');
 		if (fileInput.files.length > 0) {
-			const { uploadImage } = await import('./api.js');
+			// const { uploadImage } = await import('./api.js');
 			await uploadImage(fileInput.files[0], state.currentOriginalName || newName, 'style');
 		}
 
