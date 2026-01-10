@@ -255,14 +255,19 @@ button.save:hover {
     padding: 20px;
 }
 
-.modal-content {
+.modal-container {
     background: #2a2a2a;
-    padding: 30px;
     border-radius: 8px;
     max-width: 600px;
     width: 100%;
-    max-height: 90vh;
+    display: flex:
+    flex-direction: vertical;
+}
+
+.modal-content {
+    padding: 20px;
     overflow-y: auto;
+    max-height: 80vh;
 }
 
 .modal-content.drag-over {
@@ -272,12 +277,16 @@ button.save:hover {
 
 .modal-header {
     font-size: 20px;
-    margin-bottom: 20px;
     color: #fff;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.button-cancel {
+    padding: 10px 10px;
 }
 
 .field-group {

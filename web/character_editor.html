@@ -92,60 +92,63 @@
 
 
         <div class="modal" id="editModal">
-            <div class="modal-content">
+            <div class="modal-container">
                 <div class="modal-header">
-                    <div style="flex: 1;">
-                        <label style="display: block; margin-bottom: 5px;">Character Name</label>
-                        <input type="text" id="editCharNameInput" class="name-input" style="margin: 0;" autocomplete="off"/>
-                    </div>
+                    <h2>Character</h2>
+                    <button class="button-cancel" onclick="hideEditModal()">X</button>
                 </div>
-                <div class="field-group">
-                    <label>Character Image</label>
-                    <div class="image-upload-container">
-                        <div class="image-drop-zone" id="charImageDropZone">
-                            <div class="drop-zone-content">
-                                <span class="drop-zone-text">Drop image here or click to browse</span>
+                <div class="modal-content">
+                    <div class="field-group">
+                        <label>Character Name</label>
+                        <input type="text" id="editCharNameInput" class="name-input" autocomplete="off"/>
+                    </div>
+                    <div class="field-group">
+                        <label>Character Image</label>
+                        <div class="image-upload-container">
+                            <div class="image-drop-zone" id="charImageDropZone">
+                                <div class="drop-zone-content">
+                                    <span class="drop-zone-text">Drop image here or click to browse</span>
+                                </div>
+                                <img id="previewImg" class="drop-zone-preview" style="display: none;">
                             </div>
-                            <img id="previewImg" class="drop-zone-preview" style="display: none;">
-                        </div>
-                        <div>
-                            <input type="file" id="editImage" accept="image/*" style="flex: 1; display: none;">
-                            <button type="button" onclick="removeImage()" class="delete" style="padding: 8px 12px;">
-                                🗑
-                            </button>
+                            <div>
+                                <input type="file" id="editImage" accept="image/*" style="flex: 1; display: none;">
+                                <button type="button" onclick="removeImage()" class="delete" style="padding: 8px 12px;">
+                                    🗑
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="field-group">
-                    <label>Character</label>
-                    <textarea id="editCharacter"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Top</label>
-                    <textarea id="editTop"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Bottom</label>
-                    <textarea id="editBottom"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Negative</label>
-                    <textarea id="editNeg"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Categories (comma-separated)</label>
-                    <input type="text" id="editCategories"
-                                       placeholder="e.g., idolmaster, blue archive, genshin impact"
-                                       autocomplete="off">
-                </div>
-                <div class="modal-actions">
-                    <button class="delete" onclick="deleteCurrentCharacter()">
-                        Delete
-                    </button>
-                    <button onclick="hideEditModal()">Cancel</button>
-                    <button class="save" onclick="saveItem('character')">
-                        Save Changes
-                    </button>
+                    <div class="field-group">
+                        <label>Character</label>
+                        <textarea id="editCharacter"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Top</label>
+                        <textarea id="editTop"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Bottom</label>
+                        <textarea id="editBottom"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Negative</label>
+                        <textarea id="editNeg"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Categories (comma-separated)</label>
+                        <input type="text" id="editCategories"
+                                           placeholder="e.g., idolmaster, blue archive, genshin impact"
+                                           autocomplete="off">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="delete" onclick="deleteCurrentCharacter()">
+                            Delete
+                        </button>
+                        <button class="save" onclick="saveItem('character')">
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -153,114 +156,121 @@
 
         <!-- Model Edit Modal -->
         <div class="modal" id="modelEditModal">
-            <div class="modal-content">
+            <div class="modal-container">
                 <div class="modal-header">
-                    <div style="flex: 1;">
-                        <label style="display: block; margin-bottom: 5px;">Model Name</label>
+                    <h2>Model</h2>
+                    <button class="button-cancel" onclick="hideEditModal('model')">X</button>
+                </div>
+                <div class="modal-content">
+                    <div class="field-group">
+                        <label>Model Name</label>
                         <input type="text" id="editModelNameInput" class="name-input" style="margin: 0;" autocomplete="off"/>
                     </div>
-                </div>
-                <div class="field-group">
-                    <label>Quality Positive</label>
-                    <textarea id="editModelQualityPos"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Quality Negative</label>
-                    <textarea id="editModelQualityNeg"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Embeddings Positive</label>
-                    <input type="text" id="editModelEmbedPos" autocomplete="off">
-                </div>
-                <div class="field-group">
-                    <label>Embeddings Negative</label>
-                    <input type="text" id="editModelEmbedNeg" autocomplete="off">
-                </div>
-                <div class="modal-actions">
-                    <button class="delete" onclick="deleteCurrentItem('model')">
-                        Delete
-                    </button>
-                    <button onclick="hideEditModal('model')">Cancel</button>
-                    <button class="save" onclick="saveItem('model')">
-                        Save Changes
-                    </button>
+                    <div class="field-group">
+                        <label>Quality Positive</label>
+                        <textarea id="editModelQualityPos"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Quality Negative</label>
+                        <textarea id="editModelQualityNeg"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Embeddings Positive</label>
+                        <input type="text" id="editModelEmbedPos" autocomplete="off">
+                    </div>
+                    <div class="field-group">
+                        <label>Embeddings Negative</label>
+                        <input type="text" id="editModelEmbedNeg" autocomplete="off">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="delete" onclick="deleteCurrentItem('model')">
+                            Delete
+                        </button>
+                        <button class="save" onclick="saveItem('model')">
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Style Edit Modal -->
         <div class="modal" id="styleEditModal">
-            <div class="modal-content">
+            <div class="modal-container">
                 <div class="modal-header">
-                    <div style="flex: 1;">
-                        <label style="display: block; margin-bottom: 5px;">Style Name</label>
+                    <h2>Style</h2>
+                    <button class="button-cancel" onclick="hideEditModal('style')">X</button>
+                </div>
+                <div class="modal-content">
+                    <div class="field-group">
+                        <label>Style Name</label>
                         <input type="text" id="editStyleNameInput" class="name-input" style="margin: 0;" autocomplete="off"/>
                     </div>
-                </div>
-                <div class="field-group">
-                    <label>Style Image</label>
-                    <div class="image-upload-container">
-                        <div class="image-drop-zone" id="styleImageDropZone">
-                            <div class="drop-zone-content">
-                                <span class="drop-zone-text">Drop image here or click to browse</span>
+                    <div class="field-group">
+                        <label>Style Image</label>
+                        <div class="image-upload-container">
+                            <div class="image-drop-zone" id="styleImageDropZone">
+                                <div class="drop-zone-content">
+                                    <span class="drop-zone-text">Drop image here or click to browse</span>
+                                </div>
+                                <img id="stylePreviewImg" class="drop-zone-preview" style="display: none;">
                             </div>
-                            <img id="stylePreviewImg" class="drop-zone-preview" style="display: none;">
-                        </div>
-                        <div>
-                            <input type="file" id="editStyleImage" accept="image/*" style="flex: 1; display: none;">
-                            <button type="button" onclick="removeImage('style')" class="delete" style="padding: 8px 12px;">
-                                🗑
-                            </button>
+                            <div>
+                                <input type="file" id="editStyleImage" accept="image/*" style="flex: 1; display: none;">
+                                <button type="button" onclick="removeImage('style')" class="delete" style="padding: 8px 12px;">
+                                    🗑
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="field-group">
-                    <label>Positive Tags</label>
-                    <textarea id="editStylePos"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Negative Tags</label>
-                    <textarea id="editStyleNeg"></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button class="delete" onclick="deleteCurrentItem('style')">
-                        Delete
-                    </button>
-                    <button onclick="hideEditModal('style')">Cancel</button>
-                    <button class="save" onclick="saveItem('style')">
-                        Save Changes
-                    </button>
+                    <div class="field-group">
+                        <label>Positive Tags</label>
+                        <textarea id="editStylePos"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Negative Tags</label>
+                        <textarea id="editStyleNeg"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="delete" onclick="deleteCurrentItem('style')">
+                            Delete
+                        </button>
+                        <button class="save" onclick="saveItem('style')">
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Tag Edit Modal -->
         <div class="modal" id="tagEditModal">
-            <div class="modal-content">
+            <div class="modal-container">
                 <div class="modal-header">
-                    <div style="flex: 1;">
-                        <label style="display: block; margin-bottom: 5px;">
-                            Trigger Tag
-                        </label>
+                    <h2>Tag</h2>
+                    <button class="button-cancel" onclick="hideEditModal('tag')">X</button>
+                </div>
+                <div class="modal-content">
+                    <div class="field-group">
+                        <label>Trigger Tag</label>
                         <input type="text" id="editTagNameInput" class="name-input" style="margin: 0;" placeholder="e.g., t-shirt" autocomplete="off"/>
                     </div>
-                </div>
-                <div class="field-group">
-                    <label>Positive Tags (added when trigger is present)</label>
-                    <textarea id="editTagPos"></textarea>
-                </div>
-                <div class="field-group">
-                    <label>Negative Tags (added when trigger is present)</label>
-                    <textarea id="editTagNeg"></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button class="delete" onclick="deleteCurrentItem('tag')">
-                        Delete
-                    </button>
-                    <button onclick="hideEditModal('tag')">Cancel</button>
-                    <button class="save" onclick="saveItem('tag')">
-                        Save Changes
-                    </button>
+                    <div class="field-group">
+                        <label>Positive Tags (added when trigger is present)</label>
+                        <textarea id="editTagPos"></textarea>
+                    </div>
+                    <div class="field-group">
+                        <label>Negative Tags (added when trigger is present)</label>
+                        <textarea id="editTagNeg"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="delete" onclick="deleteCurrentItem('tag')">
+                            Delete
+                        </button>
+                        <button class="save" onclick="saveItem('tag')">
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
