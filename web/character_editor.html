@@ -101,18 +101,19 @@
                 </div>
                 <div class="field-group">
                     <label>Character Image</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="file" id="editImage" accept="image/*" 
-                                                          style="flex: 1;">
-                        <button onclick="removeImage()" class="delete" 
-                                                        style="padding: 8px 12px;">
-                            Remove
-                        </button>
-                    </div>
-                    <div id="imagePreview" 
-                         style="margin-top: 10px; display: none;">
-                        <img id="previewImg" 
-                             style="max-width: 200px; border-radius: 4px;">
+                    <div class="image-upload-container">
+                        <div class="image-drop-zone" id="charImageDropZone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-text">Drop image here or click to browse</span>
+                            </div>
+                            <img id="previewImg" class="drop-zone-preview" style="display: none;">
+                        </div>
+                        <div>
+                            <input type="file" id="editImage" accept="image/*" style="flex: 1; display: none;">
+                            <button type="button" onclick="removeImage()" class="delete" style="padding: 8px 12px;">
+                                🗑
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="field-group">
@@ -198,18 +199,19 @@
                 </div>
                 <div class="field-group">
                     <label>Style Image</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="file" id="editStyleImage" accept="image/*" 
-                                                               style="flex: 1;">
-                        <button onclick="removeImage('style')" class="delete" 
-                                                               style="padding: 8px 12px;">
-                            Remove
-                        </button>
-                    </div>
-                    <div id="styleImagePreview" 
-                         style="margin-top: 10px; display: none;">
-                        <img id="stylePreviewImg" 
-                             style="max-width: 200px; border-radius: 4px;">
+                    <div class="image-upload-container">
+                        <div class="image-drop-zone" id="styleImageDropZone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-text">Drop image here or click to browse</span>
+                            </div>
+                            <img id="stylePreviewImg" class="drop-zone-preview" style="display: none;">
+                        </div>
+                        <div>
+                            <input type="file" id="editStyleImage" accept="image/*" style="flex: 1; display: none;">
+                            <button type="button" onclick="removeImage('style')" class="delete" style="padding: 8px 12px;">
+                                🗑
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="field-group">

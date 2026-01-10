@@ -28,25 +28,36 @@ export function showEditModal(type, name) {
 		document.getElementById('editNeg').value = data.neg || '';
 		document.getElementById('editCategories').value = data.categories || '';
 
-		const preview = document.getElementById('imagePreview');
-		const previewImg = document.getElementById('previewImg');
+		// Show modal first so elements exist
+		document.getElementById('editModal').classList.add('show');
 
-		// Handle preview image
-		if (name && state.characterImages[name]) {
-			previewImg.src = getImageUrl(name);
-			preview.style.display = 'block';
-			pendingImage = null;
-		} else if (pendingImage) {
-			// Show pending image from previous session
-			previewImg.src = pendingImage;
-			preview.style.display = 'block';
-		} else {
-			preview.style.display = 'none';
-			pendingImage = null;
+		// Now access the preview elements
+		const previewImg = document.getElementById('previewImg');
+		const dropZone = document.getElementById('charImageDropZone');
+
+		if (previewImg && dropZone) {
+			// Handle preview image
+			if (name && state.characterImages[name]) {
+				previewImg.src = getImageUrl(name);
+				previewImg.style.display = 'block';
+				dropZone.classList.add('has-image');
+				window.pendingCharacterImage = null;
+			} else if (window.pendingCharacterImage) {
+				previewImg.src = window.pendingCharacterImage;
+				previewImg.style.display = 'block';
+				dropZone.classList.add('has-image');
+			} else {
+				previewImg.style.display = 'none';
+				dropZone.classList.remove('has-image');
+				window.pendingCharacterImage = null;
+			}
 		}
 
-		// Setup drag and drop for new or existing characters
-		setupModalDragAndDrop('editModal', name || 'new');
+		if (name) {
+			setupModalDragAndDrop('editModal', name, 'character');
+		} else {
+			setupModalDragAndDrop('editModal', '', 'character');
+		}
 
 		setupAutocomplete(document.getElementById('editCharacter'));
 		setupAutocomplete(document.getElementById('editTop'));
@@ -62,8 +73,9 @@ export function showEditModal(type, name) {
 		setupWeightAdjustment(document.getElementById('editCategories'));
 		setupWeightAdjustment(document.getElementById('editCharNameInput'));
 
-		document.getElementById('editModal').classList.add('show');
-	} else if (type === 'model') {
+		// Don't show modal again - already shown above
+	}
+	else if (type === 'model') {
 		const data = state.models[name] || {
 			quality: { positive: '', negative: '' },
 			embeddings: { positive: '', negative: '' }
@@ -91,7 +103,8 @@ export function showEditModal(type, name) {
 		setupWeightAdjustment(document.getElementById('editModelEmbedNeg'));
 
 		document.getElementById('modelEditModal').classList.add('show');
-	} else if (type === 'style') {
+	}
+	else if (type === 'style') {
 		const data = state.styles[name] || {
 			positive: '',
 			negative: ''
@@ -102,17 +115,34 @@ export function showEditModal(type, name) {
 		document.getElementById('editStylePos').value = data.positive || '';
 		document.getElementById('editStyleNeg').value = data.negative || '';
 
-		const preview = document.getElementById('styleImagePreview');
+		// Show modal first so elements exist
+		document.getElementById('styleEditModal').classList.add('show');
+
+		// Now access the preview elements
 		const previewImg = document.getElementById('stylePreviewImg');
-		if (name && state.styleImages[name]) {
-			previewImg.src = getImageUrl(name, 'style');
-			preview.style.display = 'block';
-		} else {
-			preview.style.display = 'none';
+		const dropZone = document.getElementById('styleImageDropZone');
+
+		if (previewImg && dropZone) {
+			if (name && state.styleImages[name]) {
+				previewImg.src = getImageUrl(name, 'style');
+				previewImg.style.display = 'block';
+				dropZone.classList.add('has-image');
+				window.pendingStyleImage = null;
+			} else if (window.pendingStyleImage) {
+				previewImg.src = window.pendingStyleImage;
+				previewImg.style.display = 'block';
+				dropZone.classList.add('has-image');
+			} else {
+				previewImg.style.display = 'none';
+				dropZone.classList.remove('has-image');
+				window.pendingStyleImage = null;
+			}
 		}
 
 		if (name) {
 			setupModalDragAndDrop('styleEditModal', name, 'style');
+		} else {
+			setupModalDragAndDrop('styleEditModal', '', 'style');
 		}
 
 		setupAutocomplete(document.getElementById('editStylePos'));
@@ -121,8 +151,9 @@ export function showEditModal(type, name) {
 		setupWeightAdjustment(document.getElementById('editStylePos'));
 		setupWeightAdjustment(document.getElementById('editStyleNeg'));
 
-		document.getElementById('styleEditModal').classList.add('show');
-	} else if (type === 'tag') {
+		// Don't show modal again - already shown above
+	}
+	else if (type === 'tag') {
 		const data = state.tags[name] || {
 			positive: '',
 			negative: ''

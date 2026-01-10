@@ -38,79 +38,88 @@ export function setupDragAndDrop(card, name, type = 'character') {
 }
 
 export function setupModalDragAndDrop(modalId, name, type = 'character') {
-	const modal = document.getElementById(modalId);
-	const modalContent = modal.querySelector('.modal-content');
+	const dropZoneId = type === 'character' ? 
+		'charImageDropZone' : 'styleImageDropZone';
+	const previewId = type === 'character' ? 
+		'previewImg' : 'stylePreviewImg';
 
-	const newModalContent = modalContent.cloneNode(true);
-	modalContent.parentNode.replaceChild(newModalContent, modalContent);
+	const dropZone = document.getElementById(dropZoneId);
+	const previewImg = document.getElementById(previewId);
 
-	newModalContent.addEventListener('dragover', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		newModalContent.classList.add('drag-over');
-	});
+	if (!dropZone) return;
 
-	newModalContent.addEventListener('dragleave', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		if (e.target === newModalContent) {
-			newModalContent.classList.remove('drag-over');
-		}
-	});
+	// Remove old listeners by cloning
+	const newDropZone = dropZone.cloneNode(true);
+	dropZone.parentNode.replaceChild(newDropZone, dropZone);
+	const finalDropZone = document.getElementById(dropZoneId);
+	const finalPreview = document.getElementById(previewId);
 
-	newModalContent.addEventListener('drop', async (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		newModalContent.classList.remove('drag-over');
+	const handleImage = async (file) => {
+		if (!file.type.startsWith('image/')) return;
 
-		const files = e.dataTransfer.files;
-		if (files.length > 0 && files[0].type.startsWith('image/')) {
-			// For new characters (name is 'new' or empty), just preview
-			if (!name || name === 'new' || name === '') {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					const preview = document.getElementById(
-						type === 'character' ? 
-						'imagePreview' : 'styleImagePreview'
-					);
-					const previewImg = document.getElementById(
-						type === 'character' ? 
-						'previewImg' : 'stylePreviewImg'
-					);
+		// For new characters/styles, just preview
+		if (!name || name === 'new' || name === '') {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				finalPreview.src = e.target.result;
+				finalPreview.style.display = 'block';
+				finalDropZone.classList.add('has-image');
 
-					previewImg.src = e.target.result;
-					preview.style.display = 'block';
-
-					// Store pending image in modals.js
-					if (type === 'character') {
-						window.pendingCharacterImage = e.target.result;
-					} else {
-						window.pendingStyleImage = e.target.result;
-					}
-
-					showStatus('Image ready (will upload on save)', 'success');
-				};
-				reader.readAsDataURL(files[0]);
-			} else {
-				// Existing character - upload immediately
-				const success = await uploadImage(files[0], name, type);
-				if (success) {
-					if (type === 'character') {
-						const preview = document.getElementById('imagePreview');
-						const previewImg = document.getElementById('previewImg');
-						previewImg.src = getImageUrl(name);
-						preview.style.display = 'block';
-					} else if (type === 'style') {
-						const preview = document.getElementById('styleImagePreview');
-						const previewImg = document.getElementById('stylePreviewImg');
-						previewImg.src = getImageUrl(name, 'style');
-						preview.style.display = 'block';
-					}
-					showStatus('Image updated!', 'success');
+				// Store pending image
+				if (type === 'character') {
+					window.pendingCharacterImage = e.target.result;
 				} else {
-					showStatus('Error uploading image', 'error');
+					window.pendingStyleImage = e.target.result;
 				}
+
+				showStatus('Image ready (will upload on save)', 'success');
+			};
+			reader.readAsDataURL(file);
+		} else {
+			// Existing character - upload immediately
+			const success = await uploadImage(file, name, type);
+			if (success) {
+				finalPreview.src = getImageUrl(name, type);
+				finalPreview.style.display = 'block';
+				finalDropZone.classList.add('has-image');
+				showStatus('Image updated!', 'success');
+			} else {
+				showStatus('Error uploading image', 'error');
 			}
 		}
+	};
+
+	// Drag and drop
+	finalDropZone.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		finalDropZone.classList.add('drag-over');
+	});
+
+	finalDropZone.addEventListener('dragleave', (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (e.target === finalDropZone) {
+			finalDropZone.classList.remove('drag-over');
+		}
+	});
+
+	finalDropZone.addEventListener('drop', async (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		finalDropZone.classList.remove('drag-over');
+
+		const files = e.dataTransfer.files;
+		if (files.length > 0) {
+			await handleImage(files[0]);
+		}
+	});
+
+	// Click to browse
+	finalDropZone.addEventListener('click', () => {
+		const fileInput = document.getElementById(
+			type === 'character' ? 'editImage' : 'editStyleImage'
+		);
+		fileInput?.click();
 	});
 }
