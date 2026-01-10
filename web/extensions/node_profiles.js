@@ -4,7 +4,6 @@ app.registerExtension({
     name: "Mudknight Utils.NodeProfiles",
 
     async setup() {
-        // Create and inject modal CSS
         const style = document.createElement('style');
         style.textContent = `
             .profile-modal {
@@ -19,15 +18,11 @@ app.registerExtension({
                 align-items: center;
                 justify-content: center;
             }
-
-            .profile-modal.show {
-                display: flex;
-            }
-
+            .profile-modal.show { display: flex; }
             .profile-modal-content {
-                background: var(--bg-color);
-                border: 1px solid var(--border-color);
-                border-radius: 8px;
+                background: var(--comfy-menu-bg);
+                border: 2px solid var(--border-color);
+                border-radius: 10px;
                 padding: 20px;
                 max-width: 500px;
                 width: 90%;
@@ -35,7 +30,37 @@ app.registerExtension({
                 overflow-y: auto;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             }
-
+            #profileList {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .profile-node-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                margin-top: 6px;
+            }
+            .node-tag-container {
+                display: flex;
+                flex-direction: column;
+                background: var(--comfy-menu-bg);
+                border: 1px solid var(--border-color);
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+            }
+            .node-tag-type {
+                font-weight: bold;
+                color: var(--fg-color);
+            }
+            .node-tag-model {
+                color: var(--descrip-text);
+                font-size: 10px;
+                border-top: 1px solid var(--border-color);
+                margin-top: 2px;
+                padding-top: 2px;
+            }
             .profile-modal-header {
                 display: flex;
                 justify-content: space-between;
@@ -44,88 +69,13 @@ app.registerExtension({
                 padding-bottom: 10px;
                 border-bottom: 1px solid var(--border-color);
             }
-
-            .profile-modal-header h2 {
-                margin: 0;
-                font-size: 18px;
-            }
-
             .profile-close-btn {
                 background: none;
                 border: none;
                 font-size: 24px;
                 cursor: pointer;
                 color: var(--fg-color);
-                padding: 0;
-                width: 30px;
-                height: 30px;
-                line-height: 1;
             }
-
-            .profile-close-btn:hover {
-                color: var(--error-text);
-            }
-
-            .profile-new-section {
-                margin-bottom: 20px;
-                padding-bottom: 20px;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            .profile-new-section label {
-                display: block;
-                margin-bottom: 8px;
-                font-size: 14px;
-                font-weight: 500;
-                color: var(--fg-color);
-            }
-
-            .profile-input-row {
-                display: flex;
-                gap: 10px;
-            }
-
-            .profile-input-field {
-                flex: 1;
-                padding: 10px;
-                background: var(--comfy-input-bg);
-                border: 1px solid var(--border-color);
-                border-radius: 4px;
-                color: var(--input-text);
-                font-size: 14px;
-            }
-
-            .profile-input-field:focus {
-                outline: none;
-                border-color: var(--primary-bg);
-            }
-
-            .profile-save-btn {
-                padding: 10px 20px;
-                background: var(--primary-bg);
-                border: 1px solid var(--primary-bg);
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                color: white;
-                white-space: nowrap;
-            }
-
-            .profile-save-btn:hover {
-                opacity: 0.8;
-            }
-
-            .profile-save-btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-            .profile-list {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
             .profile-item {
                 display: flex;
                 align-items: center;
@@ -135,12 +85,6 @@ app.registerExtension({
                 border: 1px solid var(--border-color);
                 border-radius: 4px;
             }
-
-            .profile-item.editing {
-                background: var(--comfy-menu-bg);
-                border-color: var(--primary-bg);
-            }
-
             .profile-name {
                 flex: 1;
                 font-weight: 500;
@@ -148,33 +92,10 @@ app.registerExtension({
                 cursor: pointer;
                 padding: 4px 8px;
                 border-radius: 4px;
-                transition: background 0.2s;
             }
-
-            .profile-name:hover {
-                background: var(--comfy-menu-bg);
+            .profile-input-field {
+                border-radius: 5px;
             }
-
-            .profile-name-input {
-                flex: 1;
-                padding: 6px 8px;
-                background: var(--bg-color);
-                border: 1px solid var(--primary-bg);
-                border-radius: 4px;
-                color: var(--input-text);
-                font-size: 14px;
-                font-weight: 500;
-            }
-
-            .profile-name-input:focus {
-                outline: none;
-            }
-
-            .profile-info {
-                font-size: 12px;
-                color: var(--descrip-text);
-            }
-
             .profile-btn {
                 padding: 6px 12px;
                 border: 1px solid var(--border-color);
@@ -184,29 +105,12 @@ app.registerExtension({
                 font-size: 12px;
                 color: var(--fg-color);
             }
-
-            .profile-btn:hover {
-                background: var(--comfy-input-bg);
-            }
-
             .profile-btn.delete {
                 color: var(--error-text);
-            }
-
-            .profile-btn.small {
-                padding: 4px 8px;
-                font-size: 11px;
-            }
-
-            .profile-empty {
-                text-align: center;
-                padding: 40px 20px;
-                color: var(--descrip-text);
             }
         `;
         document.head.appendChild(style);
 
-        // Create modal HTML
         const modal = document.createElement('div');
         modal.className = 'profile-modal';
         modal.id = 'profileModal';
@@ -216,221 +120,166 @@ app.registerExtension({
                     <h2>Node Profiles</h2>
                     <button class="profile-close-btn">&times;</button>
                 </div>
-                <div class="profile-new-section">
-                    <label>Save Current Parameters</label>
-                    <div class="profile-input-row">
-                        <input type="text" class="profile-input-field" id="newProfileName" placeholder="Enter profile name...">
-                        <button class="profile-save-btn" id="saveProfileBtn">Save</button>
+                <div class="profile-new-section" style="margin-bottom: 20px;">
+                    <label style="display:block; margin-bottom:8px;">Save Current Parameters</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="newProfileName" class="profile-input-field" placeholder="Enter profile name..." style="flex:1; padding:8px; background:var(--comfy-input-bg); border:1px solid var(--border-color); color:var(--input-text);">
+                        <button id="saveProfileBtn" class="profile-save-btn" style="padding:8px 16px; background:var(--primary-bg); color:white; border:none; border-radius:4px; cursor:pointer;">Save</button>
                     </div>
                 </div>
-                <div class="profile-list" id="profileList"></div>
+                <div id="profileList"></div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        // Close modal when clicking outside or on close button
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-            }
-        });
+        const WHITELIST = ["BaseNode", "UpscaleNode", "DetailerNode", "DetailerPipeNode"];
 
-        modal.querySelector('.profile-close-btn').addEventListener('click', () => {
-            modal.classList.remove('show');
-        });
+        const formatModelName = (path) => {
+            if (!path) return "";
+            const filename = path.split('/').pop();
+            return filename.split('.')[0];
+        };
 
-        // Save button
-        const newProfileInput = document.getElementById('newProfileName');
-        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        window.saveNodeParams = async (name) => {
+            const profileData = {};
+            for (const node of app.graph._nodes) {
+                if (!node.widgets || !WHITELIST.includes(node.type)) continue;
 
-        saveProfileBtn.addEventListener('click', async () => {
-            const name = newProfileInput.value.trim();
-            if (name) {
-                await window.saveNodeParams(name);
-                newProfileInput.value = '';
-                await renderProfiles();
-            }
-        });
+                let identifier = node.type;
+                let modelName = null;
 
-        newProfileInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveProfileBtn.click();
-            }
-        });
-
-        // Render profile list
-        async function renderProfiles() {
-            const profileList = document.getElementById('profileList');
-            profileList.innerHTML = '';
-
-            try {
-                const response = await fetch('/node_profiles');
-                if (!response.ok) {
-                    profileList.innerHTML = '<div class="profile-empty">Failed to load profiles</div>';
-                    return;
+                if (node.type.includes("Detailer")) {
+                    const bbox = node.widgets.find(w => w.name === "bbox_model");
+                    if (bbox?.value) {
+                        modelName = bbox.value;
+                        identifier = `${node.type}:${modelName}`;
+                    }
                 }
 
-                const profiles = await response.json();
-                const profileNames = Object.keys(profiles);
+                profileData[identifier] = {
+                    type: node.type,
+                    model: modelName,
+                    widgets: node.widgets.map(w => ({ name: w.name, value: w.value }))
+                };
+            }
+            await fetch(`/node_profiles/${encodeURIComponent(name)}`, {
+                method: 'POST',
+                body: JSON.stringify(profileData)
+            });
+        };
 
-                if (profileNames.length === 0) {
-                    profileList.innerHTML = '<div class="profile-empty">No saved profiles<br>Enter a name above to create one</div>';
-                    return;
+        window.restoreNodeParams = async (name) => {
+            const response = await fetch(`/node_profiles/${encodeURIComponent(name)}`);
+            if (!response.ok) return;
+            const profile = await response.json();
+
+            for (const [id, data] of Object.entries(profile)) {
+                let target = null;
+                if (data.model) {
+                    target = app.graph._nodes.find(n => 
+                        n.type === data.type && 
+                        n.widgets?.find(w => w.name === "bbox_model")?.value === data.model
+                    );
+                } else {
+                    target = app.graph._nodes.find(n => n.type === data.type);
                 }
 
-                // Sort profiles alphabetically
-                profileNames.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
-                for (const name of profileNames) {
-                    const nodeCount = Object.keys(profiles[name]).length;
-                    const item = document.createElement('div');
-                    item.className = 'profile-item';
-                    item.dataset.profileName = name;
-
-                    item.innerHTML = `
-                        <div style="flex: 1; min-width: 0;">
-                            <div class="profile-name" title="Click to restore">${name}</div>
-                            <div class="profile-info">${nodeCount} node(s)</div>
-                        </div>
-                        <button class="profile-btn rename" data-name="${name}">Rename</button>
-                        <button class="profile-btn delete" data-name="${name}">Delete</button>
-                    `;
-
-                    // Click name to restore
-                    item.querySelector('.profile-name').addEventListener('click', async () => {
-                        await window.restoreNodeParams(name);
-                        modal.classList.remove('show');
-                    });
-
-                    // Rename button - inline editing
-                    item.querySelector('.rename').addEventListener('click', () => {
-                        const nameDiv = item.querySelector('.profile-name');
-                        const currentName = name;
-
-                        // Replace name with input
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.className = 'profile-name-input';
-                        input.value = currentName;
-
-                        nameDiv.replaceWith(input);
-                        item.classList.add('editing');
-
-                        // Replace buttons with save/cancel
-                        const renameBtn = item.querySelector('.rename');
-                        const deleteBtn = item.querySelector('.delete');
-
-                        const saveBtn = document.createElement('button');
-                        saveBtn.className = 'profile-btn small';
-                        saveBtn.textContent = 'Save';
-
-                        const cancelBtn = document.createElement('button');
-                        cancelBtn.className = 'profile-btn small';
-                        cancelBtn.textContent = 'Cancel';
-
-                        renameBtn.replaceWith(saveBtn);
-                        deleteBtn.replaceWith(cancelBtn);
-
-                        input.focus();
-                        input.select();
-
-                        const finishEdit = async (save) => {
-                            if (save) {
-                                const newName = input.value.trim();
-                                if (newName && newName !== currentName) {
-                                    await window.renameProfile(currentName, newName);
-                                }
-                            }
-                            await renderProfiles();
-                        };
-
-                        saveBtn.addEventListener('click', () => finishEdit(true));
-                        cancelBtn.addEventListener('click', () => finishEdit(false));
-
-                        input.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                finishEdit(true);
-                            } else if (e.key === 'Escape') {
-                                e.preventDefault();
-                                finishEdit(false);
-                            }
-                        });
-                    });
-
-                    // Delete button
-                    item.querySelector('.delete').addEventListener('click', async () => {
-                        if (confirm(`Delete profile "${name}"?`)) {
-                            const success = await window.deleteProfile(name);
-                            if (success) {
-                                await renderProfiles();
-                            }
+                if (target) {
+                    data.widgets.forEach(sw => {
+                        const w = target.widgets.find(nodeW => nodeW.name === sw.name);
+                        if (w) {
+                            w.value = sw.value;
+                            if (w.callback) w.callback(w.value, app.canvas, target);
                         }
                     });
-
-                    profileList.appendChild(item);
                 }
-            } catch (error) {
-                console.error('Error rendering profiles:', error);
-                profileList.innerHTML = '<div class="profile-empty">Error loading profiles</div>';
             }
-        }
+            app.graph.setDirtyCanvas(true, true);
+        };
 
-        // Add button to ComfyUI interface
+        const renderProfiles = async () => {
+            const list = document.getElementById('profileList');
+            const response = await fetch('/node_profiles');
+            const profiles = await response.json();
+            list.innerHTML = '';
+
+            Object.keys(profiles).sort().forEach(name => {
+                const item = document.createElement('div');
+                item.className = 'profile-item';
+
+                const tags = Object.entries(profiles[name]).map(([id, data]) => {
+                    // Strip "Node" from the display name
+                    const typeLabel = data.type.replace("Node", "");
+                    const modelLabel = data.model ? formatModelName(data.model) : null;
+
+                    return `
+                        <div class="node-tag-container">
+                            <span class="node-tag-type">${typeLabel}</span>
+                            ${modelLabel ? `<span class="node-tag-model">${modelLabel}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                item.innerHTML = `
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="profile-name">${name}</div>
+                        <div class="profile-node-tags">${tags}</div>
+                    </div>
+                    <button class="profile-btn delete">Delete</button>
+                `;
+
+                item.querySelector('.profile-name').onclick = async () => {
+                    await window.restoreNodeParams(name);
+                    modal.classList.remove('show');
+                };
+
+                item.querySelector('.delete').onclick = async () => {
+                    if (confirm(`Delete profile "${name}"?`)) {
+                        await fetch(`/node_profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                        renderProfiles();
+                    }
+                };
+                list.appendChild(item);
+            });
+        };
+
+        modal.querySelector('.profile-close-btn').onclick = () => modal.classList.remove('show');
+        document.getElementById('saveProfileBtn').onclick = async () => {
+            const input = document.getElementById('newProfileName');
+            if (input.value.trim()) {
+                await window.saveNodeParams(input.value.trim());
+                input.value = '';
+                renderProfiles();
+            }
+        };
+
         const addButton = () => {
-            const container = document.querySelector(
-                ".actionbar-container .flex.gap-2.mx-2"
-            );
-
-            if (!container) return false;
-            if (document.getElementById("node-profiles-button")) return true;
+            const container = document.querySelector(".actionbar-container .flex.gap-2.mx-2");
+            if (!container || document.getElementById("node-profiles-button")) return !!container;
 
             const profileButton = document.createElement("button");
             profileButton.id = "node-profiles-button";
-            profileButton.className = "comfyui-button " +
-                "comfyui-menu-mobile-collapse primary";
-            profileButton.title = "Manage Node Profiles";
+            profileButton.className = "comfyui-button primary";
             profileButton.style.padding = "0px 10px";
-
-            const icon = document.createElement("i");
-            icon.className = "mdi mdi-notebook";
-            icon.style.fontSize = "24px";
-            profileButton.appendChild(icon);
+            profileButton.innerHTML = '<i class="mdi mdi-notebook" style="font-size: 24px;"></i>';
 
             profileButton.onclick = async () => {
                 await renderProfiles();
                 modal.classList.add('show');
-                // Focus the input field when modal opens
-                setTimeout(() => {
-                    document.getElementById('newProfileName').focus();
-                }, 100);
             };
 
             const buttonGroup = document.createElement("div");
             buttonGroup.className = "comfyui-button-group";
             buttonGroup.appendChild(profileButton);
 
-            // Always insert after preset manager button if it exists
-            const presetManagerButton = container.querySelector(
-                "#preset-manager-button"
-            )?.parentElement;
-
-            if (presetManagerButton) {
-                presetManagerButton.after(buttonGroup);
-            } else {
-                container.prepend(buttonGroup);
-            }
+            const presetBtn = container.querySelector("#preset-manager-button")?.parentElement;
+            if (presetBtn) presetBtn.after(buttonGroup);
+            else container.prepend(buttonGroup);
 
             return true;
         };
 
-        const attemptAdd = () => {
-            if (!addButton()) {
-                setTimeout(attemptAdd, 1000);
-            }
-        };
-
+        const attemptAdd = () => { if (!addButton()) setTimeout(attemptAdd, 1000); };
         setTimeout(attemptAdd, 1000);
     }
 });
