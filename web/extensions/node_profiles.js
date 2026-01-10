@@ -4,6 +4,14 @@ app.registerExtension({
     name: "Mudknight Utils.NodeProfiles",
 
     async setup() {
+        app.ui.settings.addSetting({
+            id: "Mudknight Utils.NodeProfiles.ShowButton",
+            name: "Show Node Profiles Button",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Show/hide the Node Profiles button in the toolbar"
+        });
+
         const style = document.createElement('style');
         style.textContent = `
             .profile-modal {
@@ -254,7 +262,24 @@ app.registerExtension({
         };
 
         const addButton = () => {
-            const container = document.querySelector(".actionbar-container .flex.gap-2.mx-2");
+            // Check if button should be visible
+            const showButton = app.ui.settings.getSettingValue(
+                "Mudknight Utils.NodeProfiles.ShowButton"
+            );
+
+            if (!showButton) {
+                const existingButton = document.getElementById(
+                    "node-profiles-button"
+                );
+                if (existingButton) {
+                    existingButton.parentElement.remove();
+                }
+                return true;
+            }
+
+            const container = document.querySelector(
+                ".actionbar-container .flex.gap-2.mx-2"
+            );
             if (!container || document.getElementById("node-profiles-button")) return !!container;
 
             const profileButton = document.createElement("button");
@@ -281,5 +306,14 @@ app.registerExtension({
 
         const attemptAdd = () => { if (!addButton()) setTimeout(attemptAdd, 1000); };
         setTimeout(attemptAdd, 1000);
+
+        // Watch for setting changes
+        const observer = new MutationObserver(() => {
+            addButton();
+        });
+        observer.observe(document.body, { 
+            childList: true, 
+            subtree: true 
+        });
     }
 });

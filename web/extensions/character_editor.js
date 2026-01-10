@@ -3,7 +3,32 @@ import { app } from "../../../scripts/app.js";
 app.registerExtension({
     name: "PresetManager",
     async setup() {
+        // Add setting for button visibility
+        app.ui.settings.addSetting({
+            id: "Mudknight Utils.PresetManager.ShowButton",
+            name: "Show Preset Manager Button",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Show/hide the Preset Manager button in the toolbar"
+        });
+
         const addButton = () => {
+            // Check if button should be visible
+            const showButton = app.ui.settings.getSettingValue(
+                "Mudknight Utils.PresetManager.ShowButton"
+            );
+            
+            if (!showButton) {
+                // Remove button if it exists and setting is disabled
+                const existingButton = document.getElementById(
+                    "preset-manager-button"
+                );
+                if (existingButton) {
+                    existingButton.parentElement.remove();
+                }
+                return true;
+            }
+
             // Target the specific flex container inside the actionbar
             const container = document.querySelector(
                 ".actionbar-container .flex.gap-2.mx-2"
@@ -59,5 +84,14 @@ app.registerExtension({
         };
 
         setTimeout(attemptAdd, 1000);
+
+        // Watch for setting changes
+        const observer = new MutationObserver(() => {
+            addButton();
+        });
+        observer.observe(document.body, { 
+            childList: true, 
+            subtree: true 
+        });
     }
 });

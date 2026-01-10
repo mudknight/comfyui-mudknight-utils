@@ -213,14 +213,22 @@ function detectContext(input) {
 }
 
 function isAutocompleteEnabled() {
-	const isPresetManager = window.location.pathname.includes(
-		'character_editor.html'
-	);
-	const key = isPresetManager
-		? "Mudknight Utils.Autocomplete.PresetManagerEnabled"
-		: "Mudknight Utils.Autocomplete.Enabled";
-	const value = localStorage.getItem(key);
-	return value !== 'false';
+    const isPresetManager = window.location.pathname.includes(
+        'character_editor.html'
+    );
+
+    if (isPresetManager) {
+        // Check Preset Manager specific setting
+        const key = "Comfy.Settings.Mudknight Utils.Autocomplete" +
+            ".PresetManagerEnabled";
+        const value = localStorage.getItem(key);
+        return value !== 'false';
+    }
+
+    // Check ComfyUI setting
+    const key = "Comfy.Settings.Mudknight Utils.Autocomplete.Enabled";
+    const value = localStorage.getItem(key);
+    return value !== 'false';
 }
 
 function showAutocomplete(input, context) {

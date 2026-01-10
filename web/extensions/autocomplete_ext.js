@@ -17,6 +17,13 @@ app.registerExtension({
     name: "Mudknight Utils.Autocomplete",
     settings: [
         {
+            id: "Mudknight Utils.Autocomplete.PresetManagerEnabled",
+            name: "Enable Autocomplete in Preset Manager",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Enable autocomplete in the Preset Manager interface"
+        },
+        {
             id: "Mudknight Utils.Autocomplete.UsageOnlyExisting",
             name: "Only Apply Usage to Pre-existing Tags",
             type: "boolean",
