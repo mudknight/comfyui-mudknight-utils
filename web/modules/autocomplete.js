@@ -175,28 +175,45 @@ function detectContext(input) {
 		};
 	}
 	
-	// Check for character syntax: character:name or character:name:
-	const charMatch = text.match(/\bcharacter:([^:,\n]*):?([^,\n]*)$/i);
+	// Check for character syntax: character:name[:outfit[:part]]
+	const charMatch = text.match(
+		/\bcharacter:([^:,\n]*):?([^:,\n]*):?([^,\n]*)$/i
+	);
 	if (charMatch) {
 		const namePart = charMatch[1] || '';
 		const outfitPart = charMatch[2] || '';
+		const partPart = charMatch[3] || '';
 		
-		// If we have a colon after character name, show outfit types
-		if (text.match(/\bcharacter:[^:,\n]+:([^,\n]*)$/i)) {
+		// Count colons to determine what we're completing
+		const charPrefix = text.substring(
+			text.lastIndexOf('character:'),
+			cursorPos
+		);
+		const colonCount = (charPrefix.match(/:/g) || []).length;
+		
+		if (colonCount === 3) {
+			// Completing part (top/bottom)
+			return {
+				type: 'character-part',
+				searchTerm: partPart,
+				start: cursorPos - partPart.length
+			};
+		} else if (colonCount === 2) {
+			// Completing outfit name
 			return {
 				type: 'character-outfit',
 				searchTerm: outfitPart,
 				start: cursorPos - outfitPart.length,
 				characterName: namePart
 			};
+		} else {
+			// Completing character name
+			return {
+				type: 'character',
+				searchTerm: namePart,
+				start: cursorPos - namePart.length
+			};
 		}
-		
-		// Otherwise, show character names
-		return {
-			type: 'character',
-			searchTerm: namePart,
-			start: cursorPos - namePart.length
-		};
 	}
 	
 	// Check for tag preset syntax: tag:
@@ -264,9 +281,9 @@ function showAutocomplete(input, context) {
 	const { type, searchTerm, start } = context;
 
 	// For prefix-triggered types, show immediately after typing prefix
-	if (type === 'lora' || type === 'embedding' || 
-	    type === 'character' || type === 'character-outfit' ||
-	    type === 'tagpreset') {
+	if (type === 'lora' || type === 'embedding' ||
+		type === 'character' || type === 'character-outfit' ||
+		type === 'character-part' || type === 'tagpreset') {
 		// Allow showing with empty search term
 		if (searchTerm === undefined) {
 			hideAutocomplete();
@@ -332,17 +349,30 @@ function showAutocomplete(input, context) {
 				presetType: 'character'
 			}));
 	} else if (type === 'character-outfit') {
-		const outfitTypes = ['top', 'bottom', 'full'];
+		// For now, just show "default" as the only outfit
 		const searchLower = searchTerm.toLowerCase();
-		filtered = outfitTypes
-			.filter(type => 
+		filtered = ['default']
+			.filter(outfit => 
 				searchLower === '' || 
-				type.includes(searchLower)
+				outfit.includes(searchLower)
 			)
-			.map(type => ({
-				display: type,
-				value: type,
+			.map(outfit => ({
+				display: outfit,
+				value: outfit,
 				type: 'character-outfit'
+			}));
+	} else if (type === 'character-part') {
+		const parts = ['top', 'bottom'];
+		const searchLower = searchTerm.toLowerCase();
+		filtered = parts
+			.filter(part => 
+				searchLower === '' || 
+				part.includes(searchLower)
+			)
+			.map(part => ({
+				display: part,
+				value: part,
+				type: 'character-part'
 			}));
 	} else if (type === 'tagpreset') {
 		const searchLower = searchTerm.toLowerCase();
@@ -363,27 +393,8 @@ function showAutocomplete(input, context) {
 		// Replace spaces with underscores for matching
 		const searchLower = searchTerm.toLowerCase().replace(/ /g, '_');
 		
-		// Create a map to merge presets with regular tags
-		// Presets replace regular tags when they have the same name
-		const tagMap = new Map();
-		
-		// First, add all regular tags
-		autocompleteState.tags.forEach(tag => {
-			tagMap.set(tag.tag.toLowerCase().trim(), tag);
-		});
-		
-		// Then, override with character presets
-		autocompleteState.characterPresets.forEach(preset => {
-			tagMap.set(preset.tag.toLowerCase().trim(), preset);
-		});
-		
-		// Finally, override with tag presets
-		autocompleteState.tagPresets.forEach(preset => {
-			tagMap.set(preset.tag.toLowerCase().trim(), preset);
-		});
-		
-		// Convert map back to array and filter matching tags
-		let matching = Array.from(tagMap.values())
+		// Filter matching tags (no preset merging)
+		let matching = autocompleteState.tags
 			.filter(item => {
 				// Check blacklist
 				const tagKey = item.tag.toLowerCase().trim();
@@ -621,9 +632,24 @@ function selectAutocomplete(index) {
 	const item = autocompleteState.filteredTags[index];
 	const context = detectContext(input);
 	const text = input.value;
-	const suffix = autocompleteState.insertComma !== false ? ', ' : '';
+	// const suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	
 	let newText, newCursorPos;
+	
+	// Determine suffix based on context
+	let suffix;
+	if (autocompleteState.contextType === 'character' ||
+	    autocompleteState.contextType === 'character-outfit' ||
+	    autocompleteState.contextType === 'tagpreset') {
+		// Jump to next colon for these types
+		suffix = ':';
+	} else if (autocompleteState.contextType === 'character-part') {
+		// End with comma for outfit parts
+		suffix = autocompleteState.insertComma !== false ? ', ' : '';
+	} else {
+		// Default comma suffix for everything else
+		suffix = autocompleteState.insertComma !== false ? ', ' : '';
+	}
 	
 	if (autocompleteState.contextType === 'lora') {
 		const beforeLora = 
@@ -646,39 +672,43 @@ function selectAutocomplete(index) {
 			`${text.substring(0, beforeEmbed)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeEmbed + item.value.length + suffix.length;
 		
-	} else if (autocompleteState.contextType === 'embedding') {
-		const beforeEmbed = 
-			text.lastIndexOf('embedding:', input.selectionStart) + 10;
-		const rest = text.substring(input.selectionStart);
-		const after = rest.includes(',')
-			? rest.substring(rest.indexOf(','))
-			: rest;
-		newText = 
-			`${text.substring(0, beforeEmbed)}${item.value}${suffix}${after}`;
-		newCursorPos = beforeEmbed + item.value.length + suffix.length;
 	} else if (autocompleteState.contextType === 'character') {
 		const beforeChar = 
 			text.lastIndexOf('character:', input.selectionStart) + 10;
 		const rest = text.substring(input.selectionStart);
-		const after = rest.includes(',')
-			? rest.substring(rest.indexOf(','))
-			: rest;
+		// Find next comma or end
+		const nextComma = rest.indexOf(',');
+		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
 		newText = 
 			`${text.substring(0, beforeChar)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeChar + item.value.length + suffix.length;
 		
 	} else if (autocompleteState.contextType === 'character-outfit') {
-		// Find the second colon position
-		const charStart = text.lastIndexOf('character:', input.selectionStart);
+		// Find position after first colon
+		const charStart = 
+			text.lastIndexOf('character:', input.selectionStart);
 		const firstColon = text.indexOf(':', charStart + 10);
 		const beforeOutfit = firstColon + 1;
 		const rest = text.substring(input.selectionStart);
-		const after = rest.includes(',')
-			? rest.substring(rest.indexOf(','))
-			: rest;
+		const nextComma = rest.indexOf(',');
+		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
 		newText = 
 			`${text.substring(0, beforeOutfit)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeOutfit + item.value.length + suffix.length;
+		
+	} else if (autocompleteState.contextType === 'character-part') {
+		// Find position after second colon
+		const charStart = 
+			text.lastIndexOf('character:', input.selectionStart);
+		const firstColon = text.indexOf(':', charStart + 10);
+		const secondColon = text.indexOf(':', firstColon + 1);
+		const beforePart = secondColon + 1;
+		const rest = text.substring(input.selectionStart);
+		const nextComma = rest.indexOf(',');
+		const after = nextComma !== -1 ? rest.substring(nextComma) : '';
+		newText = 
+			`${text.substring(0, beforePart)}${item.value}${suffix}${after}`;
+		newCursorPos = beforePart + item.value.length + suffix.length;
 		
 	} else if (autocompleteState.contextType === 'tagpreset') {
 		const beforeTag = 

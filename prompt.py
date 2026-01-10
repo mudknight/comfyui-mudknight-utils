@@ -224,42 +224,48 @@ def extract_character_triggers(prompt):
     """
     Extract character: triggers from prompt and return cleaned prompt.
 
+    Syntax:
+    - character:name - character only, no outfit
+    - character:name:outfit - character + full outfit (top + bottom)
+    - character:name:outfit:part - character + specific outfit part
+
     Args:
         prompt: Prompt string potentially containing character: syntax
-        Supports optional outfit specifier: character:name:outfit_type
-        where outfit_type can be 'top', 'bottom', or 'full'
 
     Returns:
         Tuple of (cleaned_prompt, list_of_character_specs)
-        where character_specs are tuples of (name, outfit_type)
-        outfit_type is None if not specified
+        where character_specs are tuples of (name, outfit, part)
+        outfit and part are None if not specified
     """
     if not prompt:
         return "", []
 
-    # Match character:name or character:name:outfit_type
-    # Pattern captures name and optional outfit type
-    pattern = r'character:([^:,\n]+)(?::([^,\n]+?))?(?=\s*(?:,|\n|$))'
+    # Match character:name[:outfit[:part]]
+    pattern = (r'character:([^:,\n]+)'
+               r'(?::([^:,\n]+)(?::([^,\n]+?))?)?'
+               r'(?=\s*(?:,|\n|$))')
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     characters = []
     for match in matches:
         name = match.group(1).strip()
-        outfit_type = match.group(2).strip().lower() if match.group(2) else None
+        outfit = match.group(2).strip() if match.group(2) else None
+        part = match.group(3).strip().lower() if match.group(3) else None
 
-        # Validate outfit type if provided
-        if outfit_type and outfit_type not in ['top', 'bottom', 'full']:
-            outfit_type = None
+        # Validate part if provided
+        if part and part not in ['top', 'bottom']:
+            part = None
 
-        characters.append((name, outfit_type))
+        characters.append((name, outfit, part))
 
     # Remove triggers from prompt
     cleaned = re.sub(
-            r'character:[^:,\n]+(?::(?:top|bottom|full))?(?=\s*(?:,|\n|$))',
-            '',
-            prompt,
-            flags=re.IGNORECASE
-            )
+        r'character:[^:,\n]+(?::[^:,\n]+(?::(?:top|bottom))?)?'
+        r'(?=\s*(?:,|\n|$))',
+        '',
+        prompt,
+        flags=re.IGNORECASE
+    )
     # Clean up any double commas or spaces left behind
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
@@ -630,21 +636,24 @@ class PromptConditioningNode:
                 "CharacterPresetNode"
             )
             if character_preset_node:
-                for char_name, outfit_type in character_triggers:
+                for char_name, outfit, part in character_triggers:
                     # Remove underscores, restore spaces for lookup
                     lookup_name = char_name.replace('_', ' ')
                     # Load character data
                     char_instance = character_preset_node()
 
                     # Determine which outfit parts to include
-                    if outfit_type == 'top':
-                        use_top, use_bottom = True, False
-                    elif outfit_type == 'bottom':
-                        use_top, use_bottom = False, True
-                    elif outfit_type == 'full':
-                        use_top, use_bottom = True, True
-                    else:  # None - character only, no outfit
+                    if outfit is None:
+                        # No outfit specified - character only
                         use_top, use_bottom = False, False
+                    elif part == 'top':
+                        # Specific part requested
+                        use_top, use_bottom = True, False
+                    elif part == 'bottom':
+                        use_top, use_bottom = False, True
+                    else:
+                        # Full outfit (default when outfit specified)
+                        use_top, use_bottom = True, True
 
                     pos, neg = char_instance.select_character(
                         lookup_name, use_top, use_bottom

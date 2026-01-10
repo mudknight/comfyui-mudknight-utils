@@ -433,6 +433,24 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
 
         // Convert map to sorted array
         const tags = Array.from(allTags.values());
+
+        // Boost autocomplete keywords
+        const keywords = ['character', 'tag', 'embedding'];
+        keywords.forEach(keyword => {
+            const existing = tags.find(t => t.tag === keyword);
+            if (existing) {
+                existing.count += 10000;
+            } else {
+                tags.push({
+                    tag: keyword,
+                    category: 5, // meta
+                    count: 10000,
+                    isAlias: false,
+                    isKeyword: true
+                });
+            }
+        });
+
         tags.sort((a, b) => b.count - a.count);
 
         console.log(
