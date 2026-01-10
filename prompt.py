@@ -220,6 +220,130 @@ def extract_embeddings(prompt):
     return cleaned.strip(), embeddings
 
 
+def extract_character_triggers(prompt):
+    """
+    Extract character: triggers from prompt and return cleaned prompt.
+
+    Args:
+        prompt: Prompt string potentially containing character: syntax
+        Supports optional outfit specifier: character:name:outfit_type
+        where outfit_type can be 'top', 'bottom', or 'full'
+
+    Returns:
+        Tuple of (cleaned_prompt, list_of_character_specs)
+        where character_specs are tuples of (name, outfit_type)
+        outfit_type is None if not specified
+    """
+    if not prompt:
+        return "", []
+
+    # Match character:name or character:name:outfit_type
+    # Pattern captures name and optional outfit type
+    pattern = r'character:([^:,\n]+)(?::([^,\n]+?))?(?=\s*(?:,|\n|$))'
+    matches = re.finditer(pattern, prompt, re.IGNORECASE)
+
+    characters = []
+    for match in matches:
+        name = match.group(1).strip()
+        outfit_type = match.group(2).strip().lower() if match.group(2) else None
+
+        # Validate outfit type if provided
+        if outfit_type and outfit_type not in ['top', 'bottom', 'full']:
+            outfit_type = None
+
+        characters.append((name, outfit_type))
+
+    # Remove triggers from prompt
+    cleaned = re.sub(
+            r'character:[^:,\n]+(?::(?:top|bottom|full))?(?=\s*(?:,|\n|$))',
+            '',
+            prompt,
+            flags=re.IGNORECASE
+            )
+    # Clean up any double commas or spaces left behind
+    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
+    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+
+    return cleaned.strip(), characters
+
+
+def extract_tag_triggers(prompt):
+    """
+    Extract tag: triggers from prompt and return cleaned prompt.
+
+    Args:
+        prompt: Prompt string potentially containing tag: syntax
+
+    Returns:
+        Tuple of (cleaned_prompt, list_of_tag_names)
+    """
+    if not prompt:
+        return "", []
+
+    # Match tag:name syntax (including spaces and escaped parens)
+    # Stops at comma or newline
+    pattern = r'tag:([^,\n]+?)(?=\s*(?:,|\n|$))'
+    matches = re.finditer(pattern, prompt, re.IGNORECASE)
+
+    tags = []
+    for match in matches:
+        name = match.group(1).strip()
+        tags.append(name)
+
+    # Remove triggers from prompt
+    cleaned = re.sub(
+            r'tag:[^,\n]+?(?=\s*(?:,|\n|$))',
+            '',
+            prompt,
+            flags=re.IGNORECASE
+            )
+    # Clean up any double commas or spaces left behind
+    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
+    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+
+    return cleaned.strip(), tags
+
+
+def extract_outfit_triggers(prompt):
+    """
+    Extract outfit: triggers from prompt and return cleaned prompt.
+
+    Args:
+        prompt: Prompt string potentially containing outfit: syntax
+
+    Returns:
+        Tuple of (cleaned_prompt, list_of_outfit_specs)
+        where outfit_specs are tuples of (character_name, outfit_type)
+    """
+    if not prompt:
+        return "", []
+
+    # Match outfit:character_name:type syntax
+    # type can be 'top', 'bottom', or 'full'
+    pattern = r'outfit:([^:,\n]+):([^,\n]+?)(?=\s*(?:,|\n|$))'
+    matches = re.finditer(pattern, prompt, re.IGNORECASE)
+
+    outfits = []
+    for match in matches:
+        char_name = match.group(1).strip()
+        outfit_type = match.group(2).strip().lower()
+        if outfit_type in ['top', 'bottom', 'full']:
+            outfits.append((char_name, outfit_type))
+
+    # Remove triggers from prompt
+    cleaned = re.sub(
+            r'outfit:[^:,\n]+:[^,\n]+?(?=\s*(?:,|\n|$))',
+            '',
+            prompt,
+            flags=re.IGNORECASE
+            )
+    # Clean up any double commas or spaces left behind
+    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
+    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+
+    return cleaned.strip(), outfits
+
+
 def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     """
     Parse prompt string into dictionary of {tag: weight}.
@@ -492,22 +616,64 @@ class PromptConditioningNode:
             trigger_words_clean
         )
 
-        # Process tag replacements
-        if character_presets:
-            tag_replacement_node = common.Node("CharacterReplacementNode")
-            prompt, char_pos, char_neg = tag_replacement_node.function(
-                input_tags=positive
-            )
-        else:
-            prompt = positive
-            char_pos = ""
-            char_neg = ""
+        # Extract character and tag triggers
+        prompt, character_triggers = extract_character_triggers(positive)
+        prompt, tag_triggers = extract_tag_triggers(prompt)
 
-        # Process tag presets
-        tag_preset_node = common.Node("TagPresetNode")
-        tag_preset_pos, tag_preset_neg = tag_preset_node.function(
-            text=prompt
-        )
+        # Process character triggers
+        char_pos_parts = []
+        char_neg_parts = []
+
+        if character_presets and character_triggers:
+            from nodes import NODE_CLASS_MAPPINGS
+            character_preset_node = NODE_CLASS_MAPPINGS.get(
+                "CharacterPresetNode"
+            )
+            if character_preset_node:
+                for char_name, outfit_type in character_triggers:
+                    # Remove underscores, restore spaces for lookup
+                    lookup_name = char_name.replace('_', ' ')
+                    # Load character data
+                    char_instance = character_preset_node()
+
+                    # Determine which outfit parts to include
+                    if outfit_type == 'top':
+                        use_top, use_bottom = True, False
+                    elif outfit_type == 'bottom':
+                        use_top, use_bottom = False, True
+                    elif outfit_type == 'full':
+                        use_top, use_bottom = True, True
+                    else:  # None - character only, no outfit
+                        use_top, use_bottom = False, False
+
+                    pos, neg = char_instance.select_character(
+                        lookup_name, use_top, use_bottom
+                    )
+                    if pos:
+                        char_pos_parts.append(pos)
+                    if neg:
+                        char_neg_parts.append(neg)
+
+        char_pos = ", ".join(char_pos_parts)
+        char_neg = ", ".join(char_neg_parts)
+
+        # Process tag triggers
+        tag_preset_pos_parts = []
+        tag_preset_neg_parts = []
+
+        if tag_triggers:
+            tag_preset_node = common.Node("TagPresetNode")
+            for tag_name in tag_triggers:
+                # Remove underscores, restore spaces for lookup
+                lookup_name = tag_name.replace('_', ' ')
+                pos, neg = tag_preset_node.function(text=lookup_name)
+                if pos:
+                    tag_preset_pos_parts.append(pos)
+                if neg:
+                    tag_preset_neg_parts.append(neg)
+
+        tag_preset_pos = ", ".join(tag_preset_pos_parts)
+        tag_preset_neg = ", ".join(tag_preset_neg_parts)
 
         # Extract LoRAs and embeddings from character tags
         prompt, prompt_loras = extract_loras(prompt)
