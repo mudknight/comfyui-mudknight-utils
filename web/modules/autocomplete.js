@@ -150,6 +150,7 @@ function hideThumbnail() {
 	currentPreviewKey = null;
 }
 
+
 function detectContext(input) {
 	const cursorPos = input.selectionStart;
 	const text = input.value.substring(0, cursorPos);
@@ -174,24 +175,38 @@ function detectContext(input) {
 		};
 	}
 	
-	// Default to tag search (existing logic)
+	// Default to tag search - track full tag boundaries
 	const lastComma = text.lastIndexOf(',', cursorPos - 1);
 	const lastNewline = text.lastIndexOf('\n', cursorPos - 1);
 
+	// Start from whichever is closer to the cursor
 	let start = Math.max(lastComma, lastNewline) + 1;
 
 	while (start < cursorPos && /[ \t]/.test(text[start])) {
 		start++;
 	}
 	
-	let end = text.indexOf(',', cursorPos);
-	if (end === -1) end = text.length;
+	// Find end of tag (next comma or newline)
+	const afterCursor = input.value.substring(cursorPos);
+	const nextComma = afterCursor.indexOf(',');
+	const nextNewline = afterCursor.indexOf('\n');
 	
-	const searchTerm = text.substring(start, end).trim();
+	let end;
+	if (nextComma === -1 && nextNewline === -1) {
+		end = input.value.length;
+	} else if (nextComma === -1) {
+		end = cursorPos + nextNewline;
+	} else if (nextNewline === -1) {
+		end = cursorPos + nextComma;
+	} else {
+		end = cursorPos + Math.min(nextComma, nextNewline);
+	}
+	
+	const fullTag = input.value.substring(start, end).trim();
 	
 	return {
 		type: 'tag',
-		searchTerm: searchTerm,
+		searchTerm: fullTag,
 		start: start,
 		end: end
 	};
@@ -551,9 +566,10 @@ function selectAutocomplete(index) {
 		newCursorPos = beforeEmbed + item.value.length + suffix.length;
 		
 	} else {
+		// Replace the entire tag from start to end
 		let tag = item.value.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 		newText = text.substring(0, context.start) + tag + suffix + 
-			text.substring(context.end || input.selectionStart);
+			text.substring(context.end);
 		newCursorPos = context.start + tag.length + suffix.length;
 	}
 	
@@ -627,7 +643,7 @@ export function setupAutocomplete(input, insertComma = true) {
 			}, 100);
 		});
 
-		// Hide on cursor movement (arrow keys, mouse clicks)
+		// Hide on cursor movement (mouse clicks)
 		input.addEventListener('click', () => {
 			hideAutocomplete();
 		});
@@ -638,16 +654,17 @@ export function setupAutocomplete(input, insertComma = true) {
 			const dropdown = 
 				document.getElementById('autocompleteDropdown');
 
+			if (!enabled) return;
+
 			// If dropdown is visible, handle navigation
-			if (enabled && dropdown.style.display === 'block') {
+			if (dropdown.style.display === 'block') {
 				autocompleteState.insertComma = input._insertComma;
 				handleAutocompleteKeydown(e, input);
-			} else if (enabled) {
-				// Hide on cursor movement when dropdown not visible
-				if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 
-					 'ArrowDown'].includes(e.key)) {
-					hideAutocomplete();
-				}
+			}
+			
+			// Hide on left/right arrow movement
+			if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+				hideAutocomplete();
 			}
 		});
 
