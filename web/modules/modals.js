@@ -5,6 +5,8 @@ import { setupAutocomplete } from './autocomplete.js';
 import { setupModalDragAndDrop } from './dragdrop.js';
 import { setupWeightAdjustment } from './weight-adjustment.js';
 
+let pendingImage = null; // Store pending image for new characters
+
 export function showEditModal(type, name) {
 	state.currentEditName = name;
 	state.currentEditType = type;
@@ -17,7 +19,7 @@ export function showEditModal(type, name) {
 			neg: '',
 			categories: ''
 		};
-		
+
 		state.currentOriginalName = name;
 		document.getElementById('editCharNameInput').value = name;
 		document.getElementById('editCharacter').value = data.character || '';
@@ -28,16 +30,23 @@ export function showEditModal(type, name) {
 
 		const preview = document.getElementById('imagePreview');
 		const previewImg = document.getElementById('previewImg');
+
+		// Handle preview image
 		if (name && state.characterImages[name]) {
 			previewImg.src = getImageUrl(name);
 			preview.style.display = 'block';
+			pendingImage = null;
+		} else if (pendingImage) {
+			// Show pending image from previous session
+			previewImg.src = pendingImage;
+			preview.style.display = 'block';
 		} else {
 			preview.style.display = 'none';
+			pendingImage = null;
 		}
 
-		if (name) {
-			setupModalDragAndDrop('editModal', name, 'character');
-		}
+		// Setup drag and drop for new or existing characters
+		setupModalDragAndDrop('editModal', name || 'new');
 
 		setupAutocomplete(document.getElementById('editCharacter'));
 		setupAutocomplete(document.getElementById('editTop'));
@@ -154,15 +163,18 @@ export function hideEditModal(type) {
 	state.currentOriginalName = null;
 }
 
+
 export async function saveCharacter() {
 	const newName = document.getElementById('editCharNameInput').value.trim();
-	
+
 	if (!newName) {
 		alert('Character name cannot be empty');
 		return;
 	}
-	
-	if (newName !== state.currentOriginalName && state.currentOriginalName && state.characters[newName]) {
+
+	if (newName !== state.currentOriginalName && 
+		state.currentOriginalName && 
+		state.characters[newName]) {
 		alert('A character with this name already exists');
 		return;
 	}
@@ -175,10 +187,16 @@ export async function saveCharacter() {
 		categories: document.getElementById('editCategories').value
 	};
 
+	// Handle image upload
 	const fileInput = document.getElementById('editImage');
+	let imageToUpload = null;
+
 	if (fileInput.files.length > 0) {
-		const { uploadImage } = await import('./api.js');
-		await uploadImage(fileInput.files[0], state.currentOriginalName || newName);
+		imageToUpload = fileInput.files[0];
+	} else if (window.pendingCharacterImage) {
+		// Convert base64 to blob for upload
+		const response = await fetch(window.pendingCharacterImage);
+		imageToUpload = await response.blob();
 	}
 
 	if (!state.currentOriginalName) {
@@ -186,11 +204,18 @@ export async function saveCharacter() {
 			alert('A character with this name already exists');
 			return;
 		}
-		
+
 		state.characters[newName] = characterData;
 
 		try {
 			await saveCharacters(state.characters);
+
+			// Upload image after character is created
+			if (imageToUpload) {
+				await uploadImage(imageToUpload, newName, 'character');
+				window.pendingCharacterImage = null;
+			}
+
 			showStatus('Character created successfully!', 'success');
 			if (window.renderAll) window.renderAll();
 			hideEditModal('character');
@@ -230,6 +255,13 @@ export async function saveCharacter() {
 		} catch (error) {
 			showStatus('Error saving character: ' + error.message, 'error');
 		}
+	}
+
+	if (imageToUpload) {
+		await uploadImage(imageToUpload, 
+			state.currentOriginalName || newName, 
+			'character');
+		window.pendingCharacterImage = null;
 	}
 }
 

@@ -40,10 +40,10 @@ export function setupDragAndDrop(card, name, type = 'character') {
 export function setupModalDragAndDrop(modalId, name, type = 'character') {
 	const modal = document.getElementById(modalId);
 	const modalContent = modal.querySelector('.modal-content');
-	
+
 	const newModalContent = modalContent.cloneNode(true);
 	modalContent.parentNode.replaceChild(newModalContent, modalContent);
-	
+
 	newModalContent.addEventListener('dragover', (e) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -65,23 +65,51 @@ export function setupModalDragAndDrop(modalId, name, type = 'character') {
 
 		const files = e.dataTransfer.files;
 		if (files.length > 0 && files[0].type.startsWith('image/')) {
-			const success = await uploadImage(files[0], name, type);
-			if (success) {
-				// Update preview
-				if (type === 'character') {
-					const preview = document.getElementById('imagePreview');
-					const previewImg = document.getElementById('previewImg');
-					previewImg.src = getImageUrl(name);
+			// For new characters (name is 'new' or empty), just preview
+			if (!name || name === 'new' || name === '') {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const preview = document.getElementById(
+						type === 'character' ? 
+						'imagePreview' : 'styleImagePreview'
+					);
+					const previewImg = document.getElementById(
+						type === 'character' ? 
+						'previewImg' : 'stylePreviewImg'
+					);
+
+					previewImg.src = e.target.result;
 					preview.style.display = 'block';
-				} else if (type === 'style') {
-					const preview = document.getElementById('styleImagePreview');
-					const previewImg = document.getElementById('stylePreviewImg');
-					previewImg.src = getImageUrl(name, 'style');
-					preview.style.display = 'block';
-				}
-				showStatus('Image updated!', 'success');
+
+					// Store pending image in modals.js
+					if (type === 'character') {
+						window.pendingCharacterImage = e.target.result;
+					} else {
+						window.pendingStyleImage = e.target.result;
+					}
+
+					showStatus('Image ready (will upload on save)', 'success');
+				};
+				reader.readAsDataURL(files[0]);
 			} else {
-				showStatus('Error uploading image', 'error');
+				// Existing character - upload immediately
+				const success = await uploadImage(files[0], name, type);
+				if (success) {
+					if (type === 'character') {
+						const preview = document.getElementById('imagePreview');
+						const previewImg = document.getElementById('previewImg');
+						previewImg.src = getImageUrl(name);
+						preview.style.display = 'block';
+					} else if (type === 'style') {
+						const preview = document.getElementById('styleImagePreview');
+						const previewImg = document.getElementById('stylePreviewImg');
+						previewImg.src = getImageUrl(name, 'style');
+						preview.style.display = 'block';
+					}
+					showStatus('Image updated!', 'success');
+				} else {
+					showStatus('Error uploading image', 'error');
+				}
 			}
 		}
 	});
