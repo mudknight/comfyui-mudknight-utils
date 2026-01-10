@@ -1,8 +1,5 @@
 import torch
 import numpy as np
-import os
-import io
-from PIL import Image
 from . import common
 
 
@@ -279,45 +276,6 @@ class OpenCVDenoise:
         return (torch.from_numpy(result),)
 
 
-class ImageFileSize:
-    def __init__(self):
-        pass
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "image": ("IMAGE",),
-            },
-        }
-
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("formatted_size",)
-    FUNCTION = "get_size"
-    OUTPUT_NODE = True
-    CATEGORY = "image"
-
-    def get_size(self, image):
-        # Convert torch tensor to PIL
-        i = 255. * image[0].cpu().numpy()
-        img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
-
-        # Save to memory buffer as PNG
-        with io.BytesIO() as output:
-            img.save(output, format="PNG")
-            size_bytes = output.tell()
-
-        # Format string
-        if size_bytes < 1024:
-            size_str = f"{size_bytes} B"
-        elif size_bytes < 1024**2:
-            size_str = f"{size_bytes / 1024:.2f} KB"
-        else:
-            size_str = f"{size_bytes / 1024**2:.2f} MB"
-
-        return {"ui": {"text": size_str}, "result": (size_str,)}
-
-
 class ImageDifference:
     """
     Calculates the difference between two images. Scales the smaller image
@@ -428,13 +386,11 @@ class ImageDifference:
 NODE_CLASS_MAPPINGS = {
     "AutoLevelNode": AutoLevelNode,
     "OpenCVDenoise": OpenCVDenoise,
-    "ImageFileSize": ImageFileSize,
     "ImageDifference": ImageDifference,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AutoLevelNode": "Auto Level",
     "OpenCVDenoise": "OpenCV Denoise",
-    "ImageFileSize": "Image File Size",
     "ImageDifference": "Image Difference",
 }
