@@ -1,13 +1,15 @@
 import { app } from "../../../scripts/app.js";
 
+const SETTING_ID = "Mudknight Utils.TokenCounter.showTokens";
+
 app.registerExtension({
-	name: "testing.TokenCounter",
+	name: "Mudknight Utils.TokenCounter",
 	init() {
 		app.ui.settings.addSetting({
-			id: "testing.Utils.input.showTokens",
-			name: "Show Token Count",
+			id: SETTING_ID,
+			name: "Show Token Count on inputs",
 			type: "boolean",
-			defaultValue: true,
+			defaultValue: false,
 		});
 	},
 	async beforeRegisterNodeDef(nodeType, nodeData, app) {
@@ -59,8 +61,7 @@ app.registerExtension({
 
 						const checkVisibility = (isFocused) => {
 							const enabled = app.ui.settings.getSettingValue(
-								"Mudknight.Utils.input.showTokens", 
-								true
+								SETTING_ID
 							);
 							counter.style.opacity = (isFocused && enabled) ? "1" : "0";
 						};
