@@ -178,7 +178,6 @@ function detectContext(input) {
 	const lastComma = text.lastIndexOf(',', cursorPos - 1);
 	const lastNewline = text.lastIndexOf('\n', cursorPos - 1);
 
-	// Start from whichever is closer to the cursor to preserve newlines
 	let start = Math.max(lastComma, lastNewline) + 1;
 
 	while (start < cursorPos && /[ \t]/.test(text[start])) {
@@ -217,25 +216,19 @@ function showAutocomplete(input, context) {
 
 	const { type, searchTerm, start } = context;
 
-	// Early exit for all types if search is too short
-	const minLength = type === 'tag' ? 2 : 1;
-	if (!searchTerm || searchTerm.length < minLength) {
-		hideAutocomplete();
-		return;
-	}
-
-	// For LoRA and embedding, show immediately after typing prefix
-	// For tags, require at least 2 characters
-	if (type === 'tag' && (!searchTerm || searchTerm.length < 2)) {
-		hideAutocomplete();
-		return;
-	}
-
-	// For LoRA/embedding, allow showing with 0 characters
-	if ((type === 'lora' || type === 'embedding') && 
-		searchTerm === undefined) {
-		hideAutocomplete();
-		return;
+	// For LoRA/embedding, show immediately after typing prefix
+	if (type === 'lora' || type === 'embedding') {
+		// Allow showing with empty search term
+		if (searchTerm === undefined) {
+			hideAutocomplete();
+			return;
+		}
+	} else {
+		// For tags, require at least 2 characters
+		if (!searchTerm || searchTerm.length < 2) {
+			hideAutocomplete();
+			return;
+		}
 	}
 
 	autocompleteState.contextType = type;
@@ -634,16 +627,28 @@ export function setupAutocomplete(input, insertComma = true) {
 			}, 100);
 		});
 
+		// Hide on cursor movement (arrow keys, mouse clicks)
+		input.addEventListener('click', () => {
+			hideAutocomplete();
+		});
+
 		input.addEventListener('keydown', (e) => {
 			const enabled = input._checkEnabled ? 
 				input._checkEnabled() : true;
 			const dropdown = 
 				document.getElementById('autocompleteDropdown');
 
-			if (!enabled || dropdown.style.display !== 'block') return;
-
-			autocompleteState.insertComma = input._insertComma;
-			handleAutocompleteKeydown(e, input);
+			// If dropdown is visible, handle navigation
+			if (enabled && dropdown.style.display === 'block') {
+				autocompleteState.insertComma = input._insertComma;
+				handleAutocompleteKeydown(e, input);
+			} else if (enabled) {
+				// Hide on cursor movement when dropdown not visible
+				if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 
+					 'ArrowDown'].includes(e.key)) {
+					hideAutocomplete();
+				}
+			}
 		});
 
 		input.addEventListener('blur', (e) => {
