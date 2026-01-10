@@ -1,32 +1,34 @@
 import { app } from "../../../scripts/app.js";
 
 function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes) {
+        return null;
+    }
 
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const dm = Math.max(decimals, 0);
+    const sizes = ["B", "KB", "MB", "GB"];
 
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    return `${(bytes / Math.pow(k, i)).toFixed(dm)} ${sizes[i]}`;
 }
 
 async function getImageFileSize(filename, subfolder, type) {
     try {
         const params = new URLSearchParams({
-            filename: filename,
-            type: type || 'output',
-            subfolder: subfolder || ''
+            filename,
+            type: type || "output",
+            subfolder: subfolder || ""
         });
 
-        const response = await fetch(`/view?${params.toString()}`, {
-            method: 'HEAD'
+        const res = await fetch(`/view?${params.toString()}`, {
+            method: "HEAD"
         });
 
-        const contentLength = response.headers.get('content-length');
-        return contentLength ? parseInt(contentLength) : null;
-    } catch (error) {
+        const len = res.headers.get("content-length");
+        return len ? parseInt(len, 10) : null;
+    } catch {
         return null;
     }
 }
@@ -37,99 +39,117 @@ app.registerExtension({
     settings: [
         {
             id: "Mudknight Utils.Filesize.display",
-            name: "Show Image File Size",
+            name: "Show image file size",
             type: "boolean",
-            defaultValue: true,
-            tooltip: "Display file size on image preview nodes.",
-        },
+            defaultValue: true
+        }
     ],
 
     async nodeCreated(node) {
-        const originalOnExecuted = node.onExecuted;
+        const origExecuted = node.onExecuted;
 
-        node.onExecuted = async function(message) {
-            if (originalOnExecuted) {
-                originalOnExecuted.call(this, message);
+        node.onExecuted = async function (message) {
+            if (origExecuted) {
+                origExecuted.call(this, message);
             }
 
-            if (message && message.images) {
-                for (const img of message.images) {
-                    if (img.filename) {
-                        const fileSize = await getImageFileSize(
-                            img.filename,
-                            img.subfolder,
-                            img.type
-                        );
-                        if (fileSize !== null) {
-                            img.fileSize = fileSize;
-                        }
-                    }
-                }
-
-                if (this.images) {
-                    for (let i = 0; i < this.images.length && i < message.images.length; i++) {
-                        if (message.images[i].fileSize) {
-                            this.images[i].fileSize = message.images[i].fileSize;
-                        }
-                    }
-                }
-
-                app.graph.setDirtyCanvas(true);
-            }
-        };
-
-        const originalDrawForeground = node.onDrawForeground;
-
-        node.onDrawForeground = function(ctx) {
-            if (originalDrawForeground) {
-                originalDrawForeground.apply(this, arguments);
-            }
-
-            const enabled = app.ui.settings.getSettingValue(
-                "Mudknight Utils.Filesize.display",
-            );
-
-            if (!enabled) {
+            if (!message?.images) {
                 return;
             }
 
-            if (this.images && this.images.length > 0 && this.images[0].fileSize) {
-                const text = formatBytes(this.images[0].fileSize);
+            for (const img of message.images) {
+                if (!img.filename) {
+                    continue;
+                }
 
-                ctx.save();
-                ctx.globalCompositeOperation = 'source-over';
+                const size = await getImageFileSize(
+                    img.filename,
+                    img.subfolder,
+                    img.type
+                );
 
-                const padding_x = 5;
-                const padding_y = 0;
-                const fontSize = 10;
-                const offsetX = 0;
-                const offsetY = 3;
-                const borderRadius = 5;
-
-                ctx.font = `${fontSize}px sans-serif`;
-                ctx.textBaseline = 'bottom';
-
-                const textWidth = ctx.measureText(text).width;
-                const x = this.size[0] - textWidth - padding_x * 2 - offsetX;
-                const y = this.size[1] - padding_y - offsetY;
-
-                const rectX = x - padding_x;
-                const rectY = y - fontSize - padding_y;
-                const rectWidth = textWidth + padding_x * 2;
-                const rectHeight = fontSize + padding_y * 2;
-
-                ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR; // Use node titlebar color
-                ctx.beginPath();
-                ctx.roundRect(rectX, rectY, rectWidth, rectHeight, borderRadius);
-                ctx.fill();
-
-                ctx.fillStyle = LiteGraph.NODE_TITLE_COLOR;
-                ctx.fillText(text, x, y);
-
-                ctx.restore();
+                if (size != null) {
+                    img.fileSize = size;
+                }
             }
+
+            if (this.images) {
+                for (let i = 0; i < this.images.length; i += 1) {
+                    this.images[i].fileSize = message.images[i]?.fileSize;
+                }
+            }
+
+            app.graph.setDirtyCanvas(true);
+        };
+
+        const origDraw = node.onDrawForeground;
+
+        node.onDrawForeground = function (ctx) {
+            if (origDraw) {
+                origDraw.apply(this, arguments);
+            }
+
+            if (
+                !app.ui.settings.getSettingValue(
+                    "Mudknight Utils.Filesize.display"
+                )
+            ) {
+                return;
+            }
+
+            const bytes = this.images?.[0]?.fileSize;
+            if (!bytes) {
+                return;
+            }
+
+            draw_filesize(ctx, this, bytes);
         };
     }
 });
 
-console.log("[ImageFileSize] Extension registered successfully");
+function draw_filesize(ctx, node, bytes) {
+    const text = formatBytes(bytes);
+    if (!text) {
+        return;
+    }
+
+    ctx.save();
+    ctx.font = "10px sans-serif";
+
+    const padding = 4;
+    const margin = 2;
+    const textWidth = ctx.measureText(text).width;
+
+    const w = textWidth + padding * 2;
+    const h = 14;
+    const r = 4;
+
+    const x = (node.size[0] - w) / 2;
+    const y = node.size[1] + margin;
+
+    ctx.fillStyle =
+        node.color || LiteGraph.NODE_DEFAULT_COLOR;
+
+    rounded_rect(ctx, x, y, w, h, r);
+    ctx.fill();
+
+    ctx.fillStyle = LiteGraph.NODE_TITLE_COLOR;
+    ctx.fillText(text, x + padding, y + h - 4);
+
+    ctx.restore();
+}
+
+function rounded_rect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
