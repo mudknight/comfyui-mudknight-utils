@@ -12,8 +12,9 @@ from pathlib import Path
 from . import common
 
 USAGE_FILE = Path(__file__).parent / "config" / "tag_usage.json"
-
-SETTINGS_FILE = Path(__file__).parent / "config" / "autocomplete_settings.json"
+SETTINGS_FILE = (
+    Path(__file__).parent / "config" / "autocomplete_settings.json"
+)
 
 
 def load_autocomplete_settings():
@@ -61,7 +62,6 @@ def increment_tag_usage(tags_dict):
     usage = load_tag_usage()
 
     for tag in tags_dict.keys():
-        # Normalize: remove escape backslashes, lowercase, replace spaces
         normalized = tag.replace('\\(', '(').replace('\\)', ')')
         normalized = normalized.lower().replace(' ', '_')
         usage[normalized] = usage.get(normalized, 0) + 1
@@ -87,7 +87,6 @@ def parse_lora_syntax(lora_string):
     if not lora_string or not lora_string.strip():
         return []
 
-    # Pattern matches <lora:name:strength> or <lora:name:model:clip>
     pattern = r'<lora:([^:>]+):([0-9.-]+)(?::([0-9.-]+))?\s*>'
     matches = re.findall(pattern, lora_string, re.IGNORECASE)
 
@@ -95,14 +94,7 @@ def parse_lora_syntax(lora_string):
     for match in matches:
         lora_name = match[0].strip()
         model_strength = float(match[1])
-
-        # If third group exists, use it for clip strength
-        # Otherwise, use model strength for both
-        if match[2]:
-            clip_strength = float(match[2])
-        else:
-            clip_strength = model_strength
-
+        clip_strength = float(match[2]) if match[2] else model_strength
         lora_list.append((lora_name, model_strength, clip_strength))
 
     return lora_list
@@ -118,17 +110,16 @@ def apply_loras(model, clip, lora_list):
 
     model_lora = model
     clip_lora = clip
-
-    # Get all available LoRAs in the lora directory (incl. subfolders)
     available_loras = folder_paths.get_filename_list("loras")
 
     for lora_name, strength_model, strength_clip in lora_list:
         try:
-            # Ensure the filename has the extension for comparison
             ext = ".safetensors"
-            s_name = lora_name if lora_name.endswith(ext) else lora_name + ext
+            s_name = (
+                lora_name if lora_name.endswith(ext)
+                else lora_name + ext
+            )
 
-            # Find the relative path by matching the base filename
             full_rel_path = next(
                 (p for p in available_loras if p.endswith(s_name)),
                 None
@@ -138,21 +129,13 @@ def apply_loras(model, clip, lora_list):
                 print(f"Warning: LoRA '{lora_name}' not found.")
                 continue
 
-            # Load LoRA file using the discovered relative path
             lora_path = folder_paths.get_full_path("loras", full_rel_path)
-
             if lora_path is None:
                 continue
 
             lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
-
-            # Apply LoRA to model and clip
             model_lora, clip_lora = comfy.sd.load_lora_for_models(
-                model_lora,
-                clip_lora,
-                lora,
-                strength_model,
-                strength_clip
+                model_lora, clip_lora, lora, strength_model, strength_clip
             )
         except Exception as e:
             print(f"Error loading LoRA '{lora_name}': {e}")
@@ -161,89 +144,58 @@ def apply_loras(model, clip, lora_list):
     return model_lora, clip_lora
 
 
-def extract_loras(prompt):
+def extract_syntax(prompt, pattern, empty_return):
     """
-    Extract LoRA syntax from prompt and return cleaned prompt.
-    Preserves complete LoRA syntax including filenames and weights.
+    Generic function to extract and remove syntax patterns from prompt.
 
     Args:
-        prompt: Prompt string potentially containing LoRA syntax
+        prompt: Prompt string
+        pattern: Regex pattern to match
+        empty_return: Value to return if prompt is empty
 
     Returns:
-        Tuple of (cleaned_prompt, lora_syntax_string)
+        Tuple of (cleaned_prompt, extracted_items)
     """
     if not prompt:
-        return "", ""
+        return "", empty_return
 
-    # Match LoRA syntax like <lora:filename.safetensors:weight>
-    lora_pattern = r'<lora:[^>]+>'
-    loras = re.findall(lora_pattern, prompt)
-
-    # Remove LoRAs from prompt (but keep spacing clean)
-    cleaned = re.sub(lora_pattern, '', prompt)
-    # Clean up any double commas or spaces left behind
+    items = re.findall(pattern, prompt)
+    cleaned = re.sub(pattern, '', prompt)
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
 
-    # Join LoRAs with commas (no spaces needed, exact preservation)
-    lora_syntax = ','.join(loras) if loras else ""
+    return cleaned.strip(), items
 
-    return cleaned.strip(), lora_syntax
+
+def extract_loras(prompt):
+    """Extract LoRA syntax from prompt."""
+    cleaned, loras = extract_syntax(
+        prompt,
+        r'<lora:[^>]+>',
+        ""
+    )
+    return cleaned, ','.join(loras) if loras else ""
 
 
 def extract_embeddings(prompt):
-    """
-    Extract embedding syntax from prompt and return cleaned prompt.
-    Preserves complete embedding syntax including capitalization.
-    Embeddings can be in format: embedding:name or (embedding:name)
-
-    Args:
-        prompt: Prompt string potentially containing embedding syntax
-
-    Returns:
-        Tuple of (cleaned_prompt, list_of_embeddings)
-    """
-    if not prompt:
-        return "", []
-
-    # Match embedding syntax like embedding:Name or (embedding:Name)
-    embedding_pattern = r'\(?embedding:([^,)]+)\)?'
-    embeddings = re.findall(embedding_pattern, prompt)
-
-    # Remove embeddings from prompt (but keep spacing clean)
-    cleaned = re.sub(embedding_pattern, '', prompt)
-    # Clean up any double commas or spaces left behind
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
-
-    # Return embeddings as list, preserving capitalization
-    return cleaned.strip(), embeddings
+    """Extract embedding syntax from prompt."""
+    return extract_syntax(
+        prompt,
+        r'\(?embedding:([^,)]+)\)?',
+        []
+    )
 
 
 def extract_character_triggers(prompt):
-    """
-    Extract character: triggers from prompt and return cleaned prompt.
-
-    Syntax:
-    - character:name - character only, no outfit
-    - character:name:outfit - character + full outfit (top + bottom)
-    - character:name:outfit:part - character + specific outfit part
-
-    Args:
-        prompt: Prompt string potentially containing character: syntax
-
-    Returns:
-        Tuple of (cleaned_prompt, list_of_character_specs)
-        where character_specs are tuples of (name, outfit, part)
-        outfit and part are None if not specified
-    """
+    """Extract character: triggers from prompt."""
     if not prompt:
         return "", []
 
-    # Match character:name[:outfit[:part]]
-    pattern = (r'character:([^:,\n]+)'
-               r'(?::([^:,\n]+)(?::([^,\n]+?))?)?'
-               r'(?=\s*(?:,|\n|$))')
+    pattern = (
+        r'character:([^:,\n]+)'
+        r'(?::([^:,\n]+)(?::([^,\n]+?))?)?'
+        r'(?=\s*(?:,|\n|$))'
+    )
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     characters = []
@@ -252,13 +204,11 @@ def extract_character_triggers(prompt):
         outfit = match.group(2).strip() if match.group(2) else None
         part = match.group(3).strip().lower() if match.group(3) else None
 
-        # Validate part if provided
         if part and part not in ['top', 'bottom']:
             part = None
 
         characters.append((name, outfit, part))
 
-    # Remove triggers from prompt
     cleaned = re.sub(
         r'character:[^:,\n]+(?::[^:,\n]+(?::(?:top|bottom))?)?'
         r'(?=\s*(?:,|\n|$))',
@@ -266,7 +216,6 @@ def extract_character_triggers(prompt):
         prompt,
         flags=re.IGNORECASE
     )
-    # Clean up any double commas or spaces left behind
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
 
@@ -274,94 +223,30 @@ def extract_character_triggers(prompt):
 
 
 def extract_tag_triggers(prompt):
-    """
-    Extract tag: triggers from prompt and return cleaned prompt.
-
-    Args:
-        prompt: Prompt string potentially containing tag: syntax
-
-    Returns:
-        Tuple of (cleaned_prompt, list_of_tag_names)
-    """
+    """Extract tag: triggers from prompt."""
     if not prompt:
         return "", []
 
-    # Match tag:name syntax (including spaces and escaped parens)
-    # Stops at comma or newline
     pattern = r'tag:([^,\n]+?)(?=\s*(?:,|\n|$))'
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
-    tags = []
-    for match in matches:
-        name = match.group(1).strip()
-        tags.append(name)
+    tags = [match.group(1).strip() for match in matches]
 
-    # Remove triggers from prompt
     cleaned = re.sub(
-            r'tag:[^,\n]+?(?=\s*(?:,|\n|$))',
-            '',
-            prompt,
-            flags=re.IGNORECASE
-            )
-    # Clean up any double commas or spaces left behind
+        r'tag:[^,\n]+?(?=\s*(?:,|\n|$))',
+        '',
+        prompt,
+        flags=re.IGNORECASE
+    )
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
 
     return cleaned.strip(), tags
 
 
-def extract_outfit_triggers(prompt):
-    """
-    Extract outfit: triggers from prompt and return cleaned prompt.
-
-    Args:
-        prompt: Prompt string potentially containing outfit: syntax
-
-    Returns:
-        Tuple of (cleaned_prompt, list_of_outfit_specs)
-        where outfit_specs are tuples of (character_name, outfit_type)
-    """
-    if not prompt:
-        return "", []
-
-    # Match outfit:character_name:type syntax
-    # type can be 'top', 'bottom', or 'full'
-    pattern = r'outfit:([^:,\n]+):([^,\n]+?)(?=\s*(?:,|\n|$))'
-    matches = re.finditer(pattern, prompt, re.IGNORECASE)
-
-    outfits = []
-    for match in matches:
-        char_name = match.group(1).strip()
-        outfit_type = match.group(2).strip().lower()
-        if outfit_type in ['top', 'bottom', 'full']:
-            outfits.append((char_name, outfit_type))
-
-    # Remove triggers from prompt
-    cleaned = re.sub(
-            r'outfit:[^:,\n]+:[^,\n]+?(?=\s*(?:,|\n|$))',
-            '',
-            prompt,
-            flags=re.IGNORECASE
-            )
-    # Clean up any double commas or spaces left behind
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
-
-    return cleaned.strip(), outfits
-
-
 def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     """
     Parse prompt string into dictionary of {tag: weight}.
-
-    Handles multiple tags in one weight group like (tag1, tag2:1.3).
-
-    Args:
-        prompt: Comma-separated prompt string
-        preserve_embeddings: List of embedding names to preserve casing
-
-    Returns:
-        Dictionary mapping base tag names to their weight strings
     """
     if not prompt:
         return {}
@@ -369,11 +254,9 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     tag_dict = {}
     preserve_set = set()
 
-    # Build set of lowercase embeddings for comparison
     if preserve_embeddings:
         preserve_set = {emb.lower() for emb in preserve_embeddings}
 
-    # Split by commas, but we need to handle nested parentheses
     parts = []
     current = ""
     paren_depth = 0
@@ -394,46 +277,34 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     if current.strip():
         parts.append(current.strip())
 
-    # Process each part
     for part in parts:
         if not part:
             continue
 
-        # Check if it's a weighted group like (tag1, tag2:1.3)
         match = re.match(r'\(+([^)]+):([0-9.]+)\)+', part)
         if match:
-            # Multiple tags with shared weight
             inner_tags = match.group(1)
             weight = match.group(2)
 
-            # Split inner tags by comma
             for inner_tag in inner_tags.split(','):
                 tag_name = inner_tag.strip()
                 tag_lower = tag_name.lower()
-                # Preserve capitalization for embeddings
                 if tag_lower not in preserve_set:
                     tag_name = tag_lower
                 if tag_name:
                     tag_dict[tag_name] = weight
         else:
-            # Check for single weighted tag like (tag:1.3)
-            single_match = re.match(
-                r'\(+([^:()]+):([0-9.]+)\)+',
-                part
-            )
+            single_match = re.match(r'\(+([^:()]+):([0-9.]+)\)+', part)
             if single_match:
                 tag_name = single_match.group(1).strip()
                 weight = single_match.group(2)
                 tag_lower = tag_name.lower()
-                # Preserve capitalization for embeddings
                 if tag_lower not in preserve_set:
                     tag_name = tag_lower
                 tag_dict[tag_name] = weight
             else:
-                # Unweighted tag
                 tag_name = part.strip()
                 tag_lower = tag_name.lower()
-                # Preserve capitalization for embeddings
                 if tag_lower not in preserve_set:
                     tag_name = tag_lower
                 if tag_name:
@@ -443,15 +314,7 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
 
 
 def reconstruct_prompt_from_dict(tag_dict):
-    """
-    Reconstruct prompt string from tag dictionary.
-
-    Args:
-        tag_dict: Dictionary mapping tag names to weights
-
-    Returns:
-        Comma-separated prompt string with weighted tags
-    """
+    """Reconstruct prompt string from tag dictionary."""
     if not tag_dict:
         return ""
 
@@ -466,16 +329,7 @@ def reconstruct_prompt_from_dict(tag_dict):
 
 
 def deduplicate_negative_dicts(positive_tags, negative_dicts):
-    """
-    Remove tags from negative dicts if they appear in positive tags.
-
-    Args:
-        positive_tags: Set of positive tag names (lowercase)
-        negative_dicts: List of tag dictionaries for negative prompts
-
-    Returns:
-        List of deduplicated tag dictionaries
-    """
+    """Remove tags from negative dicts if they appear in positive tags."""
     deduplicated = []
 
     for neg_dict in negative_dicts:
@@ -496,7 +350,6 @@ class PromptConditioningNode:
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Get style list from StylePresetNode
         from nodes import NODE_CLASS_MAPPINGS
         style_preset_cls = NODE_CLASS_MAPPINGS.get("StylePresetNode")
 
@@ -504,7 +357,6 @@ class PromptConditioningNode:
             style_inputs = style_preset_cls.INPUT_TYPES()
             style_list = style_inputs["required"]["style"][0]
         else:
-            # Fallback if node not found
             style_list = ["none"]
 
         return {
@@ -512,50 +364,20 @@ class PromptConditioningNode:
                 "full_pipe": ("FULL_PIPE",),
             },
             "optional": {
-                "trigger_words": ("STRING", {
-                    "forceInput": True
-                }),
-                "style": (style_list, {
-                    "default": "none",
-                    "tooltip": (
-                        "Select style preset from conifg/styles.jsonc"
-                    )
-                }),
-                "quality_tags": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Enable quality tags defined in "
-                        "config/models.jsonc"
-                    )
-                }),
-                "embeddings": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Enable embeddings defined in "
-                        "config/models.jsonc"
-                    )
-                }),
-                "character_presets": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": ("Enable character presets")
-                }),
+                "trigger_words": ("STRING", {"forceInput": True}),
+                "style": (style_list, {"default": "none"}),
+                "quality_tags": ("BOOLEAN", {"default": True}),
+                "embeddings": ("BOOLEAN", {"default": True}),
+                "character_presets": ("BOOLEAN", {"default": True}),
                 "positive": ("STRING", {
                     "multiline": True,
-                    "default": "",
-                    "tooltip": "Positive prompt"
+                    "default": ""
                 }),
                 "negative": ("STRING", {
                     "multiline": True,
-                    "default": "",
-                    "tooltip": "Negative prompt"
+                    "default": ""
                 }),
-                "deduplicate_tags": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Remove tags from negative prompt that appear "
-                        "in positive prompt"
-                    )
-                }),
+                "deduplicate_tags": ("BOOLEAN", {"default": True}),
             }
         }
 
@@ -563,7 +385,6 @@ class PromptConditioningNode:
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
     CATEGORY = "custom/conditioning"
-    DESCRIPTION = "Add multi-string conditioning prompt to full pipe"
 
     def process(
         self,
@@ -577,22 +398,14 @@ class PromptConditioningNode:
         negative="",
         deduplicate_tags=True
     ):
-        # Extract pipe components
         model = full_pipe.get("model")
         clip = full_pipe.get("clip")
         ckpt_name = full_pipe.get("ckpt_name", "")
 
-        # Remove comments
         positive = common.strip_comments(positive)
         negative = common.strip_comments(negative)
 
-        # Extract LoRAs and embeddings from user prompts
-        positive, positive_loras = extract_loras(positive)
-        negative, _ = extract_loras(negative)
-        positive, positive_embeds = extract_embeddings(positive)
-        negative, negative_embeds = extract_embeddings(negative)
-
-        # Get model preset quality tags
+        # Get preset outputs
         model_preset_node = common.Node("ModelPresetNode")
         quality_pos, quality_neg = model_preset_node.function(
             ckpt_name=ckpt_name,
@@ -600,124 +413,29 @@ class PromptConditioningNode:
             embeddings=embeddings
         )
 
-        # Extract LoRAs and embeddings from quality tags
-        quality_pos, quality_pos_loras = extract_loras(quality_pos)
-        quality_neg, _ = extract_loras(quality_neg)
-        quality_pos, quality_pos_embeds = extract_embeddings(quality_pos)
-        quality_neg, quality_neg_embeds = extract_embeddings(quality_neg)
-
-        # Get style preset tags
         style_preset_node = common.Node("StylePresetNode")
         style_pos, style_neg = style_preset_node.function(style=style)
 
-        # Extract LoRAs and embeddings from style tags
-        style_pos, style_pos_loras = extract_loras(style_pos)
-        style_neg, _ = extract_loras(style_neg)
-        style_pos, style_pos_embeds = extract_embeddings(style_pos)
-        style_neg, style_neg_embeds = extract_embeddings(style_neg)
-
-        # Extract LoRAs and embeddings from trigger words
-        trigger_words_clean, trigger_loras = extract_loras(trigger_words)
-        trigger_words_clean, trigger_embeds = extract_embeddings(
-            trigger_words_clean
-        )
-
-        # Extract character and tag triggers
-        prompt, character_triggers = extract_character_triggers(positive)
-        prompt, tag_triggers = extract_tag_triggers(prompt)
-
         # Process character triggers
-        char_pos_parts = []
-        char_neg_parts = []
-
-        if character_presets and character_triggers:
-            from nodes import NODE_CLASS_MAPPINGS
-            character_preset_node = NODE_CLASS_MAPPINGS.get(
-                "CharacterPresetNode"
-            )
-            if character_preset_node:
-                for char_name, outfit, part in character_triggers:
-                    # Remove underscores, restore spaces for lookup
-                    lookup_name = char_name.replace('_', ' ')
-                    # Load character data
-                    char_instance = character_preset_node()
-
-                    # Determine which outfit parts to include
-                    if outfit is None:
-                        # No outfit specified - character only
-                        use_top, use_bottom = False, False
-                    elif part == 'top':
-                        # Specific part requested
-                        use_top, use_bottom = True, False
-                    elif part == 'bottom':
-                        use_top, use_bottom = False, True
-                    else:
-                        # Full outfit (default when outfit specified)
-                        use_top, use_bottom = True, True
-
-                    pos, neg = char_instance.select_character(
-                        lookup_name, use_top, use_bottom
-                    )
-                    if pos:
-                        char_pos_parts.append(pos)
-                    if neg:
-                        char_neg_parts.append(neg)
-
-        char_pos = ", ".join(char_pos_parts)
-        char_neg = ", ".join(char_neg_parts)
-
-        # Process tag triggers by feeding them through TagPresetNode
-        tag_preset_pos = ""
-        tag_preset_neg = ""
-
-        if tag_triggers:
-            # Join all tag names with commas to create input for TagPresetNode
-            tag_names_text = ", ".join(
-                tag_name.replace('_', ' ') for tag_name in tag_triggers
-            )
-            tag_preset_node = common.Node("TagPresetNode")
-            tag_preset_pos, tag_preset_neg = tag_preset_node.function(
-                text=tag_names_text
-            )
-
-        # Extract LoRAs and embeddings from character tags
-        prompt, prompt_loras = extract_loras(prompt)
-        char_pos, char_pos_loras = extract_loras(char_pos)
-        char_neg, _ = extract_loras(char_neg)
-        prompt, prompt_embeds = extract_embeddings(prompt)
-        char_pos, char_pos_embeds = extract_embeddings(char_pos)
-        char_neg, char_neg_embeds = extract_embeddings(char_neg)
-
-        # Extract LoRAs and embeddings from tag preset results
-        tag_preset_pos, tag_preset_pos_loras = extract_loras(
-            tag_preset_pos
-        )
-        tag_preset_neg, _ = extract_loras(tag_preset_neg)
-        tag_preset_pos, tag_preset_pos_embeds = extract_embeddings(
-            tag_preset_pos
-        )
-        tag_preset_neg, tag_preset_neg_embeds = extract_embeddings(
-            tag_preset_neg
+        prompt, character_triggers = extract_character_triggers(positive)
+        char_pos, char_neg = self._process_character_triggers(
+            character_triggers,
+            character_presets
         )
 
-        # Collect all embeddings to preserve their capitalization
-        all_embeddings = (
-            positive_embeds + negative_embeds +
-            quality_pos_embeds + quality_neg_embeds +
-            style_pos_embeds + style_neg_embeds +
-            trigger_embeds +
-            char_pos_embeds + char_neg_embeds +
-            prompt_embeds +
-            tag_preset_pos_embeds + tag_preset_neg_embeds
+        # Process tag triggers
+        prompt, tag_triggers = extract_tag_triggers(prompt)
+        tag_preset_pos, tag_preset_neg = self._process_tag_triggers(
+            tag_triggers
         )
 
-        # Define prompt sources for processing
-        prompt_sources = {
+        # Define all text sources
+        text_sources = {
             'quality_pos': quality_pos,
             'quality_neg': quality_neg,
             'style_pos': style_pos,
             'style_neg': style_neg,
-            'trigger': trigger_words_clean,
+            'trigger': trigger_words,
             'char_pos': char_pos,
             'char_neg': char_neg,
             'tag_preset_pos': tag_preset_pos,
@@ -726,109 +444,41 @@ class PromptConditioningNode:
             'prompt_neg': negative
         }
 
-        # Parse all prompts into tag dictionaries
+        # Extract LoRAs and embeddings from all sources
+        cleaned_sources, all_loras, all_embeddings = (
+            self._extract_all_syntax(text_sources)
+        )
+
+        # Parse into tag dictionaries
         tag_dicts = {
             key: parse_prompt_to_dict(value, all_embeddings)
-            for key, value in prompt_sources.items()
+            for key, value in cleaned_sources.items()
         }
 
-        # Combine all positive tags into one set for comparison
-        positive_keys = [
-            'quality_pos',
-            'style_pos',
-            'trigger',
-            'char_pos',
-            'tag_preset_pos',
-            'prompt_pos'
-        ]
-
-        all_positive_tags = set()
-        for key in positive_keys:
-            all_positive_tags.update(
-                tag.lower() for tag in tag_dicts[key].keys()
-            )
-
-        # Track tag usage for autocomplete
-        if should_collect_tag_usage():
-            try:
-                all_tags_used = {}
-                for key in positive_keys:
-                    all_tags_used.update(tag_dicts[key])
-                increment_tag_usage(all_tags_used)
-            except Exception as e:
-                # Don't fail the node if usage tracking fails
-                print(f"Tag usage tracking error: {e}")
-
-        # Deduplicate negative prompts if enabled
+        # Deduplicate negatives
         if deduplicate_tags:
-            negative_keys = [
-                'quality_neg',
-                'style_neg',
-                'char_neg',
-                'tag_preset_neg',
-                'prompt_neg'
-            ]
+            tag_dicts = self._deduplicate_negatives(tag_dicts)
 
-            negative_dicts = [tag_dicts[key] for key in negative_keys]
-            deduped_neg_dicts = deduplicate_negative_dicts(
-                all_positive_tags,
-                negative_dicts
-            )
+        # Track usage
+        if should_collect_tag_usage():
+            self._track_usage(tag_dicts)
 
-            # Update tag_dicts with deduplicated versions
-            for key, deduped_dict in zip(negative_keys, deduped_neg_dicts):
-                tag_dicts[key] = deduped_dict
-
-        # Reconstruct prompts from dictionaries
+        # Reconstruct prompts
         reconstructed = {
             key: reconstruct_prompt_from_dict(value)
             for key, value in tag_dicts.items()
         }
 
-        # Build positive conditioning
-        multi_string_pos = common.Node("MultiStringConditioning")
-        pos_cond, pos_text, lora_syntax = multi_string_pos.function(
-            clip=clip,
-            quality=reconstructed['quality_pos'],
-            style=reconstructed['style_pos'],
-            trigger=reconstructed['trigger'],
-            character=reconstructed['char_pos'],
-            prompt=reconstructed['tag_preset_pos'] + (
-                ', ' if reconstructed['tag_preset_pos'] else ''
-            ) + reconstructed['prompt_pos']
+        # Build conditioning
+        pos_cond, pos_text, neg_cond, neg_text = (
+            self._build_conditioning(clip, reconstructed)
         )
 
-        # Combine all extracted LoRAs
-        all_loras = [
-            positive_loras,
-            quality_pos_loras,
-            style_pos_loras,
-            trigger_loras,
-            char_pos_loras,
-            tag_preset_pos_loras,
-            prompt_loras,
-            lora_syntax
-        ]
-        combined_loras = ','.join(l for l in all_loras if l)
-
-        # Build negative conditioning
-        multi_string_neg = common.Node("MultiStringConditioning")
-        neg_cond, neg_text, _ = multi_string_neg.function(
-            clip=clip,
-            quality=reconstructed['quality_neg'],
-            style=reconstructed['style_neg'],
-            trigger="",
-            character=reconstructed['char_neg'],
-            prompt=reconstructed['tag_preset_neg'] + (
-                ', ' if reconstructed['tag_preset_neg'] else ''
-            ) + reconstructed['prompt_neg']
-        )
-
-        # Parse and apply LoRAs directly
+        # Apply LoRAs
+        combined_loras = ','.join(filter(None, all_loras))
         lora_list = parse_lora_syntax(combined_loras)
         model_out, clip_out = apply_loras(model, clip, lora_list)
 
-        # Create updated pipe
         new_pipe = full_pipe.copy()
         new_pipe.update({
             "model": model_out,
@@ -841,8 +491,152 @@ class PromptConditioningNode:
 
         return (new_pipe,)
 
+    def _process_character_triggers(self, triggers, enabled):
+        """Process character triggers and return positive/negative strings."""
+        if not enabled or not triggers:
+            return "", ""
 
-# Node registration
+        from nodes import NODE_CLASS_MAPPINGS
+        character_preset_node = NODE_CLASS_MAPPINGS.get(
+            "CharacterPresetNode"
+        )
+        if not character_preset_node:
+            return "", ""
+
+        char_pos_parts = []
+        char_neg_parts = []
+
+        for char_name, outfit, part in triggers:
+            lookup_name = char_name.replace('_', ' ')
+            char_instance = character_preset_node()
+
+            if outfit is None:
+                use_top, use_bottom = False, False
+            elif part == 'top':
+                use_top, use_bottom = True, False
+            elif part == 'bottom':
+                use_top, use_bottom = False, True
+            else:
+                use_top, use_bottom = True, True
+
+            pos, neg = char_instance.select_character(
+                lookup_name, use_top, use_bottom
+            )
+            if pos:
+                char_pos_parts.append(pos)
+            if neg:
+                char_neg_parts.append(neg)
+
+        return ", ".join(char_pos_parts), ", ".join(char_neg_parts)
+
+    def _process_tag_triggers(self, triggers):
+        """Process tag triggers and return positive/negative strings."""
+        if not triggers:
+            return "", ""
+
+        tag_names_text = ", ".join(
+            tag_name.replace('_', ' ') for tag_name in triggers
+        )
+        tag_preset_node = common.Node("TagPresetNode")
+        return tag_preset_node.function(text=tag_names_text)
+
+    def _extract_all_syntax(self, text_sources):
+        """
+        Extract LoRAs and embeddings from all text sources.
+
+        Returns:
+            Tuple of (cleaned_sources, lora_list, embedding_list)
+        """
+        cleaned = {}
+        loras = []
+        embeddings = []
+
+        for key, text in text_sources.items():
+            text, lora_str = extract_loras(text)
+            text, embeds = extract_embeddings(text)
+
+            cleaned[key] = text
+            if lora_str:
+                loras.append(lora_str)
+            embeddings.extend(embeds)
+
+        return cleaned, loras, embeddings
+
+    def _deduplicate_negatives(self, tag_dicts):
+        """Deduplicate negative prompts against positives."""
+        positive_keys = [
+            'quality_pos', 'style_pos', 'trigger',
+            'char_pos', 'tag_preset_pos', 'prompt_pos'
+        ]
+        negative_keys = [
+            'quality_neg', 'style_neg', 'char_neg',
+            'tag_preset_neg', 'prompt_neg'
+        ]
+
+        all_positive_tags = set()
+        for key in positive_keys:
+            all_positive_tags.update(
+                tag.lower() for tag in tag_dicts[key].keys()
+            )
+
+        negative_dicts = [tag_dicts[key] for key in negative_keys]
+        deduped_neg_dicts = deduplicate_negative_dicts(
+            all_positive_tags,
+            negative_dicts
+        )
+
+        for key, deduped_dict in zip(negative_keys, deduped_neg_dicts):
+            tag_dicts[key] = deduped_dict
+
+        return tag_dicts
+
+    def _track_usage(self, tag_dicts):
+        """Track tag usage for autocomplete."""
+        try:
+            positive_keys = [
+                'quality_pos', 'style_pos', 'trigger',
+                'char_pos', 'tag_preset_pos', 'prompt_pos'
+            ]
+            all_tags_used = {}
+            for key in positive_keys:
+                all_tags_used.update(tag_dicts[key])
+            increment_tag_usage(all_tags_used)
+        except Exception as e:
+            print(f"Tag usage tracking error: {e}")
+
+    def _build_conditioning(self, clip, reconstructed):
+        """Build positive and negative conditioning."""
+        multi_string_pos = common.Node("MultiStringConditioning")
+        pos_cond, pos_text, lora_syntax = multi_string_pos.function(
+            clip=clip,
+            quality=reconstructed['quality_pos'],
+            style=reconstructed['style_pos'],
+            trigger=reconstructed['trigger'],
+            character=reconstructed['char_pos'],
+            prompt=(
+                reconstructed['tag_preset_pos'] +
+                (', ' if reconstructed['tag_preset_pos'] else '') +
+                reconstructed['prompt_pos']
+            )
+        )
+
+        multi_string_neg = common.Node("MultiStringConditioning")
+        neg_cond, neg_text, _ = multi_string_neg.function(
+            clip=clip,
+            quality=reconstructed['quality_neg'],
+            style=reconstructed['style_neg'],
+            trigger="",
+            character=reconstructed['char_neg'],
+            prompt=(
+                reconstructed['tag_preset_neg'] +
+                (', ' if reconstructed['tag_preset_neg'] else '') +
+                reconstructed['prompt_neg']
+            )
+        )
+
+        return pos_cond, pos_text, neg_cond, neg_text
+
+
 NODE_CLASS_MAPPINGS = {
     "PromptConditioningNode": PromptConditioningNode
 }

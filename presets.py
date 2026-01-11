@@ -181,24 +181,43 @@ def load_cached_data(
                 'data', default_data if default_data is not None else {})
 
 
-class CharacterPresetNode:
-    """
-    A ComfyUI node for selecting pre-defined characters with optional default
-    outfits. Character data is loaded from an external JSONC file.
-    """
+class PresetNodeBase:
+    """Base class for preset nodes with common JSONC loading logic."""
 
-    # Class variable to cache loaded characters
     _cache = {}
+    JSON_PATH = None  # Override in subclasses
+    DEFAULT_DATA = None  # Override in subclasses
 
-    # Path to the JSONC file (relative to this script)
+    @classmethod
+    def load_data(cls):
+        """Load and cache preset data."""
+        return load_cached_data(
+            cls.JSON_PATH,
+            cls._cache,
+            'mtime',
+            cls.DEFAULT_DATA
+        )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        """Return file modification time for cache invalidation."""
+        try:
+            return os.path.getmtime(cls.JSON_PATH)
+        except:
+            return float("nan")
+
+
+class CharacterPresetNode(PresetNodeBase):
+    """Character preset node - outputs only strings."""
+
     JSON_PATH = os.path.join(
-            os.path.dirname(__file__), "config", "characters.jsonc")
+        os.path.dirname(__file__), "config", "characters.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_CHARACTERS
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Load characters to get latest data
-        characters = load_cached_data(
-                cls.JSON_PATH, cls._cache, 'mtime', DEFAULT_CHARACTERS)
+        characters = cls.load_data()
         character_list = ["none"] + sorted(list(characters.keys()))
 
         return {
@@ -207,9 +226,7 @@ class CharacterPresetNode:
                 "use_default_outfit": ("BOOLEAN", {"default": True}),
                 "use_bottom": ("BOOLEAN", {"default": True}),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -217,77 +234,45 @@ class CharacterPresetNode:
     FUNCTION = "select_character"
     CATEGORY = "conditioning"
 
-    @classmethod
-    def IS_CHANGED(
-            cls, character, use_default_outfit, use_bottom, unique_id=None):
-        """
-        Return the file modification time to invalidate cache
-        when file changes.
-        """
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
-
     def select_character(
-            self, character, use_default_outfit, use_bottom, unique_id=None):
-        """
-        Combines character tags with outfit tags based on selection.
-
-        Args:
-            character: Selected character name or "none"
-            use_default_outfit: Whether to include the outfit top tags
-            use_bottom: Whether to include the outfit bottom tags (only
-                applies if use_default_outfit is True)
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing the positive tags and negative tags
-        """
+        self, character, use_default_outfit, use_bottom, unique_id=None
+    ):
         if character == "none":
             return ("", "")
 
-        # Reload character data to ensure we have the latest values
-        characters = load_cached_data(
-                self.JSON_PATH, self.__class__._cache,
-                'mtime', DEFAULT_CHARACTERS)
-
+        characters = self.load_data()
         if character not in characters:
             return ("", "")
 
         char_data = characters[character]
 
-        # Get character tags (required field)
         character_tags = char_data.get("character", "")
-
-        # Get outfit parts (optional fields)
         top = char_data.get("top", "") if use_default_outfit else ""
-        bottom = char_data.get("bottom", "") if (
-                use_default_outfit and use_bottom) else ""
-
-        # Get negative tags (optional field)
+        bottom = (
+            char_data.get("bottom", "")
+            if (use_default_outfit and use_bottom)
+            else ""
+        )
         negative_tags = char_data.get("neg", "")
 
-        # Build positive tags
-        positive_tags = ", ".join(filter(None, [character_tags, top, bottom]))
+        positive_tags = ", ".join(
+            filter(None, [character_tags, top, bottom])
+        )
 
         return (positive_tags, negative_tags)
 
 
-class CharacterReplacementNode:
+class CharacterReplacementNode(PresetNodeBase):
     """
     A ComfyUI node that replaces tags from a multiline string input based on
     a JSONC mapping file. Matched tags are output to character outputs, while
     unmatched tags go to the prompt output.
     """
 
-    # Class variable to cache loaded mappings
-    _cache = {}
-
-    # Path to the JSONC file (relative to this script)
     JSON_PATH = os.path.join(
-            os.path.dirname(__file__), "config", "characters.jsonc")
+        os.path.dirname(__file__), "config", "characters.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_CHARACTERS
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -298,9 +283,7 @@ class CharacterReplacementNode:
                     "default": ""
                 }),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING", "STRING")
@@ -308,46 +291,17 @@ class CharacterReplacementNode:
     FUNCTION = "process_tags"
     CATEGORY = "conditioning"
 
-    @classmethod
-    def IS_CHANGED(cls, input_tags, unique_id=None):
-        """
-        Return the file modification time to invalidate cache
-        when file changes.
-        """
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
-
     def process_tags(self, input_tags, unique_id=None):
-        """
-        Processes input tags by splitting at commas and replacing any that
-        match keys in the JSONC mapping file.
-
-        Args:
-            input_tags: Multiline string containing comma-separated tags
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing (prompt, character_pos, character_neg)
-        """
         if not input_tags.strip():
-            return ("", "", "", "")
+            return ("", "", "")
 
-        # Reload mapping data to ensure we have the latest values
-        mappings = load_cached_data(
-                self.JSON_PATH, self.__class__._cache, 'mtime', {})
-
-        # Split tags at commas and strip whitespace
+        mappings = self.load_data()
         tags = [tag.strip() for tag in input_tags.split(',') if tag.strip()]
 
-        # Lists to hold categorized tags
         prompt_tags = []
         character_pos_parts = []
         character_neg_parts = []
 
-        # Track which outfit parts to include
         include_top = False
         include_bottom = False
 
@@ -361,22 +315,17 @@ class CharacterReplacementNode:
         # Second pass: process all tags
         for tag in tags:
             if tag in mappings:
-                # Tag matched a key in the JSONC
                 char_data = mappings[tag]
 
-                # Extract character data (matching CharacterPresetNode format)
                 if isinstance(char_data, dict):
-                    # Get character tags (positive)
                     character_tags = char_data.get("character", "")
                     if character_tags:
                         character_pos_parts.append(character_tags)
 
-                    # Get negative tags
                     neg_tags = char_data.get("neg", "")
                     if neg_tags:
                         character_neg_parts.append(neg_tags)
 
-                    # Include outfit tags if requested
                     if include_top:
                         top = char_data.get("top", "")
                         if top:
@@ -388,38 +337,27 @@ class CharacterReplacementNode:
                             character_pos_parts.append(bottom)
 
                 elif isinstance(char_data, str):
-                    # Simple string mapping goes to positive
                     character_pos_parts.append(char_data)
 
-            elif tag == "top" or tag == "bottom":
-                # These are outfit flags, don't add to prompt
+            elif tag in ("top", "bottom"):
                 continue
             else:
-                # Tag didn't match, goes to prompt
                 prompt_tags.append(tag)
 
-        # Join tags with commas
-        prompt_output = ", ".join(prompt_tags)
-        character_pos_output = ", ".join(character_pos_parts)
-        character_neg_output = ", ".join(character_neg_parts)
-
         return (
-                prompt_output, character_pos_output,
-                character_neg_output)
+            ", ".join(prompt_tags),
+            ", ".join(character_pos_parts),
+            ", ".join(character_neg_parts)
+        )
 
 
-class ModelPresetNode:
-    """
-    A ComfyUI node for selecting model-specific quality tags and embeddings.
-    Configuration is loaded from an external JSONC file.
-    """
+class ModelPresetNode(PresetNodeBase):
+    """Model preset node - outputs only strings."""
 
-    # Class variable to cache loaded config
-    _cache = {}
-
-    # Path to the JSONC file (relative to this script)
     JSON_PATH = os.path.join(
-            os.path.dirname(__file__), "config", "models.jsonc")
+        os.path.dirname(__file__), "config", "models.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_MODELS
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -429,9 +367,7 @@ class ModelPresetNode:
                 "quality_tags": ("BOOLEAN", {"default": True}),
                 "embeddings": ("BOOLEAN", {"default": True}),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -439,98 +375,54 @@ class ModelPresetNode:
     FUNCTION = "generate_prompts"
     CATEGORY = "conditioning"
 
-    @classmethod
-    def IS_CHANGED(cls, ckpt_name, quality_tags, embeddings, unique_id=None):
-        """
-        Return the file modification time to invalidate cache
-        when file changes.
-        """
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
-
     def generate_prompts(
-            self, ckpt_name, quality_tags, embeddings, unique_id=None):
-        """
-        Generate prompt tags based on model configuration.
-
-        Args:
-            ckpt_name: Checkpoint path (format: "model/checkpoint.safetensors")
-            quality_tags: Whether to include quality tags
-            embeddings: Whether to include embedding tags
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing the positive tags and negative tags
-        """
+        self, ckpt_name, quality_tags, embeddings, unique_id=None
+    ):
         if not ckpt_name:
             return ("", "")
 
-        # Parse model type from checkpoint path
         model = ckpt_name.split('/')[-1]
         family = ckpt_name.split('/')[0]
 
-        # Load config
-        config = load_cached_data(
-                self.JSON_PATH, self.__class__._cache, 'mtime', DEFAULT_MODELS)
+        config = self.load_data()
 
-        # Use family if the full model name isn't used.
-        if model in config:
-            model_config = config[model]
-        elif family in config:
-            model_config = config[family]
-        else:
+        model_config = config.get(model) or config.get(family)
+        if not model_config:
             return ("", "")
 
-        # Build positive prompt
         positive_parts = []
         if quality_tags and model_config.get("quality", {}).get("positive"):
             positive_parts.append(model_config["quality"]["positive"])
         if embeddings and model_config.get("embeddings", {}).get("positive"):
             positive_parts.append(model_config["embeddings"]["positive"])
 
-        # Build negative prompt
         negative_parts = []
         if quality_tags and model_config.get("quality", {}).get("negative"):
             negative_parts.append(model_config["quality"]["negative"])
         if embeddings and model_config.get("embeddings", {}).get("negative"):
             negative_parts.append(model_config["embeddings"]["negative"])
 
-        positive_output = ", ".join(positive_parts)
-        negative_output = ", ".join(negative_parts)
-
-        return (positive_output, negative_output)
+        return (", ".join(positive_parts), ", ".join(negative_parts))
 
 
-class StylePresetNode:
-    """
-    A ComfyUI node for selecting style presets.
-    Style definitions are loaded from an external JSONC file.
-    """
+class StylePresetNode(PresetNodeBase):
+    """Style preset node - outputs only strings."""
 
-    # Class variable to cache loaded styles
-    _cache = {}
-
-    # Path to the JSONC file (relative to this script)
     JSON_PATH = os.path.join(
-            os.path.dirname(__file__), "config", "styles.jsonc")
+        os.path.dirname(__file__), "config", "styles.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_STYLES
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Load styles to get latest data
-        styles = load_cached_data(
-                cls.JSON_PATH, cls._cache, 'mtime', DEFAULT_STYLES)
+        styles = cls.load_data()
         style_list = ["none"] + sorted(list(styles.keys()))
 
         return {
             "required": {
                 "style": (style_list, {"default": "none"}),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -538,60 +430,31 @@ class StylePresetNode:
     FUNCTION = "generate_style"
     CATEGORY = "conditioning"
 
-    @classmethod
-    def IS_CHANGED(cls, style, unique_id=None):
-        """
-        Return the file modification time to invalidate cache
-        when file changes.
-        """
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
-
     def generate_style(self, style, unique_id=None):
-        """
-        Generate style tags based on selection.
-
-        Args:
-            style: Selected style name or "none"
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing the positive tags and negative tags
-        """
-        # If none selected, return empty strings
         if style == "none":
             return ("", "")
 
-        # Load styles
-        styles = load_cached_data(
-                self.JSON_PATH, self.__class__._cache, 'mtime', DEFAULT_STYLES)
-
+        styles = self.load_data()
         if style not in styles:
             return ("", "")
 
         style_config = styles[style]
+        return (
+            style_config.get("positive", ""),
+            style_config.get("negative", "")
+        )
 
-        positive_output = style_config.get("positive", "")
-        negative_output = style_config.get("negative", "")
 
-        return (positive_output, negative_output)
-
-
-class WildcardNode:
+class WildcardNode(PresetNodeBase):
     """
     A ComfyUI node for replacing wildcard keys with randomly selected values.
     Wildcard definitions are loaded from an external JSONC file.
     """
 
-    # Class variable to cache loaded wildcards
-    _cache = {}
-
-    # Path to the JSONC file (relative to this script)
     JSON_PATH = os.path.join(
-            os.path.dirname(__file__), "config", "wildcards.jsonc")
+        os.path.dirname(__file__), "config", "wildcards.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_WILDCARDS
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -600,11 +463,12 @@ class WildcardNode:
                 "text": ("STRING", {"multiline": True, "default": ""}),
             },
             "optional": {
-                "opt_string": ("STRING", {"default": "", "forceInput": True}),
+                "opt_string": ("STRING", {
+                    "default": "",
+                    "forceInput": True
+                }),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING",)
@@ -614,82 +478,45 @@ class WildcardNode:
 
     @classmethod
     def IS_CHANGED(cls, text, opt_string="", unique_id=None):
-        """
-        Return a random value to force re-execution on each run
-        if text is not empty.
-        """
+        """Force re-execution on each run if text is not empty."""
         if text:
             return random.random()
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
+        return super().IS_CHANGED(text=text, opt_string=opt_string)
 
     def replace_wildcards(self, text, opt_string="", unique_id=None):
-        """
-        Replace wildcard keys in text with randomly selected values.
-
-        Args:
-            text: Input text containing wildcard keys
-            opt_string: Optional string to concatenate with output
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing the processed text
-        """
         if not text:
             return (opt_string,) if opt_string else ("",)
 
-        # Load wildcards
-        wildcards = load_cached_data(
-                self.JSON_PATH, self.__class__._cache,
-                'mtime', DEFAULT_WILDCARDS)
-
-        # Replace each wildcard key with a randomly selected value
+        wildcards = self.load_data()
         result = text
+
         for key, values_string in wildcards.items():
             if key in result:
-                # Split values by pipe and strip whitespace
                 values = [v.strip() for v in values_string.split('|')]
-                # Choose a random value
                 replacement = random.choice(values)
-                # Replace all instances of the key
                 result = result.replace(key, replacement)
 
-        # Concatenate with optional string if provided
         if opt_string:
             result = f"{result}, {opt_string}"
 
         return (result,)
 
 
-class TagPresetNode:
-    """
-    A ComfyUI node that adds positive/negative tags based on trigger tags.
-    Checks if specific tags are present in the input and adds associated
-    positive and negative tags from the configuration.
-    """
+class TagPresetNode(PresetNodeBase):
+    """Tag preset node - outputs only strings."""
 
-    # Class variable to cache loaded tags
-    _cache = {}
-
-    # Path to the JSONC file (relative to this script)
     JSON_PATH = os.path.join(
-        os.path.dirname(__file__), "config", "tags.jsonc")
+        os.path.dirname(__file__), "config", "tags.jsonc"
+    )
+    DEFAULT_DATA = DEFAULT_TAGS
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": ("STRING", {
-                    "multiline": True,
-                    "default": ""
-                }),
+                "text": ("STRING", {"multiline": True, "default": ""}),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -697,66 +524,30 @@ class TagPresetNode:
     FUNCTION = "process_tags"
     CATEGORY = "conditioning"
 
-    @classmethod
-    def IS_CHANGED(cls, text, unique_id=None):
-        """
-        Return the file modification time to invalidate cache
-        when file changes.
-        """
-        try:
-            mtime = os.path.getmtime(cls.JSON_PATH)
-            return mtime
-        except:
-            return float("nan")
-
     def process_tags(self, text, unique_id=None):
-        """
-        Process input text and add positive/negative tags based on matches.
-
-        Args:
-            text: Input text to scan for trigger tags
-            unique_id: Hidden parameter for cache busting
-
-        Returns:
-            A tuple containing (positive_tags, negative_tags)
-        """
         if not text.strip():
             return ("", "")
 
-        # Load tag presets
-        tags = load_cached_data(
-            self.JSON_PATH, self.__class__._cache, 'mtime', DEFAULT_TAGS)
-
-        # Normalize input text to lowercase for matching
+        tags = self.load_data()
         text_lower = text.lower()
+        input_tags = [
+            t.strip() for t in text_lower.split(',') if t.strip()
+        ]
 
-        # Split into individual tags for precise matching
-        input_tags = [t.strip() for t in text_lower.split(',') if t.strip()]
-
-        # Collect matching positive and negative tags
         positive_parts = []
         negative_parts = []
 
         for trigger_tag, preset in tags.items():
-            trigger_lower = trigger_tag.lower()
-
-            # Check if trigger tag is in the input
-            if trigger_lower in input_tags:
-                # Add associated positive tags
+            if trigger_tag.lower() in input_tags:
                 pos = preset.get("positive", "")
                 if pos:
                     positive_parts.append(pos)
 
-                # Add associated negative tags
                 neg = preset.get("negative", "")
                 if neg:
                     negative_parts.append(neg)
 
-        # Join results
-        positive_output = ", ".join(positive_parts)
-        negative_output = ", ".join(negative_parts)
-
-        return (positive_output, negative_output)
+        return (", ".join(positive_parts), ", ".join(negative_parts))
 
 
 NODE_CLASS_MAPPINGS = {
