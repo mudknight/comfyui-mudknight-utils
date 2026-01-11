@@ -666,23 +666,19 @@ class PromptConditioningNode:
         char_pos = ", ".join(char_pos_parts)
         char_neg = ", ".join(char_neg_parts)
 
-        # Process tag triggers
-        tag_preset_pos_parts = []
-        tag_preset_neg_parts = []
+        # Process tag triggers by feeding them through TagPresetNode
+        tag_preset_pos = ""
+        tag_preset_neg = ""
 
         if tag_triggers:
+            # Join all tag names with commas to create input for TagPresetNode
+            tag_names_text = ", ".join(
+                tag_name.replace('_', ' ') for tag_name in tag_triggers
+            )
             tag_preset_node = common.Node("TagPresetNode")
-            for tag_name in tag_triggers:
-                # Remove underscores, restore spaces for lookup
-                lookup_name = tag_name.replace('_', ' ')
-                pos, neg = tag_preset_node.function(text=lookup_name)
-                if pos:
-                    tag_preset_pos_parts.append(pos)
-                if neg:
-                    tag_preset_neg_parts.append(neg)
-
-        tag_preset_pos = ", ".join(tag_preset_pos_parts)
-        tag_preset_neg = ", ".join(tag_preset_neg_parts)
+            tag_preset_pos, tag_preset_neg = tag_preset_node.function(
+                text=tag_names_text
+            )
 
         # Extract LoRAs and embeddings from character tags
         prompt, prompt_loras = extract_loras(prompt)
