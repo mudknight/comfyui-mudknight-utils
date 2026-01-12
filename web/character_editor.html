@@ -26,6 +26,9 @@
                     <button class="tab-button" onclick="switchTab('tags')">
                         Tags
                     </button>
+                    <button class="tab-button" onclick="switchTab('wildcards')">
+                        Wildcards
+                    </button>
                 </div>
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="Search..." autocomplete="off">
@@ -86,6 +89,15 @@
                 <div class="empty-state" id="tagEmptyState" 
                                          style="display: none;">
                     <p>No tag presets found. Click the + card above to add one.</p>
+                </div>
+            </div>
+
+            <!-- Wildcards Tab -->
+            <div class="tab-content" id="wildcardsTab">
+                <div class="preset-grid" id="wildcardGrid"></div>
+                <div class="empty-state" id="wildcardEmptyState" 
+                                         style="display: none;">
+                    <p>No wildcards found. Click the + card above to add one.</p>
                 </div>
             </div>
         </div>
@@ -268,6 +280,40 @@
                             Delete
                         </button>
                         <button class="save" onclick="saveItem('tag')">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wildcard Edit Modal -->
+        <div class="modal" id="wildcardEditModal">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h2>Wildcard</h2>
+                    <button class="button-cancel" 
+                            onclick="hideEditModal('wildcard')">X</button>
+                </div>
+                <div class="modal-content">
+                    <div class="field-group">
+                        <label>Wildcard Name</label>
+                        <input type="text" id="editWildcardNameInput" 
+                                           class="name-input" style="margin: 0;" 
+                                                              autocomplete="off"/>
+                    </div>
+                    <div class="field-group">
+                        <label>Options (pipe-separated)</label>
+                        <textarea id="editWildcardOptions" 
+                                  placeholder="option1 | option2 | option3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="delete" 
+                                onclick="deleteCurrentItem('wildcard')">
+                            Delete
+                        </button>
+                        <button class="save" 
+                                onclick="saveItem('wildcard')">
                             Save Changes
                         </button>
                     </div>

@@ -16,6 +16,7 @@ from . import common
 # Get the config path
 CONFIG_DIR = common.CONFIG_DIR
 CHARACTERS_FILE = CONFIG_DIR / "characters.jsonc"
+WILDCARDS_FILE = CONFIG_DIR / "wildcards.jsonc"
 IMAGES_DIR = CONFIG_DIR / "character_images"
 STYLE_IMAGES_DIR = CONFIG_DIR / "style_images"
 STYLE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -428,6 +429,35 @@ async def update_tags(request):
 
 
 print("Tag Editor API routes registered")
+
+
+@server.PromptServer.instance.routes.get("/wildcard_editor")
+async def get_wildcards(request):
+    """Get all wildcards."""
+    try:
+        if not WILDCARDS_FILE.exists():
+            return web.json_response({})
+
+        content = WILDCARDS_FILE.read_text(encoding='utf-8')
+        clean_content = common.strip_jsonc_comments(content)
+        wildcards = json.loads(clean_content)
+        return web.json_response(wildcards)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/wildcard_editor")
+async def save_wildcards(request):
+    """Save wildcards."""
+    try:
+        data = await request.json()
+        with open(WILDCARDS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return web.json_response({"status": "success"})
+    except Exception as e:
+        return web.json_response(
+            {"error": str(e)}, status=500
+        )
 
 
 print("LoRA and Embedding list API routes registered")

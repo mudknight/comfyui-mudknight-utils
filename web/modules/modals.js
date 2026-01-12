@@ -183,6 +183,23 @@ export function showEditModal(type, name) {
 
 		document.getElementById('tagEditModal').classList.add('show');
 	}
+	else if (type === 'wildcard') {
+		const data = state.wildcards[name] || '';
+
+		state.currentOriginalName = name;
+		document.getElementById('editWildcardNameInput').value = name;
+		document.getElementById('editWildcardOptions').value = data;
+
+		setupAutocomplete(
+			document.getElementById('editWildcardOptions')
+		);
+		setupWeightAdjustment(
+			document.getElementById('editWildcardOptions')
+		);
+
+		document.getElementById('wildcardEditModal')
+			.classList.add('show');
+	}
 }
 
 export function hideEditModal(type) {
@@ -446,6 +463,46 @@ export async function saveItem(type) {
 		} catch (error) {
 			showStatus('Error saving tag preset: ' + error.message, 'error');
 		}
+	} else if (type === 'wildcard') {
+		const newName = document.getElementById('editWildcardNameInput')
+			.value.trim();
+
+		if (!newName) {
+			alert('Wildcard name cannot be empty');
+			return;
+		}
+
+		if (newName !== state.currentOriginalName && 
+			state.currentOriginalName && 
+			state.wildcards[newName]) {
+			alert('A wildcard with this name already exists');
+			return;
+		}
+
+		const options = document.getElementById('editWildcardOptions')
+			.value;
+
+		if (!state.currentOriginalName) {
+			if (state.wildcards[newName]) {
+				alert('A wildcard with this name already exists');
+				return;
+			}
+			state.wildcards[newName] = options;
+		} else if (newName !== state.currentOriginalName) {
+			delete state.wildcards[state.currentOriginalName];
+			state.wildcards[newName] = options;
+		} else {
+			state.wildcards[state.currentOriginalName] = options;
+		}
+
+		try {
+			await saveWildcards(state.wildcards);
+			showStatus('Wildcard saved successfully!', 'success');
+			if (window.renderWildcards) window.renderWildcards();
+			hideEditModal('wildcard');
+		} catch (error) {
+			showStatus('Error saving wildcard: ' + error.message, 'error');
+		}
 	}
 }
 
@@ -504,6 +561,20 @@ export async function deleteCurrentItem(type) {
 			hideEditModal('tag');
 		} catch (error) {
 			showStatus('Error deleting tag preset: ' + error.message, 'error');
+		}
+	} else if (type === 'wildcard') {
+		delete state.wildcards[state.currentEditName];
+
+		try {
+			await saveWildcards(state.wildcards);
+			showStatus('Wildcard deleted successfully!', 'success');
+			if (window.renderWildcards) window.renderWildcards();
+			hideEditModal('wildcard');
+		} catch (error) {
+			showStatus(
+				'Error deleting wildcard: ' + error.message, 
+				'error'
+			);
 		}
 	}
 }

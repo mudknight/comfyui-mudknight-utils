@@ -135,15 +135,23 @@ export async function loadAllAutocompleteData(
     
     const tags = await loadAutocompleteTags(customSources, customTags);
     
-    const [characterPresets, tagPresets, loras, embeddings] = 
+    const [characterPresets, tagPresets, wildcardPresets, loras, embeddings] = 
         await Promise.all([
             loadCharacterPresets(tags),
             loadTagPresets(tags),
+            loadWildcardPresets(),
             loadLoras(),
             loadEmbeddings()
         ]);
     
-    return { tags, characterPresets, tagPresets, loras, embeddings };
+    return { 
+        tags, 
+        characterPresets, 
+        tagPresets, 
+        wildcardPresets,
+        loras, 
+        embeddings 
+    };
 }
 
 export async function loadCharacters() {
@@ -435,7 +443,7 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
         const tags = Array.from(allTags.values());
 
         // Boost autocomplete keywords
-        const keywords = ['character', 'tag', 'embedding'];
+        const keywords = ['character', 'tag', 'embedding', 'wildcard'];
         keywords.forEach(keyword => {
             const existing = tags.find(t => t.tag === keyword);
             if (existing) {
@@ -966,4 +974,47 @@ export async function saveAutocompleteSettings(settings) {
 		console.error('Error saving autocomplete settings:', error);
 		return false;
 	}
+}
+
+export async function loadWildcards() {
+    const response = await fetch('/wildcard_editor');
+    if (response.ok) {
+        return await response.json();
+    }
+    throw new Error('Failed to load wildcards');
+}
+
+export async function saveWildcards(wildcards) {
+    const response = await fetch('/wildcard_editor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wildcards)
+    });
+    if (!response.ok) {
+        throw new Error('Failed to save wildcards');
+    }
+}
+
+export async function loadWildcardPresets() {
+    try {
+        const response = await fetch('/wildcard_editor');
+        if (!response.ok) {
+            return [];
+        }
+        const wildcards = await response.json();
+        
+        const presets = Object.keys(wildcards).map(name => ({
+            tag: name.toLowerCase().replace(/ /g, '_'),
+            category: 5,  // meta category
+            count: 0,
+            isAlias: false,
+            isPreset: true,
+            presetType: 'wildcard'
+        }));
+        
+        return presets;
+    } catch (error) {
+        console.error('Error loading wildcard presets:', error);
+        return [];
+    }
 }

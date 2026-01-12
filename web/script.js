@@ -12,6 +12,7 @@ import { renderCharacters } from './modules/characters.js';
 import { renderModels } from './modules/models.js';
 import { renderStyles } from './modules/styles.js';
 import { renderTags } from './modules/tags.js';
+import { renderWildcards } from './modules/wildcards.js';
 import { 
 	showEditModal, 
 	hideEditModal, 
@@ -28,6 +29,7 @@ function renderAll() {
 	renderModels();
 	renderStyles();
 	renderTags();
+	renderWildcards();
 }
 
 async function loadData() {
@@ -88,6 +90,7 @@ async function loadData() {
 		state.models = await api.loadModels();
 		state.styles = await api.loadStyles();
 		state.tags = await api.loadTags();
+		state.wildcards = await api.loadWildcards();
 
 		// Check images in parallel
 		await Promise.all([
@@ -136,6 +139,7 @@ function init() {
 	window.renderModels = renderModels;
 	window.renderStyles = renderStyles;
 	window.renderTags = renderTags;
+	window.renderWildcards = renderWildcards;
 	window.showEditModal = showEditModal;
 	window.hideEditModal = hideEditModal;
 	window.saveItem = saveItem;

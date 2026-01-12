@@ -244,6 +244,28 @@ def extract_tag_triggers(prompt):
     return cleaned.strip(), tags
 
 
+def extract_wildcard_triggers(prompt):
+    """Extract wildcard: triggers from prompt."""
+    if not prompt:
+        return "", []
+
+    pattern = r'wildcard:([^,\n]+?)(?=\s*(?:,|\n|$))'
+    matches = re.finditer(pattern, prompt, re.IGNORECASE)
+
+    wildcards = [match.group(1).strip() for match in matches]
+
+    cleaned = re.sub(
+        r'wildcard:[^,\n]+?(?=\s*(?:,|\n|$))',
+        '',
+        prompt,
+        flags=re.IGNORECASE
+    )
+    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
+    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+
+    return cleaned.strip(), wildcards
+
+
 def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     """
     Parse prompt string into dictionary of {tag: weight}.
@@ -429,6 +451,10 @@ class PromptConditioningNode:
             tag_triggers
         )
 
+        # Process wildcard triggers
+        prompt, wildcard_triggers = extract_wildcard_triggers(prompt)
+        wildcard_text = self._process_wildcard_triggers(wildcard_triggers)
+
         # Define all text sources
         text_sources = {
             'quality_pos': quality_pos,
@@ -440,6 +466,7 @@ class PromptConditioningNode:
             'char_neg': char_neg,
             'tag_preset_pos': tag_preset_pos,
             'tag_preset_neg': tag_preset_neg,
+            'wildcard': wildcard_text,
             'prompt_pos': prompt,
             'prompt_neg': negative
         }
@@ -540,6 +567,17 @@ class PromptConditioningNode:
         tag_preset_node = common.Node("TagPresetNode")
         return tag_preset_node.function(text=tag_names_text)
 
+    def _process_wildcard_triggers(self, triggers):
+        """Process wildcard triggers and return expanded text."""
+        if not triggers:
+            return ""
+
+        wildcard_names = ", ".join(
+            wc.replace('_', ' ') for wc in triggers
+        )
+        wildcard_node = common.Node("WildcardNode")
+        return wildcard_node.function(text=wildcard_names)[0]
+
     def _extract_all_syntax(self, text_sources):
         """
         Extract LoRAs and embeddings from all text sources.
@@ -616,6 +654,8 @@ class PromptConditioningNode:
             prompt=(
                 reconstructed['tag_preset_pos'] +
                 (', ' if reconstructed['tag_preset_pos'] else '') +
+                reconstructed['wildcard'] +
+                (', ' if reconstructed['wildcard'] else '') +
                 reconstructed['prompt_pos']
             )
         )

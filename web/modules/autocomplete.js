@@ -225,6 +225,16 @@ function detectContext(input) {
 			start: cursorPos - tagMatch[1].length
 		};
 	}
+
+	// Check for wildcard syntax: wildcard:
+	const wildcardMatch = text.match(/\bwildcard:([^\s,]*)$/i);
+	if (wildcardMatch) {
+		return {
+			type: 'wildcard',
+			searchTerm: wildcardMatch[1] || '',
+			start: cursorPos - wildcardMatch[1].length
+		};
+	}
 	
 	// Default to tag search - track full tag boundaries
 	const lastComma = text.lastIndexOf(',', cursorPos - 1);
@@ -291,7 +301,8 @@ function showAutocomplete(input, context) {
 	// For prefix-triggered types, show immediately after typing prefix
 	if (type === 'lora' || type === 'embedding' ||
 		type === 'character' || type === 'character-outfit' ||
-		type === 'character-part' || type === 'tagpreset') {
+		type === 'character-part' || type === 'tagpreset' ||
+		type === 'wildcard') {
 		// Allow showing with empty search term
 		if (searchTerm === undefined) {
 			hideAutocomplete();
@@ -395,6 +406,20 @@ function showAutocomplete(input, context) {
 				value: item.tag.replace(/_/g, ' '),
 				type: 'tagpreset',
 				presetType: 'tag'
+			}));
+	} else if (type === 'wildcard') {
+		const searchLower = searchTerm.toLowerCase();
+		filtered = autocompleteState.wildcardPresets
+			.filter(item => 
+				searchLower === '' || 
+				item.tag.toLowerCase().includes(searchLower)
+			)
+			.slice(0, 10)
+			.map(item => ({
+				display: item.tag.replace(/_/g, ' '),
+				value: item.tag.replace(/_/g, ' '),
+				type: 'wildcard',
+				presetType: 'wildcard'
 			}));
 	} else {
 		// Tag search with category, alias, and preset support
@@ -645,11 +670,14 @@ function selectAutocomplete(index) {
 	let suffix;
 	
 	// Check if this is a keyword (character, tag, embedding)
-	const isKeyword = ['character', 'tag', 'embedding'].includes(
+	const isKeyword = ['character', 'tag', 'embedding', 'wildcard'].includes(
 		item.value.toLowerCase()
 	);
 	
 	if (isKeyword && autocompleteState.contextType === 'tag') {
+		// Keywords get colon when selected from normal tag context
+		suffix = ':';
+	} else if (isKeyword && autocompleteState.contextType === 'wildcard') {
 		// Keywords get colon when selected from normal tag context
 		suffix = ':';
 	} else if (autocompleteState.contextType === 'character' ||
@@ -763,7 +791,21 @@ function selectAutocomplete(index) {
 		newText = 
 			`${text.substring(0, beforeTag)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeTag + item.value.length + suffix.length;
-		
+	} else if (autocompleteState.contextType === 'wildcard') {
+		const beforeWildcard = 
+			text.lastIndexOf('wildcard:', input.selectionStart) + 9;
+
+		let endPos = input.selectionStart;
+		while (endPos < text.length && 
+			text[endPos] !== ',' && 
+			text[endPos] !== '\n') {
+			endPos++;
+		}
+
+		const after = text.substring(endPos);
+		newText = 
+			`${text.substring(0, beforeWildcard)}${item.value}${suffix}${after}`;
+		newCursorPos = beforeWildcard + item.value.length + suffix.length;
 	} else {
 		// Replace the entire tag from start to end
 		let tag = item.value.replace(/\(/g, '\\(').replace(/\)/g, '\\)');

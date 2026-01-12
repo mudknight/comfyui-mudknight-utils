@@ -6,6 +6,7 @@ export function switchTab(tabName) {
 		models: 'model',
 		styles: 'style',
 		tags: 'tag',
+		wildcards: 'wildcard'
 	};
 	
 	const searchInput = document.getElementById('searchInput');
@@ -24,6 +25,7 @@ export function switchTab(tabName) {
 		models: 'Search models...',
 		styles: 'Search styles...',
 		tags: 'Search tag presets...',
+		wildcards: 'Search wildcards...',
 	};
 	searchInput.placeholder = placeholders[tabName];
 	
@@ -46,6 +48,7 @@ export function switchTab(tabName) {
 	else if (tabName === 'models' && window.renderModels) window.renderModels();
 	else if (tabName === 'styles' && window.renderStyles) window.renderStyles();
 	else if (tabName === 'tags' && window.renderTags) window.renderTags();
+	else if (tabName === 'wildcards' && window.renderWildcards) window.renderWildcards();
 }
 
 export function clearSearch() {
@@ -53,7 +56,8 @@ export function clearSearch() {
 		characters: 'character',
 		models: 'model',
 		styles: 'style',
-		tags: 'tag'
+		tags: 'tag',
+		wildcards: 'wildcard'
 	};
 	
 	const searchInput = document.getElementById('searchInput');
@@ -68,6 +72,7 @@ export function clearSearch() {
 	else if (state.activeTab === 'models' && window.renderModels) window.renderModels();
 	else if (state.activeTab === 'styles' && window.renderStyles) window.renderStyles();
 	else if (state.activeTab === 'tags' && window.renderTags) window.renderTags();
+	else if (state.activeTab === 'wildcards' && window.renderWildcards) window.renderWildcards();
 	
 	searchInput.focus();
 }
@@ -79,7 +84,8 @@ export function initSearch() {
 			characters: 'character',
 			models: 'model',
 			styles: 'style',
-			tags: 'tag'
+			tags: 'tag',
+			wildcards: 'wildcard'
 		};
 		
 		const value = e.target.value;
@@ -95,5 +101,6 @@ export function initSearch() {
 		else if (state.activeTab === 'models' && window.renderModels) window.renderModels();
 		else if (state.activeTab === 'styles' && window.renderStyles) window.renderStyles();
 		else if (state.activeTab === 'tags' && window.renderTags) window.renderTags();
+		else if (state.activeTab === 'wildcards' && window.renderWildcards) window.renderWildcards();
 	});
 }
