@@ -215,6 +215,9 @@ export function hideEditModal(type) {
 	if (type === 'tag') {
 		document.getElementById('tagEditModal').classList.remove('show');
 	}
+	if (type === 'wildcard') {
+		document.getElementById('wildcardEditModal').classList.remove('show');
+	}
 	state.currentEditName = null;
 	state.currentEditType = null;
 	state.currentOriginalName = null;
