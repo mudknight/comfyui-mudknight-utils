@@ -140,7 +140,9 @@ app.registerExtension({
         `;
         document.body.appendChild(modal);
 
-        const WHITELIST = ["BaseNode", "UpscaleNode", "DetailerNode", "DetailerPipeNode"];
+        const WHITELIST = [
+            "BaseNode", "UpscaleNode", "DetailerNode",
+            "DetailerPipeNode", "NestedDetailerNode", "NestedDetailerPipeNode"];
 
         const formatModelName = (path) => {
             if (!path) return "";
