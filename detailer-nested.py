@@ -17,7 +17,8 @@ from .detailer import (
 upscale_model_list = common.get_upscale_model_list()
 
 
-def calculate_upscale_dimensions(width, height, max_megapixels=1.5):
+def calculate_upscale_dimensions(
+        width, height, scale_factor=2, max_megapixels=1.5):
     """
     Calculate 2x upscaled dimensions that are divisible by 8 and under limit.
 
@@ -32,8 +33,8 @@ def calculate_upscale_dimensions(width, height, max_megapixels=1.5):
     max_pixels = int(max_megapixels * 1_048_576)
 
     # Start with 2x upscale
-    new_width = width * 2
-    new_height = height * 2
+    new_width = int(width * scale_factor)
+    new_height = int(height * scale_factor)
 
     # Make divisible by 8
     new_width = (new_width // 8) * 8
@@ -148,7 +149,7 @@ def crop_image_by_bbox(image, bbox):
 
 def upscale_and_sample(
     crop_image, model, vae, positive, negative, seed, steps, cfg,
-    sampler, scheduler, denoise, context_padding, max_megapixels
+    sampler, scheduler, denoise, context_padding, scale_factor, max_megapixels
 ):
     """
     Upscale image 2x with lanczos and sample.
@@ -176,7 +177,7 @@ def upscale_and_sample(
 
     # Calculate upscale dimensions
     new_w, new_h = calculate_upscale_dimensions(
-        orig_w, orig_h, max_megapixels
+        orig_w, orig_h, scale_factor, max_megapixels
     )
 
     # Upscale with lanczos
@@ -325,6 +326,14 @@ class NestedDetailerNode:
                 }),
                 # Upscale parameters
                 "upscale_method": (UPSCALE_METHODS,),
+                "scale_factor": ("FLOAT", {
+                    "default": 2,
+                    "min": 0.1,
+                    "max": 3.0,
+                    "step": 0.1,
+                    "tooltip": ("Amount to upscale cropped region before "
+                                "sampling")
+                }),
                 "max_scale": ("FLOAT", {
                     "default": 1.5,
                     "min": 0.1,
@@ -347,7 +356,7 @@ class NestedDetailerNode:
         self, face_model, eyes_pair_model, eye_single_model,
         threshold, image, model, vae, positive, negative, seed,
         cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, max_scale,
+        eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
         feather, context_padding, extra_pnginfo=None
     ):
         """Process image with nested face/eye detection."""
@@ -409,7 +418,7 @@ class NestedDetailerNode:
             face_upscaled = upscale_and_sample(
                 face_crop, model, vae, positive, negative, seed,
                 face_steps, cfg, sampler, scheduler, face_denoise,
-                context_padding, max_scale
+                context_padding, scale_factor, max_scale
             )
 
             # Calculate scale factor for eye bbox mapping
@@ -446,7 +455,7 @@ class NestedDetailerNode:
                 eye_upscaled = upscale_and_sample(
                     eye_crop, model, vae, positive, negative, seed + 1,
                     eye_steps, cfg, sampler, scheduler, eye_denoise,
-                    context_padding, max_scale
+                    context_padding, scale_factor, max_scale
                 )
 
                 # Downscale eye back to face resolution
@@ -522,8 +531,8 @@ class NestedDetailerPipeNode(NestedDetailerNode):
     def process(
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,
         threshold, cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, max_scale, feather,
-        context_padding, extra_pnginfo=None
+        eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
+        feather, context_padding, extra_pnginfo=None
     ):
         """Process using full_pipe."""
         # Extract from pipe
@@ -551,7 +560,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             face_model, eyes_pair_model, eye_single_model,
             threshold, image, model, vae, positive, negative, seed,
             cfg, sampler, scheduler, face_steps, face_denoise,
-            eye_steps, eye_denoise, upscale_method, max_scale,
+            eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
             feather, context_padding, extra_pnginfo
         )
 
