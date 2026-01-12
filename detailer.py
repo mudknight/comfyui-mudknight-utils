@@ -101,6 +101,12 @@ def uncrop_image_by_bbox(
     Composites a cropped image back into the original full image.
     """
     x, y, w, h = bbox
+
+    # Validate bbox dimensions
+    if w <= 0 or h <= 0:
+        print(f"Warning: Invalid bbox dimensions ({w}x{h}), skipping uncrop")
+        return full_img
+
     target = full_img.clone()
 
     # Ensure crop matches expected bbox size (handles scaling mismatches)

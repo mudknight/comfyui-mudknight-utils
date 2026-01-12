@@ -35,9 +35,6 @@ class BBoxInsetAndCrop:
     def inset_and_crop(self, crop_image, bbox, inset_pixels):
         """
         Inset the bbox and crop the edges of crop_image.
-
-        Note: crop_image should already be the cropped region,
-        so we crop relative to (0,0), not bbox.x/y
         """
         # Handle nested bbox structure
         bbox_was_nested = False
@@ -48,8 +45,15 @@ class BBoxInsetAndCrop:
         x, y, width, height = bbox
 
         # Calculate inset amount from edges of cropped image
-        inset_x = min(inset_pixels, width // 2)
-        inset_y = min(inset_pixels, height // 2)
+        # Ensure we don't inset more than half the dimension
+        max_inset_x = width // 2 - 1
+        max_inset_y = height // 2 - 1
+        inset_x = min(inset_pixels, max_inset_x)
+        inset_y = min(inset_pixels, max_inset_y)
+        
+        # Ensure inset is non-negative
+        inset_x = max(0, inset_x)
+        inset_y = max(0, inset_y)
 
         # Calculate new bbox (in original image coordinates)
         new_x = x + inset_x
@@ -57,9 +61,9 @@ class BBoxInsetAndCrop:
         new_width = width - (inset_x * 2)
         new_height = height - (inset_y * 2)
 
-        # Ensure dimensions are at least 1 pixel
-        new_width = max(1, new_width)
-        new_height = max(1, new_height)
+        # Ensure dimensions are at least 8 pixels (for latent divisibility)
+        new_width = max(8, new_width)
+        new_height = max(8, new_height)
 
         inset_bbox = (new_x, new_y, new_width, new_height)
 
@@ -68,11 +72,10 @@ class BBoxInsetAndCrop:
             inset_bbox = (inset_bbox,)
 
         # Crop from the EDGES of the cropped image
-        # (not using bbox x/y since crop_image is already cropped)
         cropped = crop_image[
             :,
-            inset_y:height - inset_y,  # ✓ From top edge to bottom edge
-            inset_x:width - inset_x,   # ✓ From left edge to right edge
+            inset_y:height - inset_y,
+            inset_x:width - inset_x,
             :
         ]
 
