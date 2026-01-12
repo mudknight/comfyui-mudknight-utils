@@ -12,7 +12,6 @@ from .detailer import (
     SEED_INPUT,
     DETAILER_INPUTS,
     uncrop_image_by_bbox,
-    crop_image_by_mask,
 )
 
 upscale_model_list = common.get_upscale_model_list()
@@ -21,37 +20,130 @@ upscale_model_list = common.get_upscale_model_list()
 def calculate_upscale_dimensions(width, height, max_megapixels=1.5):
     """
     Calculate 2x upscaled dimensions that are divisible by 8 and under limit.
-    
+
     Args:
         width: Original width
         height: Original height
         max_megapixels: Maximum megapixels (e.g., 1.5 for 1.5MP)
-    
+
     Returns:
         Tuple of (new_width, new_height)
     """
     max_pixels = int(max_megapixels * 1_048_576)
-    
+
     # Start with 2x upscale
     new_width = width * 2
     new_height = height * 2
-    
+
     # Make divisible by 8
     new_width = (new_width // 8) * 8
     new_height = (new_height // 8) * 8
-    
+
     # Scale down if over pixel limit
     total_pixels = new_width * new_height
     if total_pixels > max_pixels:
         scale = (max_pixels / total_pixels) ** 0.5
         new_width = int((new_width * scale) // 8) * 8
         new_height = int((new_height * scale) // 8) * 8
-    
+
     # Ensure minimum size
     new_width = max(64, new_width)
     new_height = max(64, new_height)
-    
+
     return new_width, new_height
+
+
+def bbox_overlap_percentage(bbox1, bbox2):
+    """
+    Calculate what percentage of bbox2 overlaps with bbox1.
+
+    Args:
+        bbox1: Tuple of (x, y, width, height) - parent bbox
+        bbox2: Tuple of (x, y, width, height) - child bbox
+
+    Returns:
+        Float between 0 and 1 representing overlap percentage
+    """
+    x1, y1, w1, h1 = bbox1
+    x2, y2, w2, h2 = bbox2
+
+    # Calculate intersection
+    x_left = max(x1, x2)
+    y_top = max(y1, y2)
+    x_right = min(x1 + w1, x2 + w2)
+    y_bottom = min(y1 + h1, y2 + h2)
+
+    if x_right < x_left or y_bottom < y_top:
+        return 0.0
+
+    intersection_area = (x_right - x_left) * (y_bottom - y_top)
+    bbox2_area = w2 * h2
+
+    return intersection_area / bbox2_area if bbox2_area > 0 else 0.0
+
+
+def detect_all_bboxes(image, detector, threshold):
+    """
+    Detect all bounding boxes with a detector.
+
+    Returns:
+        List of tuples: [(bbox, confidence), ...]
+        where bbox is (x, y, width, height)
+    """
+    bbox_detector_node = common.Node("BboxDetectorSEGS")
+    segs_result = bbox_detector_node.function(
+        detector, image, threshold, 10, 3.0, 10, "all"
+    )
+    segs = segs_result[0]
+
+    if not segs or len(segs[1]) == 0:
+        return []
+
+    results = []
+    for seg in segs[1]:
+        # Create temp SEGS with just this segment
+        temp_segs = (segs[0], [seg])
+
+        # Convert to mask
+        mask_node = common.Node("SegsToCombinedMask")
+        mask = mask_node.function(temp_segs)[0]
+
+        # Get bbox from mask
+        mask_indices = torch.nonzero(mask)
+        if mask_indices.size(0) == 0:
+            continue
+
+        y_min, x_min = torch.min(mask_indices[:, 1:], dim=0)[0]
+        y_max, x_max = torch.max(mask_indices[:, 1:], dim=0)[0]
+
+        x = x_min.item()
+        y = y_min.item()
+        width = (x_max - x_min).item()
+        height = (y_max - y_min).item()
+
+        confidence = seg.confidence
+
+        print(
+            f"Detected bbox: x={x}, y={y}, w={width}, h={height}, conf={confidence}")
+
+        results.append(((x, y, width, height), confidence))
+
+    return results
+
+
+def crop_image_by_bbox(image, bbox):
+    """
+    Crop image using bbox coordinates.
+
+    Args:
+        image: Image tensor (B, H, W, C)
+        bbox: Tuple of (x, y, width, height)
+
+    Returns:
+        Cropped image tensor
+    """
+    x, y, width, height = bbox
+    return image[:, y:y+height, x:x+width, :]
 
 
 def upscale_and_sample(
@@ -60,7 +152,7 @@ def upscale_and_sample(
 ):
     """
     Upscale image 2x with lanczos and sample.
-    
+
     Args:
         crop_image: Cropped image tensor
         model: ComfyUI model
@@ -75,38 +167,38 @@ def upscale_and_sample(
         denoise: Denoise strength
         context_padding: Context padding ratio
         max_megapixels: Maximum megapixels for upscale
-    
+
     Returns:
         Full resolution sampled image
     """
     orig_h = crop_image.shape[1]
     orig_w = crop_image.shape[2]
-    
+
     # Calculate upscale dimensions
     new_w, new_h = calculate_upscale_dimensions(
         orig_w, orig_h, max_megapixels
     )
-    
+
     # Upscale with lanczos
     scale_node = common.Node("ImageScale")
     upscaled = scale_node.function(
         crop_image, "lanczos", new_w, new_h, "disabled"
     )[0]
-    
+
     # Encode to latent
     vae_encode = common.Node("VAEEncode")
     latent = vae_encode.function(vae, upscaled)[0]
-    
+
     # Apply context padding mask if needed
     context_padding_pixels = int(
         min(new_w, new_h) * (context_padding / 2)
     )
     context_padding_pixels = (context_padding_pixels // 8) * 8
-    
+
     if context_padding_pixels > 0:
         inset_x = min(context_padding_pixels, new_w // 2)
         inset_y = min(context_padding_pixels, new_h // 2)
-        
+
         inset_mask = torch.zeros(
             (1, new_h, new_w),
             dtype=torch.float32,
@@ -117,138 +209,31 @@ def upscale_and_sample(
             inset_y:new_h - inset_y,
             inset_x:new_w - inset_x
         ] = 1.0
-        
+
         set_mask_node = common.Node("SetLatentNoiseMask")
         latent = set_mask_node.function(latent, inset_mask)[0]
-    
+
     # Sample
     sampled_latent = common.sample_latent(
         model, positive, negative, seed, sampler,
         scheduler, steps, cfg, denoise, latent
     )
-    
+
     # Decode
     vae_decode = common.Node("VAEDecode")
     decoded = vae_decode.function(vae, sampled_latent)[0]
-    
+
     return decoded
-
-
-def detect_and_process_face_segs(
-    image, model, vae, positive, negative, seed, steps, cfg,
-    sampler, scheduler, denoise, threshold, context_padding,
-    max_megapixels, detector
-):
-    """
-    Detect face segments and process each one.
-    
-    Returns:
-        Tuple of (full_res_crops, bboxes)
-    """
-    # Detect segments
-    bbox_detector_node = common.Node("BboxDetectorSEGS")
-    segs_result = bbox_detector_node.function(
-        detector, image, threshold, 10, 3.0, 10, "all"
-    )
-    segs = segs_result[0]
-    
-    if not segs or len(segs[1]) == 0:
-        return [], []
-    
-    full_res_crops = []
-    bboxes = []
-    
-    # Process each segment
-    for seg in segs[1]:
-        temp_segs = (segs[0], [seg])
-        
-        # Convert to mask
-        mask_node = common.Node("SegsToCombinedMask")
-        mask = mask_node.function(temp_segs)[0]
-        
-        # Crop
-        crop_image, _, bbox = crop_image_by_mask(
-            image, mask, padding=10
-        )
-        
-        # Upscale and sample
-        full_res = upscale_and_sample(
-            crop_image, model, vae, positive, negative, seed,
-            steps, cfg, sampler, scheduler, denoise,
-            context_padding, max_megapixels
-        )
-        
-        full_res_crops.append(full_res)
-        bboxes.append(bbox)
-    
-    return full_res_crops, bboxes
-
-
-def detect_and_process_eye_segs(
-    face_image, model, vae, positive, negative, seed, steps, cfg,
-    sampler, scheduler, denoise, threshold, context_padding,
-    max_megapixels, eyes_pair_detector, eye_single_detector
-):
-    """
-    Detect eye segments in a face and process each one.
-    
-    Returns:
-        Tuple of (full_res_crops, bboxes)
-    """
-    # Try to detect eye pairs first
-    bbox_detector_node = common.Node("BboxDetectorSEGS")
-    segs_result = bbox_detector_node.function(
-        eyes_pair_detector, face_image, threshold, 10, 3.0, 10, "all"
-    )
-    segs = segs_result[0]
-    
-    # Try fallback to single eyes if no pairs found
-    if not segs or len(segs[1]) == 0:
-        segs_result = bbox_detector_node.function(
-            eye_single_detector, face_image, threshold, 10, 3.0, 10, "all"
-        )
-        segs = segs_result[0]
-    
-    if not segs or len(segs[1]) == 0:
-        return [], []
-    
-    full_res_crops = []
-    bboxes = []
-    
-    # Process each segment
-    for seg in segs[1]:
-        temp_segs = (segs[0], [seg])
-        
-        # Convert to mask
-        mask_node = common.Node("SegsToCombinedMask")
-        mask = mask_node.function(temp_segs)[0]
-        
-        # Crop
-        crop_image, _, bbox = crop_image_by_mask(
-            face_image, mask, padding=10
-        )
-        
-        # Upscale and sample
-        full_res = upscale_and_sample(
-            crop_image, model, vae, positive, negative, seed,
-            steps, cfg, sampler, scheduler, denoise,
-            context_padding, max_megapixels
-        )
-        
-        full_res_crops.append(full_res)
-        bboxes.append(bbox)
-    
-    return full_res_crops, bboxes
 
 
 def pad_crops_transparent(crops, device, dtype):
     """Pad crops to same size with transparent pixels for batching."""
     if not crops:
         return torch.zeros((1, 64, 64, 4), dtype=dtype, device=device)
-    
+
     max_h = max(c.shape[1] for c in crops)
     max_w = max(c.shape[2] for c in crops)
-    
+
     padded = []
     for crop in crops:
         # Ensure RGBA format
@@ -259,7 +244,7 @@ def pad_crops_transparent(crops, device, dtype):
                 device=device
             )
             crop = torch.cat([crop, alpha], dim=3)
-        
+
         h, w = crop.shape[1], crop.shape[2]
         if h < max_h or w < max_w:
             pad_h = max_h - h
@@ -268,7 +253,7 @@ def pad_crops_transparent(crops, device, dtype):
             pad_bottom = pad_h - pad_top
             pad_left = pad_w // 2
             pad_right = pad_w - pad_left
-            
+
             # Pad with transparent pixels (RGBA = [0, 0, 0, 0])
             padded_crop = torch.nn.functional.pad(
                 crop,
@@ -279,7 +264,7 @@ def pad_crops_transparent(crops, device, dtype):
             padded.append(padded_crop)
         else:
             padded.append(crop)
-    
+
     return torch.cat(padded, dim=0)
 
 
@@ -287,11 +272,11 @@ class NestedDetailerNode:
     """
     Hierarchical detailer: faces -> eyes -> composition.
     """
-    
+
     @classmethod
     def INPUT_TYPES(cls):
         model_list = get_ultralytics_model_list()
-        
+
         return {
             "required": {
                 # Detection models
@@ -352,12 +337,12 @@ class NestedDetailerNode:
             },
             "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
-    
+
     RETURN_TYPES = ("IMAGE", "IMAGE")
     RETURN_NAMES = ("image", "detailed_faces")
     FUNCTION = "process"
     CATEGORY = "detailer"
-    
+
     def process(
         self, face_model, eyes_pair_model, eye_single_model,
         threshold, image, model, vae, positive, negative, seed,
@@ -371,16 +356,17 @@ class NestedDetailerNode:
         face_detector = provider.function(face_model)[0]
         eyes_pair_detector = provider.function(eyes_pair_model)[0]
         eye_single_detector = provider.function(eye_single_model)[0]
-        
-        # Detect and process faces
-        face_full_res, face_bboxes = detect_and_process_face_segs(
-            image, model, vae, positive, negative, seed,
-            face_steps, cfg, sampler, scheduler,
-            face_denoise, threshold, context_padding,
-            max_scale, face_detector
+
+        # Detect all bboxes on original image
+        face_bboxes = detect_all_bboxes(image, face_detector, threshold)
+        eye_pair_bboxes = detect_all_bboxes(
+            image, eyes_pair_detector, threshold
         )
-        
-        if not face_full_res:
+        eye_single_bboxes = detect_all_bboxes(
+            image, eye_single_detector, threshold
+        )
+
+        if not face_bboxes:
             placeholder = torch.zeros(
                 (1, 1, 1, 4), dtype=image.dtype, device=image.device
             )
@@ -389,53 +375,116 @@ class NestedDetailerNode:
                 placeholder,
                 extra_pnginfo
             )
-        
-        # Process eyes in each upscaled face
+
+        # For each face, find matching eyes
+        face_eye_pairs = []
+        for face_bbox, face_conf in face_bboxes:
+            # Find eye pairs within this face (>=50% overlap)
+            matching_pairs = [
+                (bbox, conf) for bbox, conf in eye_pair_bboxes
+                if bbox_overlap_percentage(face_bbox, bbox) >= 0.5
+            ]
+
+            # Use highest confidence eye pair if found
+            if matching_pairs:
+                matching_pairs.sort(key=lambda x: x[1], reverse=True)
+                eye_bboxes = [matching_pairs[0][0]]
+            else:
+                # Try single eyes
+                matching_singles = [
+                    (bbox, conf) for bbox, conf in eye_single_bboxes
+                    if bbox_overlap_percentage(face_bbox, bbox) >= 0.5
+                ]
+                eye_bboxes = [bbox for bbox, conf in matching_singles]
+
+            face_eye_pairs.append((face_bbox, eye_bboxes))
+
+        # Process each face
         final_faces_full_res = []
         final_faces_downscaled = []
-        
-        for face_upscaled, face_bbox in zip(face_full_res, face_bboxes):
-            # Detect and process eyes in the upscaled face
-            eye_full_res, eye_bboxes = detect_and_process_eye_segs(
-                face_upscaled, model, vae, positive, negative, seed + 1,
-                eye_steps, cfg, sampler, scheduler,
-                eye_denoise, threshold, context_padding,
-                max_scale, eyes_pair_detector, eye_single_detector
+
+        for face_bbox, eye_bboxes in face_eye_pairs:
+            # Crop and upscale face
+            face_crop = crop_image_by_bbox(image, face_bbox)
+            face_upscaled = upscale_and_sample(
+                face_crop, model, vae, positive, negative, seed,
+                face_steps, cfg, sampler, scheduler, face_denoise,
+                context_padding, max_scale
             )
-            
-            # Composite eyes back into upscaled face
-            face_with_eyes = face_upscaled
-            for eye_crop, eye_bbox in zip(eye_full_res, eye_bboxes):
-                face_with_eyes = uncrop_image_by_bbox(
-                    face_with_eyes, eye_crop, eye_bbox, feather
-                )
-            
-            # Store full resolution face for preview
-            final_faces_full_res.append(face_with_eyes)
-            
-            # Downscale to original bbox size for compositing
+
+            # Calculate scale factor for eye bbox mapping
             orig_w = face_bbox[2]
             orig_h = face_bbox[3]
+            new_w = face_upscaled.shape[2]
+            new_h = face_upscaled.shape[1]
+            scale_x = new_w / orig_w
+            scale_y = new_h / orig_h
+
+            # Process eyes in upscaled face
+            for eye_bbox in eye_bboxes:
+                # Convert eye bbox from image space to upscaled face space
+                eye_x_rel = eye_bbox[0] - face_bbox[0]
+                eye_y_rel = eye_bbox[1] - face_bbox[1]
+                eye_w = eye_bbox[2]
+                eye_h = eye_bbox[3]
+
+                # Scale to upscaled face coordinates
+                eye_x_scaled = int(eye_x_rel * scale_x)
+                eye_y_scaled = int(eye_y_rel * scale_y)
+                eye_w_scaled = int(eye_w * scale_x)
+                eye_h_scaled = int(eye_h * scale_y)
+
+                eye_bbox_scaled = (
+                    eye_x_scaled, eye_y_scaled,
+                    eye_w_scaled, eye_h_scaled
+                )
+
+                # Crop, upscale, and sample eye
+                eye_crop = crop_image_by_bbox(
+                    face_upscaled, eye_bbox_scaled
+                )
+                eye_upscaled = upscale_and_sample(
+                    eye_crop, model, vae, positive, negative, seed + 1,
+                    eye_steps, cfg, sampler, scheduler, eye_denoise,
+                    context_padding, max_scale
+                )
+
+                # Downscale eye back to face resolution
+                scale_node = common.Node("ImageScale")
+                eye_downscaled = scale_node.function(
+                    eye_upscaled, upscale_method,
+                    eye_w_scaled, eye_h_scaled, "disabled"
+                )[0]
+
+                # Composite eye back into upscaled face
+                face_upscaled = uncrop_image_by_bbox(
+                    face_upscaled, eye_downscaled, eye_bbox_scaled, feather
+                )
+
+            # Store full resolution face for preview
+            final_faces_full_res.append(face_upscaled)
+
+            # Downscale to original face size for compositing
             scale_node = common.Node("ImageScale")
-            downscaled = scale_node.function(
-                face_with_eyes, upscale_method, orig_w, orig_h, "disabled"
+            face_downscaled = scale_node.function(
+                face_upscaled, upscale_method, orig_w, orig_h, "disabled"
             )[0]
-            final_faces_downscaled.append(downscaled)
-        
+            final_faces_downscaled.append(face_downscaled)
+
         # Composite downscaled faces back into image
         final_image = image
-        for face_crop, face_bbox in zip(
-            final_faces_downscaled, face_bboxes
+        for face_crop, (face_bbox, _) in zip(
+            final_faces_downscaled, face_eye_pairs
         ):
             final_image = uncrop_image_by_bbox(
                 final_image, face_crop, face_bbox, feather
             )
-        
+
         # Create padded batch of full resolution faces with transparency
         face_batch = pad_crops_transparent(
             final_faces_full_res, image.device, image.dtype
         )
-        
+
         return common.return_preview(
             (final_image, face_batch),
             face_batch,
@@ -445,17 +494,17 @@ class NestedDetailerNode:
 
 class NestedDetailerPipeNode(NestedDetailerNode):
     """Nested detailer with full_pipe input/output."""
-    
+
     @classmethod
     def INPUT_TYPES(cls):
         base_inputs = super().INPUT_TYPES()
-        
+
         # Remove standalone core inputs and seed
         for key in ["image", "model", "vae", "positive", "negative",
                     "seed"]:
             if key in base_inputs["required"]:
                 del base_inputs["required"][key]
-        
+
         # Add pipe input at the start
         pipe_inputs = {
             "required": {
@@ -464,12 +513,12 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             },
             "hidden": base_inputs["hidden"]
         }
-        
+
         return pipe_inputs
-    
+
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
     RETURN_NAMES = ("full_pipe", "image", "detailed_faces")
-    
+
     def process(
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,
         threshold, cfg, sampler, scheduler, face_steps, face_denoise,
@@ -484,7 +533,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
         positive = full_pipe.get("positive")
         negative = full_pipe.get("negative")
         seed = full_pipe.get("seed", 0)
-        
+
         # Validate
         if image is None:
             raise ValueError("full_pipe must contain 'image'")
@@ -496,7 +545,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             raise ValueError("full_pipe must contain 'positive'")
         if negative is None:
             raise ValueError("full_pipe must contain 'negative'")
-        
+
         # Call parent process
         result = super().process(
             face_model, eyes_pair_model, eye_single_model,
@@ -505,16 +554,16 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             eye_steps, eye_denoise, upscale_method, max_scale,
             feather, context_padding, extra_pnginfo
         )
-        
+
         if isinstance(result, dict):
             final_image, face_batch = result["result"]
         else:
             final_image, face_batch = result
-        
+
         # Update pipe
         new_pipe = full_pipe.copy()
         new_pipe["image"] = final_image
-        
+
         return common.return_preview(
             (new_pipe, final_image, face_batch),
             face_batch,
