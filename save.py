@@ -7,6 +7,44 @@ import folder_paths
 from datetime import datetime
 
 
+SAMPLERS = {
+    "euler": "Euler",
+    "euler_cfg_pp": "Euler CFG++",
+    "euler_ancestral": "Euler a",
+    "euler_ancestral_cfg_pp": "Euler a CFG++",
+    "heun": "Heun",
+    "heunpp2": "HeunPP2",
+    "dpm_2": "DPM2",
+    "dpm_2_ancestral": "DPM2 a",
+    "lms": "LMS",
+    "dpm_fast": "DPM fast",
+    "dpm_adaptive": "DPM adaptive",
+    "dpmpp_2s_ancestral": "DPM++ 2S a",
+    "dpmpp_sde": "DPM++ SDE",
+    "dpmpp_sde_gpu": "DPM++ SDE",
+    "dpmpp_2m": "DPM++ 2M",
+    "dpmpp_2m_sde": "DPM++ 2M SDE",
+    "dpmpp_2m_sde_gpu": "DPM++ 2M SDE",
+    "dpmpp_2m_sde_heun": "DPM++ 2M SDE Heun",
+    "dpmpp_2m_sde_heun_gpu": "DPM++ 2M SDE Heun",
+    "dpmpp_3m_sde": "DPM++ 3M SDE",
+    "dpmpp_3m_sde_gpu": "DPM++ 3M SDE",
+    "ipndm": "IPNDM",
+    "ipndm_v": "IPNDM_V",
+    "deis": "DEIS",
+}
+
+SCHEDULERS = {
+    "simple": "Simple",
+    "sgm_uniform": "SGM Uniform",
+    "karras": "Karras",
+    "exponential": "Exponential",
+    "normal": "Normal",
+    "kl_optimal": "KL Optimal",
+    "align_your_steps": "Align Your Steps"
+}
+
+
 def get_node_by_type(prompt, node_type):
     return [v for k, v in prompt.items() if v.get("class_type") == node_type]
 
@@ -50,7 +88,9 @@ def build_a1111_meta(pipe, prompt, w, h, model):
     if base:
         v = base.get("inputs", {})
         sampler = v.get("sampler_name", sampler)
+        sampler = SAMPLERS.get(sampler, sampler)
         sched = v.get("scheduler", sched)
+        sched = SCHEDULERS.get(sched, sched)
         steps = v.get("steps", steps)
         cfg = v.get("cfg", cfg)
 
@@ -63,18 +103,35 @@ def build_a1111_meta(pipe, prompt, w, h, model):
     upscale = get_node_by_type(prompt, "UpscaleNode")
     if upscale:
         v = upscale[0].get("inputs", {})
+        upscale_model = v.get('upscale_model').split('/')[-1]
         meta += (f", Hires upscale: {v.get('scale_by')}, "
                  f"Hires steps: {v.get('steps')}, "
                  f"Denoising strength: {v.get('denoise')}, "
-                 f"Hires upscaler: {v.get('upscale_model')}")
+                 f"Hires upscaler: {upscale_model}")
 
     detailers = get_node_by_type(prompt, "DetailerPipeNode")
     for i, det in enumerate(detailers):
         v = det.get("inputs", {})
+        bbox_model = v.get('bbox_model').split['/'][-1]
         sfx = " 2nd" if i == 1 else ""
-        meta += (f", ADetailer model{sfx}: {v.get('bbox_model')}, "
+        meta += (f", ADetailer model{sfx}: {bbox_model}, "
                  f"ADetailer confidence{sfx}: {v.get('threshold')}, "
                  f"ADetailer denoising strength{sfx}: {v.get('denoise')}")
+
+    nestedDetailer = get_node_by_type(prompt, "NestedDetailerPipeNode")[0]
+    if nestedDetailer:
+        v = nestedDetailer.get("inputs", {})
+        bbox_model = []
+        bbox_model.append(v.get('face_model').split('/')[-1])
+        bbox_model.append(v.get('eyes_pair_model').split('/')[-1])
+        denoise = []
+        denoise.append(v.get('face_denoise'))
+        denoise.append(v.get('eye_denoise'))
+        for i in range(0, 2):
+            sfx = " 2nd" if i == 1 else ""
+            meta += (f", ADetailer model{sfx}: {bbox_model[i]}, "
+                     f"ADetailer confidence{sfx}: {v.get('threshold')}, "
+                     f"ADetailer denoising strength{sfx}: {denoise[i]}")
 
     return meta
 
