@@ -7,7 +7,8 @@ app.registerExtension({
     async nodeCreated(node) {
         const nodeTypes = [
             "BaseNode", "UpscaleNode", "DetailerNode",
-            "DetailerPipeNode", "MaskDetailerNode", "MaskDetailerPipeNode"
+            "DetailerPipeNode", "MaskDetailerNode", "MaskDetailerPipeNode",
+            "NestedDetailerNode", "NestedDetailerPipeNode"
         ];
 
         if (!nodeTypes.includes(node.comfyClass)) return;
