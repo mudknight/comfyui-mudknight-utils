@@ -125,7 +125,8 @@ def detect_all_bboxes(image, detector, threshold):
         confidence = seg.confidence
 
         print(
-            f"Detected bbox: x={x}, y={y}, w={width}, h={height}, conf={confidence}")
+            f"Detected bbox: x={x}, y={y}, w={width}, h={height}, "
+            "conf={confidence}")
 
         results.append(((x, y, width, height), confidence))
 
@@ -327,19 +328,21 @@ class NestedDetailerNode:
                 # Upscale parameters
                 "upscale_method": (UPSCALE_METHODS,),
                 "scale_factor": ("FLOAT", {
-                    "default": 2,
+                    "default": 1.5,
                     "min": 0.1,
-                    "max": 3.0,
+                    "max": 2.0,
                     "step": 0.1,
-                    "tooltip": ("Amount to upscale cropped region before "
-                                "sampling")
+                    "tooltip": (
+                        "Amount to upscale cropped region before sampling. "
+                        "Higher values create more detailed images."
+                        )
                 }),
-                "max_scale": ("FLOAT", {
+                "max_megapixels": ("FLOAT", {
                     "default": 1.5,
                     "min": 0.1,
                     "max": 10.0,
                     "step": 0.1,
-                    "tooltip": "Maximum megapixels for upscaled images"
+                    "tooltip": "Maximum size in megapixels for upscaled images"
                 }),
                 # Detailer parameters
                 **DETAILER_INPUTS,
@@ -356,7 +359,7 @@ class NestedDetailerNode:
         self, face_model, eyes_pair_model, eye_single_model,
         threshold, image, model, vae, positive, negative, seed,
         cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
+        eye_steps, eye_denoise, upscale_method, scale_factor, max_megapixels,
         feather, context_padding, extra_pnginfo=None
     ):
         """Process image with nested face/eye detection."""
@@ -418,7 +421,7 @@ class NestedDetailerNode:
             face_upscaled = upscale_and_sample(
                 face_crop, model, vae, positive, negative, seed,
                 face_steps, cfg, sampler, scheduler, face_denoise,
-                context_padding, scale_factor, max_scale
+                context_padding, scale_factor, max_megapixels
             )
 
             # Calculate scale factor for eye bbox mapping
@@ -455,7 +458,7 @@ class NestedDetailerNode:
                 eye_upscaled = upscale_and_sample(
                     eye_crop, model, vae, positive, negative, seed + 1,
                     eye_steps, cfg, sampler, scheduler, eye_denoise,
-                    context_padding, scale_factor, max_scale
+                    context_padding, scale_factor, max_megapixels
                 )
 
                 # Downscale eye back to face resolution
@@ -531,7 +534,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
     def process(
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,
         threshold, cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
+        eye_steps, eye_denoise, upscale_method, scale_factor, max_megapixels,
         feather, context_padding, extra_pnginfo=None
     ):
         """Process using full_pipe."""
@@ -560,8 +563,8 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             face_model, eyes_pair_model, eye_single_model,
             threshold, image, model, vae, positive, negative, seed,
             cfg, sampler, scheduler, face_steps, face_denoise,
-            eye_steps, eye_denoise, upscale_method, scale_factor, max_scale,
-            feather, context_padding, extra_pnginfo
+            eye_steps, eye_denoise, upscale_method, scale_factor,
+            max_megapixels, feather, context_padding, extra_pnginfo
         )
 
         if isinstance(result, dict):
