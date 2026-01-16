@@ -14,7 +14,7 @@ app.registerExtension({
                 for (let i = this.widgets.length - 1; i >= 0; i--) {
                     const widget = this.widgets[i];
 
-                    if (widget.name && widget.name.startsWith("label_")) {
+                    if (widget.name && widget.name.startsWith("_label_")) {
                         // 1. Change type to something ComfyUI won't try to 'fix'
                         widget.type = "info";
 
