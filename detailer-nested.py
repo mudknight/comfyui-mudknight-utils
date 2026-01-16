@@ -318,16 +318,7 @@ class NestedDetailerNode:
                 "face_denoise": ("FLOAT", {
                     "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01
                 }),
-                # Eye processing
-                "eye_steps": ("INT", {
-                    "default": 20, "min": 1, "max": 10000
-                }),
-                "eye_denoise": ("FLOAT", {
-                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01
-                }),
-                # Upscale parameters
-                "upscale_method": (UPSCALE_METHODS,),
-                "scale_factor": ("FLOAT", {
+                "face_scale": ("FLOAT", {
                     "default": 1.5,
                     "min": 0.1,
                     "max": 2.0,
@@ -337,6 +328,25 @@ class NestedDetailerNode:
                         "Higher values create more detailed images."
                         )
                 }),
+                # Eye processing
+                "eye_steps": ("INT", {
+                    "default": 20, "min": 1, "max": 10000
+                }),
+                "eye_denoise": ("FLOAT", {
+                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01
+                }),
+                "eye_scale": ("FLOAT", {
+                    "default": 1.5,
+                    "min": 0.1,
+                    "max": 2.0,
+                    "step": 0.1,
+                    "tooltip": (
+                        "Amount to upscale cropped region before sampling. "
+                        "Higher values create more detailed images."
+                        )
+                }),
+                # Upscale parameters
+                "upscale_method": (UPSCALE_METHODS,),
                 "max_megapixels": ("FLOAT", {
                     "default": 1.5,
                     "min": 0.1,
@@ -358,8 +368,8 @@ class NestedDetailerNode:
     def process(
         self, face_model, eyes_pair_model, eye_single_model,
         threshold, image, model, vae, positive, negative, seed,
-        cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, scale_factor, max_megapixels,
+        cfg, sampler, scheduler, face_steps, face_denoise, face_scale,
+        eye_steps, eye_denoise, eye_scale, upscale_method, max_megapixels,
         feather, context_padding, extra_pnginfo=None
     ):
         """Process image with nested face/eye detection."""
@@ -421,7 +431,7 @@ class NestedDetailerNode:
             face_upscaled = upscale_and_sample(
                 face_crop, model, vae, positive, negative, seed,
                 face_steps, cfg, sampler, scheduler, face_denoise,
-                context_padding, scale_factor, max_megapixels
+                context_padding, face_scale, max_megapixels
             )
 
             # Calculate scale factor for eye bbox mapping
@@ -458,7 +468,7 @@ class NestedDetailerNode:
                 eye_upscaled = upscale_and_sample(
                     eye_crop, model, vae, positive, negative, seed + 1,
                     eye_steps, cfg, sampler, scheduler, eye_denoise,
-                    context_padding, scale_factor, max_megapixels
+                    context_padding, eye_scale, max_megapixels
                 )
 
                 # Downscale eye back to face resolution
@@ -534,8 +544,8 @@ class NestedDetailerPipeNode(NestedDetailerNode):
     def process(
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,
         threshold, cfg, sampler, scheduler, face_steps, face_denoise,
-        eye_steps, eye_denoise, upscale_method, scale_factor, max_megapixels,
-        feather, context_padding, extra_pnginfo=None
+        face_scale, eye_steps, eye_denoise, eye_scale, upscale_method,
+        max_megapixels, feather, context_padding, extra_pnginfo=None
     ):
         """Process using full_pipe."""
         # Extract from pipe
@@ -562,8 +572,8 @@ class NestedDetailerPipeNode(NestedDetailerNode):
         result = super().process(
             face_model, eyes_pair_model, eye_single_model,
             threshold, image, model, vae, positive, negative, seed,
-            cfg, sampler, scheduler, face_steps, face_denoise,
-            eye_steps, eye_denoise, upscale_method, scale_factor,
+            cfg, sampler, scheduler, face_steps, face_denoise, face_scale,
+            eye_steps, eye_denoise, eye_scale, upscale_method,
             max_megapixels, feather, context_padding, extra_pnginfo
         )
 
