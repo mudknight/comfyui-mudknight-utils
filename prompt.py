@@ -186,36 +186,114 @@ def extract_embeddings(prompt):
     )
 
 
+# Cache for character names to avoid repeated file reads
+_character_names_cache = {"data": None, "mtime": 0}
+
+
+def load_character_names():
+    """Load character names from characters.jsonc with caching."""
+    from pathlib import Path
+    import json
+    import os
+    
+    config_path = Path(__file__).parent / "config" / "characters.jsonc"
+    
+    # Check if file exists
+    if not config_path.exists():
+        return []
+    
+    # Check modification time
+    try:
+        mtime = os.path.getmtime(config_path)
+        if _character_names_cache["mtime"] == mtime and _character_names_cache["data"] is not None:
+            return _character_names_cache["data"]
+    except OSError:
+        return []
+    
+    # Load character names
+    try:
+        # Use the common module's load_jsonc_file if available
+        try:
+            from .presets import load_jsonc_file
+            characters = load_jsonc_file(str(config_path), {})
+        except ImportError:
+            # Fallback: simple JSON load
+            with open(config_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Strip JSONC comments
+                content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+                content = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
+                characters = json.loads(content)
+        
+        # Sort by length descending to match longest names first
+        char_names = sorted(characters.keys(), key=len, reverse=True)
+        
+        # Cache the results
+        _character_names_cache["data"] = char_names
+        _character_names_cache["mtime"] = mtime
+        
+        return char_names
+    except Exception as e:
+        print(f"Error loading character names: {e}")
+        return []
+
+
 def extract_character_triggers(prompt):
-    """Extract character: triggers from prompt."""
+    """Extract character: triggers from prompt.
+    
+    Supports character names with colons (e.g., 'honkai: star rail' in parentheses).
+    Syntax: character:name[:outfit[:part]]
+    where part can be 'top' or 'bottom'
+    """
     if not prompt:
         return "", []
 
-    pattern = (
-        r'character:([^:,\n]+)'
-        r'(?::([^:,\n]+)(?::([^,\n]+?))?)?'
-        r'(?=\s*(?:,|\n|$))'
-    )
+    # Load available character names
+    available_chars = load_character_names()
+    
+    # Match character syntax - capture everything after "character:" until comma/newline/end
+    pattern = r'character:([^,\n]+?)(?=\s*(?:,|\n|$))'
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     characters = []
     for match in matches:
-        name = match.group(1).strip()
-        outfit = match.group(2).strip() if match.group(2) else None
-        part = match.group(3).strip().lower() if match.group(3) else None
+        full_text = match.group(1).strip()
+        
+        # Try to find matching character name by checking if full_text starts with it
+        char_name = None
+        for candidate in available_chars:
+            if full_text.startswith(candidate):
+                char_name = candidate
+                break
+        
+        # If no exact match found, fall back to treating first component as character name
+        # (for backward compatibility or when character not in config)
+        if char_name is None:
+            # Split by colons and take the first part as character name
+            parts = full_text.split(':')
+            char_name = parts[0].strip()
+            remaining = ':'.join(parts[1:]) if len(parts) > 1 else ''
+        else:
+            # Parse outfit and part from remaining text after character name
+            remaining = full_text[len(char_name):].lstrip(':').strip()
+        
+        outfit = None
+        part = None
+        
+        if remaining:
+            # Split remaining by colon to get outfit and part
+            remaining_parts = remaining.split(':')
+            if len(remaining_parts) >= 1 and remaining_parts[0].strip():
+                outfit = remaining_parts[0].strip()
+            if len(remaining_parts) >= 2:
+                part_val = remaining_parts[1].strip().lower()
+                if part_val in ['top', 'bottom']:
+                    part = part_val
 
-        if part and part not in ['top', 'bottom']:
-            part = None
+        characters.append((char_name, outfit, part))
 
-        characters.append((name, outfit, part))
-
-    cleaned = re.sub(
-        r'character:[^:,\n]+(?::[^:,\n]+(?::(?:top|bottom))?)?'
-        r'(?=\s*(?:,|\n|$))',
-        '',
-        prompt,
-        flags=re.IGNORECASE
-    )
+    # Remove character syntax from prompt using the same pattern
+    cleaned = re.sub(pattern, '', prompt, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
     cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
 

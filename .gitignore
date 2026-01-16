@@ -1,3 +1,4 @@
 config/*
 !config/
 __pycache__/
+testing.py
