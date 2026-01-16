@@ -97,23 +97,66 @@ class LineNumberManager {
 
 		// Calculate max width needed (number of digits)
 		const maxDigits = lineCount.toString().length;
-		const estimatedWidth = Math.max(16, maxDigits * 8 + 8); // More accurate width estimation
+		const estimatedWidth = Math.max(16, maxDigits * 8 + 8);
 
 		// Set overlay width
 		overlay.style.width = `${estimatedWidth}px`;
 
-		// Build line numbers HTML
+		// Build line numbers HTML - one per logical line
 		let html = "";
 		for (let i = 1; i <= lineCount; i++) {
 			const isCurrent = i === currentLineNumber;
 			const className = isCurrent ? "comfy-line-number current-line" : "comfy-line-number";
-			html += `<div class="${className}">${i}</div>`;
+			html += `<div class="${className}" data-line="${i}">${i}</div>`;
 		}
 
 		overlay.innerHTML = html;
 
-		// Update overlay position only (dimensions already set above)
+		// Adjust line number heights to match wrapped lines
+		this.adjustLineHeights(textarea, overlay, lines);
+
+		// Update overlay position
 		this.syncOverlayPosition(textarea, overlay);
+	}
+
+	adjustLineHeights(textarea, overlay, lines) {
+		const style = window.getComputedStyle(textarea);
+		const textareaWidth = textarea.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+
+		// Create a temporary div to measure line heights with wrapping
+		const measureDiv = document.createElement('div');
+		measureDiv.style.position = 'absolute';
+		measureDiv.style.visibility = 'hidden';
+		measureDiv.style.height = 'auto';
+		measureDiv.style.width = `${textareaWidth}px`;
+		measureDiv.style.overflow = 'hidden';
+		measureDiv.style.whiteSpace = 'pre-wrap';
+		measureDiv.style.wordWrap = 'break-word';
+		measureDiv.style.font = style.font;
+		measureDiv.style.letterSpacing = style.letterSpacing;
+		measureDiv.style.lineHeight = style.lineHeight;
+		document.body.appendChild(measureDiv);
+
+		// Get single line height
+		measureDiv.textContent = 'X';
+		const singleLineHeight = measureDiv.clientHeight;
+
+		// Adjust each line number div's height
+		const lineDivs = overlay.querySelectorAll('.comfy-line-number');
+		lineDivs.forEach((div, index) => {
+			const lineText = lines[index];
+
+			if (lineText.length === 0) {
+				div.style.height = `${singleLineHeight}px`;
+				return;
+			}
+
+			measureDiv.textContent = lineText;
+			const actualHeight = measureDiv.clientHeight;
+			div.style.height = `${actualHeight}px`;
+		});
+
+		document.body.removeChild(measureDiv);
 	}
 
 	syncOverlayPosition(textarea, overlay) {

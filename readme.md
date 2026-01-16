@@ -103,3 +103,6 @@ This adds a label to the bottom right of an image preview, showing the filesize 
 
 ### Node Runtime
 This shows how long nodes take to execute. Code taken from `comfyui-easy-use`.
+
+### Line Numbers
+Adds line numbers to the left side of all textarea inputs when focused.
