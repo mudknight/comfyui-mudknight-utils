@@ -624,11 +624,13 @@ export async function removeImage(type = 'character') {
 		
 		if (type === 'character') {
 			state.characterImages[state.currentEditName] = false;
-			document.getElementById('imagePreview').style.display = 'none';
+			document.getElementById('previewImg').style.display = 'none';
+			document.getElementById('charImageDropZone').classList.remove('has-image');
 			if (window.renderCharacters) window.renderCharacters();
 		} else {
 			state.styleImages[state.currentEditName] = false;
-			document.getElementById('styleImagePreview').style.display = 'none';
+			document.getElementById('stylePreviewImg').style.display = 'none';
+			document.getElementById('styleImageDropZone').classList.remove('has-image');
 			if (window.renderStyles) window.renderStyles();
 		}
 		showStatus('Image removed!', 'success');
