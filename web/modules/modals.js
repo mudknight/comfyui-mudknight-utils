@@ -388,43 +388,74 @@ export async function saveItem(type) {
 			return;
 		}
 		
-		const styleData = {
-			positive: document.getElementById('editStylePos').value,
-			negative: document.getElementById('editStyleNeg').value
-		};
+	const styleData = {
+		positive: document.getElementById('editStylePos').value,
+		negative: document.getElementById('editStyleNeg').value
+	};
 
-		const fileInput = document.getElementById('editStyleImage');
-		if (fileInput.files.length > 0) {
-			// const { uploadImage } = await import('./api.js');
-			await uploadImage(fileInput.files[0], state.currentOriginalName || newName, 'style');
-		}
+	// Handle image upload
+	const fileInput = document.getElementById('editStyleImage');
+	let imageToUpload = null;
 
-		if (!state.currentOriginalName) {
-			if (state.styles[newName]) {
-				alert('A style with this name already exists');
-				return;
-			}
-			state.styles[newName] = styleData;
-		} else if (newName !== state.currentOriginalName) {
-			delete state.styles[state.currentOriginalName];
-			state.styles[newName] = styleData;
-			
-			if (state.styleImages[state.currentOriginalName]) {
-				state.styleImages[newName] = true;
-				delete state.styleImages[state.currentOriginalName];
-			}
-		} else {
-			state.styles[state.currentOriginalName] = styleData;
+	if (fileInput.files.length > 0) {
+		imageToUpload = fileInput.files[0];
+	} else if (window.pendingStyleImage) {
+		// Convert base64 to blob for upload
+		const response = await fetch(window.pendingStyleImage);
+		imageToUpload = await response.blob();
+	}
+
+	if (!state.currentOriginalName) {
+		if (state.styles[newName]) {
+			alert('A style with this name already exists');
+			return;
 		}
+		state.styles[newName] = styleData;
 
 		try {
 			await saveStyles(state.styles);
-			showStatus('Style saved successfully!', 'success');
+
+			// Upload image after style is created
+			if (imageToUpload) {
+				await uploadImage(imageToUpload, newName, 'style');
+				window.pendingStyleImage = null;
+			}
+
+			showStatus('Style created successfully!', 'success');
 			if (window.renderStyles) window.renderStyles();
 			hideEditModal('style');
 		} catch (error) {
-			showStatus('Error saving style: ' + error.message, 'error');
+			showStatus('Error creating style: ' + error.message, 'error');
+			delete state.styles[newName];
 		}
+		return;
+	}
+
+	if (newName !== state.currentOriginalName) {
+		delete state.styles[state.currentOriginalName];
+		state.styles[newName] = styleData;
+		
+		if (state.styleImages[state.currentOriginalName]) {
+			state.styleImages[newName] = true;
+			delete state.styleImages[state.currentOriginalName];
+		}
+	} else {
+		state.styles[state.currentOriginalName] = styleData;
+	}
+
+	try {
+		await saveStyles(state.styles);
+		showStatus('Style saved successfully!', 'success');
+		if (window.renderStyles) window.renderStyles();
+		hideEditModal('style');
+	} catch (error) {
+		showStatus('Error saving style: ' + error.message, 'error');
+	}
+
+	if (imageToUpload) {
+		await uploadImage(imageToUpload, state.currentOriginalName || newName, 'style');
+		window.pendingStyleImage = null;
+	}
 	} else if (type === 'tag') {
 		const newName = document.getElementById('editTagNameInput').value.trim();
 		

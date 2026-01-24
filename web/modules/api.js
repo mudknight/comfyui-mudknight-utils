@@ -223,11 +223,17 @@ async function parseTagFile(text, url) {
 
             if (aliasField) {
                 const aliases = parseAliases(aliasField);
+                // Check if we should lower alias priority
+                const lowerAliasPriority = localStorage.getItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete" +
+                    ".LowerAliasPriority"
+                ) !== 'false';  // Default true
+                
                 for (const alias of aliases) {
                     tags.push({
                         tag: alias,
                         category: category,
-                        count: count,
+                        count: lowerAliasPriority ? 0 : count,
                         isAlias: true,
                         aliasFor: tag
                     });
