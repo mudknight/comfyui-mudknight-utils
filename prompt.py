@@ -469,6 +469,7 @@ class PromptConditioningNode:
                 "quality_tags": ("BOOLEAN", {"default": True}),
                 "embeddings": ("BOOLEAN", {"default": True}),
                 "character_presets": ("BOOLEAN", {"default": True}),
+                "mode": (["concatenate", "combine", "join"], {"default": "concatenate"}),
                 "positive": ("STRING", {
                     "multiline": True,
                     "default": ""
@@ -494,6 +495,7 @@ class PromptConditioningNode:
         quality_tags=True,
         embeddings=True,
         character_presets=True,
+        mode="concatenate",
         positive="",
         negative="",
         deduplicate_tags=True
@@ -576,7 +578,7 @@ class PromptConditioningNode:
 
         # Build conditioning
         pos_cond, pos_text, neg_cond, neg_text = (
-            self._build_conditioning(clip, reconstructed)
+            self._build_conditioning(clip, reconstructed, mode)
         )
 
         # Apply LoRAs
@@ -720,7 +722,7 @@ class PromptConditioningNode:
         except Exception as e:
             print(f"Tag usage tracking error: {e}")
 
-    def _build_conditioning(self, clip, reconstructed):
+    def _build_conditioning(self, clip, reconstructed, mode="concatenate"):
         """Build positive and negative conditioning."""
         multi_string_pos = common.Node("MultiStringConditioning")
         pos_cond, pos_text, lora_syntax = multi_string_pos.function(
@@ -729,6 +731,7 @@ class PromptConditioningNode:
             style=reconstructed['style_pos'],
             trigger=reconstructed['trigger'],
             character=reconstructed['char_pos'],
+            mode=mode,
             prompt=(
                 reconstructed['tag_preset_pos'] +
                 (', ' if reconstructed['tag_preset_pos'] else '') +
@@ -745,6 +748,7 @@ class PromptConditioningNode:
             style=reconstructed['style_neg'],
             trigger="",
             character=reconstructed['char_neg'],
+            mode=mode,
             prompt=(
                 reconstructed['tag_preset_neg'] +
                 (', ' if reconstructed['tag_preset_neg'] else '') +

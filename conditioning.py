@@ -28,7 +28,9 @@ class MultiStringConditioning:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return NODE_FIELDS
+        inputs = NODE_FIELDS.copy()
+        inputs["optional"]["mode"] = (["concatenate", "combine", "join"], {"default": "concatenate"})
+        return inputs
 
     RETURN_TYPES = ("CONDITIONING", "STRING", "STRING")
     RETURN_NAMES = ("conditioning", "combined_text", "lora_syntax")
@@ -37,7 +39,7 @@ class MultiStringConditioning:
 
     def strip_comments(self, text):
         """
-        Strip lines that start with # but preserve lines starting with \#.
+        Strip lines that start with # but preserve lines starting with \\#.
 
         Args:
             text: Input text that may contain comment lines
@@ -94,18 +96,18 @@ class MultiStringConditioning:
         """
         # Extract parameters from NODE_FIELDS
         clip = kwargs.get(list(NODE_FIELDS["required"].keys())[0])
+        mode = kwargs.get("mode", "concatenate")
         text_inputs = [
             kwargs.get(key, "")
             for key in NODE_FIELDS["optional"].keys()
+            if key != "mode"
         ]
 
-        conditionings = []
         text_parts = []
         all_lora_tags = []
 
         # Process each text input
         for text in text_inputs:
-            # Skip empty or whitespace-only strings
             if text and text.strip():
                 # Strip comment lines first
                 text = self.strip_comments(text)
@@ -117,19 +119,34 @@ class MultiStringConditioning:
                 if lora_tags:
                     all_lora_tags.append(lora_tags)
 
-                # Only process if there's text left after stripping tags
+                # Only add text parts if there's text left after stripping tags
                 if cleaned_text:
-                    # Encode the cleaned text using CLIP
-                    tokens = clip.tokenize(cleaned_text)
-                    cond, pooled = clip.encode_from_tokens(
-                            tokens, return_pooled=True)
-                    conditionings.append([[cond, {"pooled_output": pooled}]])
-                    # Add to text parts for combined output
                     text_parts.append(cleaned_text)
 
         # Create combined text and lora syntax strings
         combined_text = ", ".join(text_parts)
         lora_syntax = " ".join(all_lora_tags)
+
+        # Handle join mode - join all text, then single conditioning
+        if mode == "join":
+            if text_parts:
+                joined_text = combined_text
+                tokens = clip.tokenize(joined_text)
+                cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+                return ([[cond, {"pooled_output": pooled}]], joined_text, lora_syntax)
+            else:
+                # Empty conditioning if no text
+                tokens = clip.tokenize("")
+                cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+                return ([[cond, {"pooled_output": pooled}]], "", lora_syntax)
+
+        # Encode all text parts
+        conditionings = []
+        for cleaned_text in text_parts:
+            # Encode the cleaned text using CLIP
+            tokens = clip.tokenize(cleaned_text)
+            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+            conditionings.append([[cond, {"pooled_output": pooled}]])
 
         # If no valid conditionings, return empty conditioning
         if not conditionings:
@@ -137,22 +154,44 @@ class MultiStringConditioning:
             cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
             return ([[cond, {"pooled_output": pooled}]], "", lora_syntax)
 
-        # Start with the first conditioning
-        conditioning_to = conditionings[0]
-
-        # Concatenate each subsequent conditioning
-        for conditioning_from in conditionings[1:]:
+        if mode == "combine":
+            # Average the conditionings
             out = []
-            cond_from = conditioning_from[0][0]
+            num_conditionings = len(conditionings)
 
-            for i in range(len(conditioning_to)):
-                t1 = conditioning_to[i][0]
-                # Concatenate tensors along dimension 1
-                tw = torch.cat((t1, cond_from), 1)
-                n = [tw, conditioning_to[i][1].copy()]
-                out.append(n)
+            for i in range(len(conditionings[0])):
+                # Sum all conditionings at this batch index
+                summed_cond = conditionings[0][i][0]
+                summed_pooled = conditionings[0][i][1]["pooled_output"]
+
+                for conditioning in conditionings[1:]:
+                    summed_cond = summed_cond + conditioning[i][0]
+                    summed_pooled = summed_pooled + conditioning[i][1]["pooled_output"]
+
+                # Average the summed tensors
+                avg_cond = summed_cond / num_conditionings
+                avg_pooled = summed_pooled / num_conditionings
+
+                out.append([avg_cond, {"pooled_output": avg_pooled}])
 
             conditioning_to = out
+        else:
+            # Start with the first conditioning (concatenate mode)
+            conditioning_to = conditionings[0]
+
+            # Concatenate each subsequent conditioning
+            for conditioning_from in conditionings[1:]:
+                out = []
+                cond_from = conditioning_from[0][0]
+
+                for i in range(len(conditioning_to)):
+                    t1 = conditioning_to[i][0]
+                    # Concatenate tensors along dimension 1
+                    tw = torch.cat((t1, cond_from), 1)
+                    n = [tw, conditioning_to[i][1].copy()]
+                    out.append(n)
+
+                conditioning_to = out
 
         return (conditioning_to, combined_text, lora_syntax)
 
