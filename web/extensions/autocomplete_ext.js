@@ -157,6 +157,15 @@ app.registerExtension({
             }
         },
         {
+            id: "Mudknight Utils.Autocomplete.LowerAliasPriority",
+            name: "Lower priority of aliased tags",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "When enabled, aliased tags appear at the bottom of " +
+            "autocomplete results (count set to 0) instead of inheriting " +
+            "the parent tag's priority. Requires reload to take effect.",
+        },
+        {
             id: "Mudknight Utils.Autocomplete.Enabled",
             name: "Enable Autocomplete in ComfyUI",
             type: "boolean",
