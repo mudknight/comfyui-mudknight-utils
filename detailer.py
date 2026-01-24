@@ -109,18 +109,22 @@ def uncrop_image_by_bbox(
 
     target = full_img.clone()
 
-    # Ensure crop matches expected bbox size (handles scaling mismatches)
-    if crop_img.shape[1] != h or crop_img.shape[2] != w:
+    # Extract the actual region from the full image to get true dimensions
+    original_region = target[:, y:y+h, x:x+w, :]
+    actual_h, actual_w = original_region.shape[1], original_region.shape[2]
+
+    # Ensure crop matches the ACTUAL region size (not bbox size)
+    if crop_img.shape[1] != actual_h or crop_img.shape[2] != actual_w:
         import nodes
         scaler = nodes.ImageScale()
         crop_img = scaler.upscale(
-            crop_img, "bicubic", w, h, "disabled"
+            crop_img, "bicubic", actual_w, actual_h, "disabled"
         )[0]
 
-    # Create feather mask
-    mask = torch.ones((1, h, w, 1), device=full_img.device)
+    # Create feather mask with actual dimensions
+    mask = torch.ones((1, actual_h, actual_w, 1), device=full_img.device)
     if feather > 0:
-        feather_pix = int(min(w, h) * (feather / 2))
+        feather_pix = int(min(actual_w, actual_h) * (feather / 2))
         if feather_pix > 0:
             for i in range(feather_pix):
                 v = i / feather_pix
@@ -129,10 +133,9 @@ def uncrop_image_by_bbox(
                 mask[:, :, i, :] *= v
                 mask[:, :, -(i + 1), :] *= v
 
-    # Composite
-    original_region = target[:, y:y+h, x:x+w, :]
+    # Composite - now all dimensions match
     blended = crop_img * mask + original_region * (1 - mask)
-    target[:, y:y+h, x:x+w, :] = blended
+    target[:, y:y+actual_h, x:x+actual_w, :] = blended
 
     return target
 
