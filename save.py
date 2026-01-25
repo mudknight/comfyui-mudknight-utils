@@ -84,9 +84,9 @@ def build_a1111_meta(pipe, prompt, w, h, model):
             import hashlib
             model_hash = hashlib.sha256(ckpt_name.encode()).hexdigest()[:10]
 
-    base = get_node_by_type(prompt, "BaseNode")[0]
-    if base:
-        v = base.get("inputs", {})
+    base_nodes = get_node_by_type(prompt, "BaseNode")
+    if base_nodes:
+        v = base_nodes[0].get("inputs", {})
         sampler = v.get("sampler_name", sampler)
         sampler = SAMPLERS.get(sampler, sampler)
         sched = v.get("scheduler", sched)
@@ -112,15 +112,15 @@ def build_a1111_meta(pipe, prompt, w, h, model):
     detailers = get_node_by_type(prompt, "DetailerPipeNode")
     for i, det in enumerate(detailers):
         v = det.get("inputs", {})
-        bbox_model = v.get('bbox_model').split['/'][-1]
+        bbox_model = v.get('bbox_model').split('/')[-1]
         sfx = " 2nd" if i == 1 else ""
         meta += (f", ADetailer model{sfx}: {bbox_model}, "
                  f"ADetailer confidence{sfx}: {v.get('threshold')}, "
                  f"ADetailer denoising strength{sfx}: {v.get('denoise')}")
 
-    nestedDetailer = get_node_by_type(prompt, "NestedDetailerPipeNode")[0]
-    if nestedDetailer:
-        v = nestedDetailer.get("inputs", {})
+    nestedDetailer_nodes = get_node_by_type(prompt, "NestedDetailerPipeNode")
+    if nestedDetailer_nodes:
+        v = nestedDetailer_nodes[0].get("inputs", {})
         bbox_model = []
         bbox_model.append(v.get('face_model').split('/')[-1])
         bbox_model.append(v.get('eyes_pair_model').split('/')[-1])
