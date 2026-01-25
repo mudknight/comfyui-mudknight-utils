@@ -209,7 +209,6 @@ class OpenCVDenoise:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),
                 "device": (["CPU", "GPU"], {
                     "default": "GPU",
                     "tooltip": ("GPU highly recommended, "
@@ -231,14 +230,26 @@ class OpenCVDenoise:
                         "8 is recommended, higher values cause more gradient "
                         "banding")
                 }),
+            },
+            "optional": {
+                "full_pipe": ("FULL_PIPE",),
+                "image": ("IMAGE",),
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("FULL_PIPE", "IMAGE")
+    RETURN_NAMES = ("full_pipe", "image")
     FUNCTION = "run"
     CATEGORY = "image/filter"
 
-    def run(self, image, device, sigma_r, sigma_color):
+    def run(self, device, sigma_r, sigma_color, full_pipe=None, image=None):
+        # Handle input image from direct input or pipe
+        if image is None and full_pipe is not None:
+            image = full_pipe.get("image")
+
+        if image is None:
+            raise ValueError("No input image provided (checked both input and full_pipe)")
+
         # Select GPU before importing OpenCV
         import cv2  # deferred import
 
@@ -273,7 +284,15 @@ class OpenCVDenoise:
 
         # Stack all processed images back into a single tensor
         result = np.stack(result_images, axis=0)
-        return (torch.from_numpy(result),)
+        result_image = torch.from_numpy(result)
+        
+        # Handle pipe output
+        if full_pipe is not None:
+            new_pipe = full_pipe.copy()
+            new_pipe["image"] = result_image
+            return (new_pipe, result_image)
+            
+        return (None, result_image)
 
 
 class ImageDifference:
