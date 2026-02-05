@@ -471,9 +471,10 @@ class DetailerNode:
 
         padded_crops_batch = pad_crops(image, crops)
 
+        final_image = image
         for processed_crop, bbox in zip(processed_crops, bboxes):
             final_image = uncrop_image_by_bbox(
-                image, processed_crop, bbox, feather=feather
+                final_image, processed_crop, bbox, feather=feather
             )
 
         return common.return_preview(
