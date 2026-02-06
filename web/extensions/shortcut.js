@@ -3,10 +3,11 @@ import { app } from "../../../scripts/app.js";
 app.registerExtension({
     name: "Mudknight Utils.Shortcuts",
     async setup() {
-        const id = "Mudknight Utils.Shortcuts.Batch";
+        const batchId = "Mudknight Utils.Shortcuts.Batch";
+        const cancelId = "Mudknight Utils.Shortcuts.CancelRun";
 
         app.ui.settings.addSetting({
-            id,
+            id: batchId,
             name: "Enable Alt+Up/Down Batch Shortcuts",
             type: "boolean",
             defaultValue: true,
@@ -14,11 +15,31 @@ app.registerExtension({
             "Shift+Alt+Up/Down to double/halve batch count"
         });
 
+        app.ui.settings.addSetting({
+            id: cancelId,
+            name: "Enable Ctrl+Escape Cancel Shortcut",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Ctrl+Escape to cancel the current run"
+        });
+
         console.log("[Mudknight Shortcuts] Extension loaded");
 
         window.addEventListener("keydown", (event) => {
-            const enabled = app.ui.settings.getSettingValue(id);
-            if (!enabled) return;
+            if (event.ctrlKey && event.key === "Escape") {
+                if (app.ui.settings.getSettingValue(cancelId)) {
+                    const cancelButton = document.querySelector('button[aria-label="Cancel current run"]');
+                    if (cancelButton && !cancelButton.disabled) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        cancelButton.click();
+                        return;
+                    }
+                }
+            }
+
+            const batchEnabled = app.ui.settings.getSettingValue(batchId);
+            if (!batchEnabled) return;
 
             const isUp = event.key === "ArrowUp";
             const isDown = event.key === "ArrowDown";
