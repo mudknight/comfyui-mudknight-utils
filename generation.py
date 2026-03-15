@@ -95,8 +95,7 @@ class BaseNode:
             pass
         else:
             # Get resolution
-            resolution_selector = common.Node("ResolutionSelector")
-            width, height = resolution_selector.function(
+            width, height = ResolutionSelector().get_resolution(
                 resolution, portrait)
             # Create empty latent
             empty_latent = common.Node("EmptyLatentImage")
