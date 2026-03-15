@@ -273,7 +273,7 @@ class OpenCVDenoise:
             processed = cv2.edgePreservingFilter(
                 img_uint8, flags=2, sigma_s=128, sigma_r=sigma_r
             )
-            processed = cv2.bilateralFilter(processed, 256, sigma_color, 60)
+            processed = cv2.bilateralFilter(processed, 128, sigma_color, 60)
 
             if isinstance(processed, cv2.UMat):
                 processed = processed.get()
