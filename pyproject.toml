@@ -28,7 +28,7 @@ Documentation = "https://github.com/mudknight/comfyui-mudknight-utils/wiki"
 "Bug Tracker" = "https://github.com/mudknight/comfyui-mudknight-utils/issues"
 
 [tool.comfy]
-PublisherId = "mudknight"
+PublisherId = "mudknight32"
 DisplayName = "comfyui-mudknight-utils"
 Icon = ""
 includes = [] 
