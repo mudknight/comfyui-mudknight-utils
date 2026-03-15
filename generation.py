@@ -4,6 +4,7 @@ import nodes
 import comfy.samplers
 import comfy.sample
 from . import common
+from .resolution import ResolutionSelector
 
 KSAMPLER_INPUTS = {
     "sampler_name": (
@@ -44,8 +45,7 @@ class BaseNode:
 
     @classmethod
     def INPUT_TYPES(cls):
-        resolution_selector = nodes.NODE_CLASS_MAPPINGS[
-            "ResolutionSelector"]
+        resolution_selector = ResolutionSelector
 
         return {
             "required": {
