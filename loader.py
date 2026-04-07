@@ -37,11 +37,7 @@ def apply_lora_stack(model, clip, lora_stack):
 
         # Apply LoRA to model and clip
         model_lora, clip_lora = comfy.sd.load_lora_for_models(
-            model_lora,
-            clip_lora,
-            lora,
-            strength_model,
-            strength_clip
+            model_lora, clip_lora, lora, strength_model, strength_clip
         )
 
     return model_lora, clip_lora
@@ -62,19 +58,28 @@ class LoaderFullPipe:
             "required": {
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
                 "stop_at_clip_layer": (
-                    "INT", {
-                        "default": -2, "min": -24, "max": -1, "step": 1,
-                        "tooltip": "CLIP skip"}
+                    "INT",
+                    {
+                        "default": -2,
+                        "min": -24,
+                        "max": 0,
+                        "step": 1,
+                        "tooltip": "CLIP skip (0 to disable)",
+                    },
                 ),
                 "seed": (
-                    "INT", {
-                        "default": 0, "min": 0, "max": 0xffffffffffffffff,
-                        "tooltip": "Seed"}
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                        "tooltip": "Seed",
+                    },
                 ),
             },
             "optional": {
                 "lora_stack": ("LORA_STACK",),
-            }
+            },
         }
 
     RETURN_TYPES = ("FULL_PIPE",)
@@ -88,8 +93,7 @@ class LoaderFullPipe:
         lora_key = None
         if lora_stack is not None:
             lora_key = tuple(
-                tuple(item) if isinstance(item, list) else item
-                for item in lora_stack
+                tuple(item) if isinstance(item, list) else item for item in lora_stack
             )
         cache_key = (ckpt_name, stop_at_clip_layer, lora_key)
 
@@ -109,36 +113,28 @@ class LoaderFullPipe:
 
             self._current_cache_key = cache_key
             # Load checkpoint directly
-            ckpt_path = folder_paths.get_full_path(
-                "checkpoints",
-                ckpt_name
-            )
+            ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
             out = comfy.sd.load_checkpoint_guess_config(
                 ckpt_path,
                 output_vae=True,
                 output_clip=True,
-                embedding_directory=folder_paths.get_folder_paths(
-                    "embeddings"
-                )
+                embedding_directory=folder_paths.get_folder_paths("embeddings"),
             )
             model = out[0]
             clip = out[1]
             vae = out[2]
 
-            # Apply CLIP layer stop
-            clip = clip.clone()
-            clip.clip_layer(stop_at_clip_layer)
+            # Apply CLIP layer stop if not 0
+            if stop_at_clip_layer != 0:
+                clip = clip.clone()
+                clip.clip_layer(stop_at_clip_layer)
 
             # Apply LoRA stack if provided
             if lora_stack is not None:
                 model, clip = apply_lora_stack(model, clip, lora_stack)
 
             # Cache the loaded models
-            self._cache[cache_key] = {
-                "model": model,
-                "clip": clip,
-                "vae": vae
-            }
+            self._cache[cache_key] = {"model": model, "clip": clip, "vae": vae}
 
         # Pack into full pipe dictionary
         full_pipe = {
@@ -175,24 +171,38 @@ class SplitLoaderFullPipe:
                 "clip_name": (clip_names,),
                 "vae_name": (vae_names,),
                 "stop_at_clip_layer": (
-                    "INT", {
-                        "default": -2, "min": -24, "max": -1, "step": 1,
-                        "tooltip": "CLIP skip"}
+                    "INT",
+                    {
+                        "default": -2,
+                        "min": -24,
+                        "max": 0,
+                        "step": 1,
+                        "tooltip": "CLIP skip (0 to disable)",
+                    },
                 ),
                 "shift": (
-                    "FLOAT", {
-                        "default": 3, "min": 0.0, "max": 10.0,
-                        "step": 0.01, "tooltip": "AuraFlow shift"}
+                    "FLOAT",
+                    {
+                        "default": 3,
+                        "min": 0.0,
+                        "max": 10.0,
+                        "step": 0.01,
+                        "tooltip": "AuraFlow shift",
+                    },
                 ),
                 "seed": (
-                    "INT", {
-                        "default": 0, "min": 0, "max": 0xffffffffffffffff,
-                        "tooltip": "Seed"}
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                        "tooltip": "Seed",
+                    },
                 ),
             },
             "optional": {
                 "lora_stack": ("LORA_STACK",),
-            }
+            },
         }
 
     RETURN_TYPES = ("FULL_PIPE",)
@@ -212,14 +222,13 @@ class SplitLoaderFullPipe:
         stop_at_clip_layer,
         shift,
         seed,
-        lora_stack=None
+        lora_stack=None,
     ):
         # Create cache key from model-affecting parameters
         lora_key = None
         if lora_stack is not None:
             lora_key = tuple(
-                tuple(item) if isinstance(item, list) else item
-                for item in lora_stack
+                tuple(item) if isinstance(item, list) else item for item in lora_stack
             )
         cache_key = (
             unet_name,
@@ -227,7 +236,7 @@ class SplitLoaderFullPipe:
             vae_name,
             stop_at_clip_layer,
             shift,
-            lora_key
+            lora_key,
         )
 
         # Check if we have cached model/clip/vae
@@ -247,56 +256,46 @@ class SplitLoaderFullPipe:
             self._current_cache_key = cache_key
 
             # Load diffusion model
-            unet_path = folder_paths.get_full_path(
-                "diffusion_models",
-                unet_name
-            )
+            unet_path = folder_paths.get_full_path("diffusion_models", unet_name)
             model = comfy.sd.load_diffusion_model(unet_path)
 
             # Load CLIP
-            clip_path = folder_paths.get_full_path(
-                "text_encoders",
-                clip_name
-            )
+            clip_path = folder_paths.get_full_path("text_encoders", clip_name)
             clip = comfy.sd.load_clip(
                 [clip_path],
-                embedding_directory=folder_paths.get_folder_paths(
-                    "embeddings"
-                )
+                embedding_directory=folder_paths.get_folder_paths("embeddings"),
             )
 
             # Load VAE
             vae_path = folder_paths.get_full_path("vae", vae_name)
-            vae = comfy.sd.VAE(sd=comfy.utils.load_torch_file(vae_path))
+            sd, metadata = comfy.utils.load_torch_file(vae_path, return_metadata=True)
+            vae = comfy.sd.VAE(sd=sd, metadata=metadata)
+            vae.throw_exception_if_invalid()
 
-            # Apply CLIP layer stop
-            clip = clip.clone()
-            clip.clip_layer(stop_at_clip_layer)
+            # Apply CLIP layer stop if not 0
+            if stop_at_clip_layer != 0:
+                clip = clip.clone()
+                clip.clip_layer(stop_at_clip_layer)
 
             # Apply LoRA stack if provided
             if lora_stack is not None:
                 model, clip = apply_lora_stack(model, clip, lora_stack)
 
-            # Apply ModelSamplingAuraFlow inline
-            model = model.clone()
-            sampling_base = comfy.model_sampling.ModelSamplingDiscreteFlow
-            sampling_type = comfy.model_sampling.CONST
+            # Apply ModelSamplingAuraFlow inline if shift > 0
+            if shift > 0:
+                model = model.clone()
+                sampling_base = comfy.model_sampling.ModelSamplingDiscreteFlow
+                sampling_type = comfy.model_sampling.CONST
 
-            class ModelSamplingAuraFlow(sampling_base, sampling_type):
-                pass
+                class ModelSamplingAuraFlow(sampling_base, sampling_type):
+                    pass
 
-            model_sampling = ModelSamplingAuraFlow(
-                model.model.model_config
-            )
-            model_sampling.set_parameters(shift=shift, multiplier=1.0)
-            model.add_object_patch("model_sampling", model_sampling)
+                model_sampling = ModelSamplingAuraFlow(model.model.model_config)
+                model_sampling.set_parameters(shift=shift, multiplier=1.0)
+                model.add_object_patch("model_sampling", model_sampling)
 
             # Cache the loaded models
-            self._cache[cache_key] = {
-                "model": model,
-                "clip": clip,
-                "vae": vae
-            }
+            self._cache[cache_key] = {"model": model, "clip": clip, "vae": vae}
 
         # Pack into full pipe dictionary
         full_pipe = {
