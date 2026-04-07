@@ -3,6 +3,7 @@
 Custom ComfyUI node for comprehensive prompt conditioning with quality
 tags, style presets, character replacement, and LoRA loading.
 """
+
 import re
 import folder_paths
 import comfy.sd
@@ -12,9 +13,7 @@ from pathlib import Path
 from . import common
 
 USAGE_FILE = Path(__file__).parent / "config" / "tag_usage.json"
-SETTINGS_FILE = (
-    Path(__file__).parent / "config" / "autocomplete_settings.json"
-)
+SETTINGS_FILE = Path(__file__).parent / "config" / "autocomplete_settings.json"
 
 
 def load_autocomplete_settings():
@@ -22,7 +21,7 @@ def load_autocomplete_settings():
     if not SETTINGS_FILE.exists():
         return {"collect_tag_usage": True}
     try:
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         print(f"Error loading autocomplete settings: {e}")
@@ -40,7 +39,7 @@ def load_tag_usage():
     if not USAGE_FILE.exists():
         return {}
     try:
-        with open(USAGE_FILE, 'r', encoding='utf-8') as f:
+        with open(USAGE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         print(f"Error loading tag usage: {e}")
@@ -51,7 +50,7 @@ def save_tag_usage(usage_dict):
     """Save tag usage counts to file."""
     try:
         USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(USAGE_FILE, 'w', encoding='utf-8') as f:
+        with open(USAGE_FILE, "w", encoding="utf-8") as f:
             json.dump(usage_dict, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"Error saving tag usage: {e}")
@@ -62,8 +61,8 @@ def increment_tag_usage(tags_dict):
     usage = load_tag_usage()
 
     for tag in tags_dict.keys():
-        normalized = tag.replace('\\(', '(').replace('\\)', ')')
-        normalized = normalized.lower().replace(' ', '_')
+        normalized = tag.replace("\\(", "(").replace("\\)", ")")
+        normalized = normalized.lower().replace(" ", "_")
         usage[normalized] = usage.get(normalized, 0) + 1
 
     save_tag_usage(usage)
@@ -87,7 +86,7 @@ def parse_lora_syntax(lora_string):
     if not lora_string or not lora_string.strip():
         return []
 
-    pattern = r'<lora:([^:>]+):([0-9.-]+)(?::([0-9.-]+))?\s*>'
+    pattern = r"<lora:([^:>]+):([0-9.-]+)(?::([0-9.-]+))?\s*>"
     matches = re.findall(pattern, lora_string, re.IGNORECASE)
 
     lora_list = []
@@ -115,14 +114,10 @@ def apply_loras(model, clip, lora_list):
     for lora_name, strength_model, strength_clip in lora_list:
         try:
             ext = ".safetensors"
-            s_name = (
-                lora_name if lora_name.endswith(ext)
-                else lora_name + ext
-            )
+            s_name = lora_name if lora_name.endswith(ext) else lora_name + ext
 
             full_rel_path = next(
-                (p for p in available_loras if p.endswith(s_name)),
-                None
+                (p for p in available_loras if p.endswith(s_name)), None
             )
 
             if full_rel_path is None:
@@ -160,30 +155,22 @@ def extract_syntax(prompt, pattern, empty_return):
         return "", empty_return
 
     items = re.findall(pattern, prompt)
-    cleaned = re.sub(pattern, '', prompt)
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+    cleaned = re.sub(pattern, "", prompt)
+    cleaned = re.sub(r"\s*,\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"^\s*,\s*|\s*,\s*$", "", cleaned)
 
     return cleaned.strip(), items
 
 
 def extract_loras(prompt):
     """Extract LoRA syntax from prompt."""
-    cleaned, loras = extract_syntax(
-        prompt,
-        r'<lora:[^>]+>',
-        ""
-    )
-    return cleaned, ','.join(loras) if loras else ""
+    cleaned, loras = extract_syntax(prompt, r"<lora:[^>]+>", "")
+    return cleaned, ",".join(loras) if loras else ""
 
 
 def extract_embeddings(prompt):
     """Extract embedding syntax from prompt."""
-    return extract_syntax(
-        prompt,
-        r'\(?embedding:([^,)]+)\)?',
-        []
-    )
+    return extract_syntax(prompt, r"\(?embedding:([^,)]+)\)?", [])
 
 
 # Cache for character names to avoid repeated file reads
@@ -195,43 +182,47 @@ def load_character_names():
     from pathlib import Path
     import json
     import os
-    
+
     config_path = Path(__file__).parent / "config" / "characters.jsonc"
-    
+
     # Check if file exists
     if not config_path.exists():
         return []
-    
+
     # Check modification time
     try:
         mtime = os.path.getmtime(config_path)
-        if _character_names_cache["mtime"] == mtime and _character_names_cache["data"] is not None:
+        if (
+            _character_names_cache["mtime"] == mtime
+            and _character_names_cache["data"] is not None
+        ):
             return _character_names_cache["data"]
     except OSError:
         return []
-    
+
     # Load character names
     try:
         # Use the common module's load_jsonc_file if available
         try:
             from .presets import load_jsonc_file
+
             characters = load_jsonc_file(str(config_path), {})
         except ImportError:
             # Fallback: simple JSON load
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Strip JSONC comments
-                content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-                content = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
+                content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+                content = re.sub(r"//.*?$", "", content, flags=re.MULTILINE)
                 characters = json.loads(content)
-        
+
         # Sort by length descending to match longest names first
         char_names = sorted(characters.keys(), key=len, reverse=True)
-        
+
         # Cache the results
         _character_names_cache["data"] = char_names
         _character_names_cache["mtime"] = mtime
-        
+
         return char_names
     except Exception as e:
         print(f"Error loading character names: {e}")
@@ -240,7 +231,7 @@ def load_character_names():
 
 def extract_character_triggers(prompt):
     """Extract character: triggers from prompt.
-    
+
     Supports character names with colons (e.g., 'honkai: star rail' in parentheses).
     Syntax: character:name[:outfit[:part]]
     where part can be 'top' or 'bottom'
@@ -250,52 +241,52 @@ def extract_character_triggers(prompt):
 
     # Load available character names
     available_chars = load_character_names()
-    
+
     # Match character syntax - capture everything after "character:" until comma/newline/end
-    pattern = r'character:([^,\n]+?)(?=\s*(?:,|\n|$))'
+    pattern = r"character:([^,\n]+?)(?=\s*(?:,|\n|$))"
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     characters = []
     for match in matches:
         full_text = match.group(1).strip()
-        
+
         # Try to find matching character name by checking if full_text starts with it
         char_name = None
         for candidate in available_chars:
             if full_text.startswith(candidate):
                 char_name = candidate
                 break
-        
+
         # If no exact match found, fall back to treating first component as character name
         # (for backward compatibility or when character not in config)
         if char_name is None:
             # Split by colons and take the first part as character name
-            parts = full_text.split(':')
+            parts = full_text.split(":")
             char_name = parts[0].strip()
-            remaining = ':'.join(parts[1:]) if len(parts) > 1 else ''
+            remaining = ":".join(parts[1:]) if len(parts) > 1 else ""
         else:
             # Parse outfit and part from remaining text after character name
-            remaining = full_text[len(char_name):].lstrip(':').strip()
-        
+            remaining = full_text[len(char_name) :].lstrip(":").strip()
+
         outfit = None
         part = None
-        
+
         if remaining:
             # Split remaining by colon to get outfit and part
-            remaining_parts = remaining.split(':')
+            remaining_parts = remaining.split(":")
             if len(remaining_parts) >= 1 and remaining_parts[0].strip():
                 outfit = remaining_parts[0].strip()
             if len(remaining_parts) >= 2:
                 part_val = remaining_parts[1].strip().lower()
-                if part_val in ['top', 'bottom']:
+                if part_val in ["top", "bottom"]:
                     part = part_val
 
         characters.append((char_name, outfit, part))
 
     # Remove character syntax from prompt using the same pattern
-    cleaned = re.sub(pattern, '', prompt, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+    cleaned = re.sub(pattern, "", prompt, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*,\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"^\s*,\s*|\s*,\s*$", "", cleaned)
 
     return cleaned.strip(), characters
 
@@ -305,19 +296,14 @@ def extract_tag_triggers(prompt):
     if not prompt:
         return "", []
 
-    pattern = r'tag:([^,\n]+?)(?=\s*(?:,|\n|$))'
+    pattern = r"tag:([^,\n]+?)(?=\s*(?:,|\n|$))"
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     tags = [match.group(1).strip() for match in matches]
 
-    cleaned = re.sub(
-        r'tag:[^,\n]+?(?=\s*(?:,|\n|$))',
-        '',
-        prompt,
-        flags=re.IGNORECASE
-    )
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+    cleaned = re.sub(r"tag:[^,\n]+?(?=\s*(?:,|\n|$))", "", prompt, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*,\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"^\s*,\s*|\s*,\s*$", "", cleaned)
 
     return cleaned.strip(), tags
 
@@ -327,19 +313,16 @@ def extract_wildcard_triggers(prompt):
     if not prompt:
         return "", []
 
-    pattern = r'wildcard:([^,\n]+?)(?=\s*(?:,|\n|$))'
+    pattern = r"wildcard:([^,\n]+?)(?=\s*(?:,|\n|$))"
     matches = re.finditer(pattern, prompt, re.IGNORECASE)
 
     wildcards = [match.group(1).strip() for match in matches]
 
     cleaned = re.sub(
-        r'wildcard:[^,\n]+?(?=\s*(?:,|\n|$))',
-        '',
-        prompt,
-        flags=re.IGNORECASE
+        r"wildcard:[^,\n]+?(?=\s*(?:,|\n|$))", "", prompt, flags=re.IGNORECASE
     )
-    cleaned = re.sub(r'\s*,\s*,\s*', ', ', cleaned)
-    cleaned = re.sub(r'^\s*,\s*|\s*,\s*$', '', cleaned)
+    cleaned = re.sub(r"\s*,\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"^\s*,\s*|\s*,\s*$", "", cleaned)
 
     return cleaned.strip(), wildcards
 
@@ -362,13 +345,13 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
     paren_depth = 0
 
     for char in prompt:
-        if char == '(':
+        if char == "(":
             paren_depth += 1
             current += char
-        elif char == ')':
+        elif char == ")":
             paren_depth -= 1
             current += char
-        elif char == ',' and paren_depth == 0:
+        elif char == "," and paren_depth == 0:
             parts.append(current.strip())
             current = ""
         else:
@@ -381,12 +364,12 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
         if not part:
             continue
 
-        match = re.match(r'\(+([^)]+):([0-9.]+)\)+', part)
+        match = re.match(r"\(+([^)]+):([0-9.]+)\)+", part)
         if match:
             inner_tags = match.group(1)
             weight = match.group(2)
 
-            for inner_tag in inner_tags.split(','):
+            for inner_tag in inner_tags.split(","):
                 tag_name = inner_tag.strip()
                 tag_lower = tag_name.lower()
                 if tag_lower not in preserve_set:
@@ -394,7 +377,7 @@ def parse_prompt_to_dict(prompt, preserve_embeddings=None):
                 if tag_name:
                     tag_dict[tag_name] = weight
         else:
-            single_match = re.match(r'\(+([^:()]+):([0-9.]+)\)+', part)
+            single_match = re.match(r"\(+([^:()]+):([0-9.]+)\)+", part)
             if single_match:
                 tag_name = single_match.group(1).strip()
                 weight = single_match.group(2)
@@ -434,7 +417,8 @@ def deduplicate_negative_dicts(positive_tags, negative_dicts):
 
     for neg_dict in negative_dicts:
         filtered_dict = {
-            tag: weight for tag, weight in neg_dict.items()
+            tag: weight
+            for tag, weight in neg_dict.items()
             if tag.lower() not in positive_tags
         }
         deduplicated.append(filtered_dict)
@@ -451,6 +435,7 @@ class PromptConditioningNode:
     @classmethod
     def INPUT_TYPES(cls):
         from nodes import NODE_CLASS_MAPPINGS
+
         style_preset_cls = NODE_CLASS_MAPPINGS.get("StylePresetNode")
 
         if style_preset_cls:
@@ -469,17 +454,14 @@ class PromptConditioningNode:
                 "quality_tags": ("BOOLEAN", {"default": True}),
                 "embeddings": ("BOOLEAN", {"default": True}),
                 "character_presets": ("BOOLEAN", {"default": True}),
-                "mode": (["concatenate", "combine", "join"], {"default": "concatenate"}),
-                "positive": ("STRING", {
-                    "multiline": True,
-                    "default": ""
-                }),
-                "negative": ("STRING", {
-                    "multiline": True,
-                    "default": ""
-                }),
+                "mode": (
+                    ["concatenate", "combine", "join"],
+                    {"default": "concatenate"},
+                ),
+                "positive": ("STRING", {"multiline": True, "default": ""}),
+                "negative": ("STRING", {"multiline": True, "default": ""}),
                 "deduplicate_tags": ("BOOLEAN", {"default": True}),
-            }
+            },
         }
 
     RETURN_TYPES = ("FULL_PIPE",)
@@ -498,7 +480,7 @@ class PromptConditioningNode:
         mode="concatenate",
         positive="",
         negative="",
-        deduplicate_tags=True
+        deduplicate_tags=True,
     ):
         model = full_pipe.get("model")
         clip = full_pipe.get("clip")
@@ -510,9 +492,7 @@ class PromptConditioningNode:
         # Get preset outputs
         model_preset_node = common.Node("ModelPresetNode")
         quality_pos, quality_neg = model_preset_node.function(
-            ckpt_name=ckpt_name,
-            quality_tags=quality_tags,
-            embeddings=embeddings
+            ckpt_name=ckpt_name, quality_tags=quality_tags, embeddings=embeddings
         )
 
         style_preset_node = common.Node("StylePresetNode")
@@ -521,15 +501,12 @@ class PromptConditioningNode:
         # Process character triggers
         prompt, character_triggers = extract_character_triggers(positive)
         char_pos, char_neg = self._process_character_triggers(
-            character_triggers,
-            character_presets
+            character_triggers, character_presets
         )
 
         # Process tag triggers
         prompt, tag_triggers = extract_tag_triggers(prompt)
-        tag_preset_pos, tag_preset_neg = self._process_tag_triggers(
-            tag_triggers
-        )
+        tag_preset_pos, tag_preset_neg = self._process_tag_triggers(tag_triggers)
 
         # Process wildcard triggers
         prompt, wildcard_triggers = extract_wildcard_triggers(prompt)
@@ -537,23 +514,23 @@ class PromptConditioningNode:
 
         # Define all text sources
         text_sources = {
-            'quality_pos': quality_pos,
-            'quality_neg': quality_neg,
-            'style_pos': style_pos,
-            'style_neg': style_neg,
-            'trigger': trigger_words,
-            'char_pos': char_pos,
-            'char_neg': char_neg,
-            'tag_preset_pos': tag_preset_pos,
-            'tag_preset_neg': tag_preset_neg,
-            'wildcard': wildcard_text,
-            'prompt_pos': prompt,
-            'prompt_neg': negative
+            "quality_pos": quality_pos,
+            "quality_neg": quality_neg,
+            "style_pos": style_pos,
+            "style_neg": style_neg,
+            "trigger": trigger_words,
+            "char_pos": char_pos,
+            "char_neg": char_neg,
+            "tag_preset_pos": tag_preset_pos,
+            "tag_preset_neg": tag_preset_neg,
+            "wildcard": wildcard_text,
+            "prompt_pos": prompt,
+            "prompt_neg": negative,
         }
 
         # Extract LoRAs and embeddings from all sources
-        cleaned_sources, all_loras, all_embeddings = (
-            self._extract_all_syntax(text_sources)
+        cleaned_sources, all_loras, all_embeddings = self._extract_all_syntax(
+            text_sources
         )
 
         # Parse into tag dictionaries
@@ -572,29 +549,30 @@ class PromptConditioningNode:
 
         # Reconstruct prompts
         reconstructed = {
-            key: reconstruct_prompt_from_dict(value)
-            for key, value in tag_dicts.items()
+            key: reconstruct_prompt_from_dict(value) for key, value in tag_dicts.items()
         }
 
         # Build conditioning
-        pos_cond, pos_text, neg_cond, neg_text = (
-            self._build_conditioning(clip, reconstructed, mode)
+        pos_cond, pos_text, neg_cond, neg_text = self._build_conditioning(
+            clip, reconstructed, mode
         )
 
         # Apply LoRAs
-        combined_loras = ','.join(filter(None, all_loras))
+        combined_loras = ",".join(filter(None, all_loras))
         lora_list = parse_lora_syntax(combined_loras)
         model_out, clip_out = apply_loras(model, clip, lora_list)
 
         new_pipe = full_pipe.copy()
-        new_pipe.update({
-            "model": model_out,
-            "clip": clip_out,
-            "positive": pos_cond,
-            "negative": neg_cond,
-            "positive_text": pos_text,
-            "negative_text": neg_text
-        })
+        new_pipe.update(
+            {
+                "model": model_out,
+                "clip": clip_out,
+                "positive": pos_cond,
+                "negative": neg_cond,
+                "positive_text": pos_text,
+                "negative_text": neg_text,
+            }
+        )
 
         return (new_pipe,)
 
@@ -604,9 +582,8 @@ class PromptConditioningNode:
             return "", ""
 
         from nodes import NODE_CLASS_MAPPINGS
-        character_preset_node = NODE_CLASS_MAPPINGS.get(
-            "CharacterPresetNode"
-        )
+
+        character_preset_node = NODE_CLASS_MAPPINGS.get("CharacterPresetNode")
         if not character_preset_node:
             return "", ""
 
@@ -614,21 +591,19 @@ class PromptConditioningNode:
         char_neg_parts = []
 
         for char_name, outfit, part in triggers:
-            lookup_name = char_name.replace('_', ' ')
+            lookup_name = char_name.replace("_", " ")
             char_instance = character_preset_node()
 
             if outfit is None:
                 use_top, use_bottom = False, False
-            elif part == 'top':
+            elif part == "top":
                 use_top, use_bottom = True, False
-            elif part == 'bottom':
+            elif part == "bottom":
                 use_top, use_bottom = False, True
             else:
                 use_top, use_bottom = True, True
 
-            pos, neg = char_instance.select_character(
-                lookup_name, use_top, use_bottom
-            )
+            pos, neg = char_instance.select_character(lookup_name, use_top, use_bottom)
             if pos:
                 char_pos_parts.append(pos)
             if neg:
@@ -641,9 +616,7 @@ class PromptConditioningNode:
         if not triggers:
             return "", ""
 
-        tag_names_text = ", ".join(
-            tag_name.replace('_', ' ') for tag_name in triggers
-        )
+        tag_names_text = ", ".join(tag_name.replace("_", " ") for tag_name in triggers)
         tag_preset_node = common.Node("TagPresetNode")
         return tag_preset_node.function(text=tag_names_text)
 
@@ -652,9 +625,7 @@ class PromptConditioningNode:
         if not triggers:
             return ""
 
-        wildcard_names = ", ".join(
-            wc.replace('_', ' ') for wc in triggers
-        )
+        wildcard_names = ", ".join(wc.replace("_", " ") for wc in triggers)
         wildcard_node = common.Node("WildcardNode")
         return wildcard_node.function(text=wildcard_names)[0]
 
@@ -683,24 +654,28 @@ class PromptConditioningNode:
     def _deduplicate_negatives(self, tag_dicts):
         """Deduplicate negative prompts against positives."""
         positive_keys = [
-            'quality_pos', 'style_pos', 'trigger',
-            'char_pos', 'tag_preset_pos', 'prompt_pos'
+            "quality_pos",
+            "style_pos",
+            "trigger",
+            "char_pos",
+            "tag_preset_pos",
+            "prompt_pos",
         ]
         negative_keys = [
-            'quality_neg', 'style_neg', 'char_neg',
-            'tag_preset_neg', 'prompt_neg'
+            "quality_neg",
+            "style_neg",
+            "char_neg",
+            "tag_preset_neg",
+            "prompt_neg",
         ]
 
         all_positive_tags = set()
         for key in positive_keys:
-            all_positive_tags.update(
-                tag.lower() for tag in tag_dicts[key].keys()
-            )
+            all_positive_tags.update(tag.lower() for tag in tag_dicts[key].keys())
 
         negative_dicts = [tag_dicts[key] for key in negative_keys]
         deduped_neg_dicts = deduplicate_negative_dicts(
-            all_positive_tags,
-            negative_dicts
+            all_positive_tags, negative_dicts
         )
 
         for key, deduped_dict in zip(negative_keys, deduped_neg_dicts):
@@ -712,8 +687,12 @@ class PromptConditioningNode:
         """Track tag usage for autocomplete."""
         try:
             positive_keys = [
-                'quality_pos', 'style_pos', 'trigger',
-                'char_pos', 'tag_preset_pos', 'prompt_pos'
+                "quality_pos",
+                "style_pos",
+                "trigger",
+                "char_pos",
+                "tag_preset_pos",
+                "prompt_pos",
             ]
             all_tags_used = {}
             for key in positive_keys:
@@ -724,45 +703,76 @@ class PromptConditioningNode:
 
     def _build_conditioning(self, clip, reconstructed, mode="concatenate"):
         """Build positive and negative conditioning."""
+        if mode == "join":
+            # Use standard CLIPTextEncode for join mode to ensure compatibility
+            pos_text = ", ".join(
+                filter(
+                    None,
+                    [
+                        reconstructed["quality_pos"],
+                        reconstructed["style_pos"],
+                        reconstructed["trigger"],
+                        reconstructed["char_pos"],
+                        reconstructed["tag_preset_pos"],
+                        reconstructed["wildcard"],
+                        reconstructed["prompt_pos"],
+                    ],
+                )
+            )
+            neg_text = ", ".join(
+                filter(
+                    None,
+                    [
+                        reconstructed["quality_neg"],
+                        reconstructed["style_neg"],
+                        reconstructed["char_neg"],
+                        reconstructed["tag_preset_neg"],
+                        reconstructed["prompt_neg"],
+                    ],
+                )
+            )
+
+            encoder = common.Node("CLIPTextEncode")
+            pos_cond = encoder.function(clip=clip, text=pos_text)[0]
+            neg_cond = encoder.function(clip=clip, text=neg_text)[0]
+
+            return pos_cond, pos_text, neg_cond, neg_text
+
         multi_string_pos = common.Node("MultiStringConditioning")
         pos_cond, pos_text, lora_syntax = multi_string_pos.function(
             clip=clip,
-            quality=reconstructed['quality_pos'],
-            style=reconstructed['style_pos'],
-            trigger=reconstructed['trigger'],
-            character=reconstructed['char_pos'],
+            quality=reconstructed["quality_pos"],
+            style=reconstructed["style_pos"],
+            trigger=reconstructed["trigger"],
+            character=reconstructed["char_pos"],
             mode=mode,
             prompt=(
-                reconstructed['tag_preset_pos'] +
-                (', ' if reconstructed['tag_preset_pos'] else '') +
-                reconstructed['wildcard'] +
-                (', ' if reconstructed['wildcard'] else '') +
-                reconstructed['prompt_pos']
-            )
+                reconstructed["tag_preset_pos"]
+                + (", " if reconstructed["tag_preset_pos"] else "")
+                + reconstructed["wildcard"]
+                + (", " if reconstructed["wildcard"] else "")
+                + reconstructed["prompt_pos"]
+            ),
         )
 
         multi_string_neg = common.Node("MultiStringConditioning")
         neg_cond, neg_text, _ = multi_string_neg.function(
             clip=clip,
-            quality=reconstructed['quality_neg'],
-            style=reconstructed['style_neg'],
+            quality=reconstructed["quality_neg"],
+            style=reconstructed["style_neg"],
             trigger="",
-            character=reconstructed['char_neg'],
+            character=reconstructed["char_neg"],
             mode=mode,
             prompt=(
-                reconstructed['tag_preset_neg'] +
-                (', ' if reconstructed['tag_preset_neg'] else '') +
-                reconstructed['prompt_neg']
-            )
+                reconstructed["tag_preset_neg"]
+                + (", " if reconstructed["tag_preset_neg"] else "")
+                + reconstructed["prompt_neg"]
+            ),
         )
 
         return pos_cond, pos_text, neg_cond, neg_text
 
 
-NODE_CLASS_MAPPINGS = {
-    "PromptConditioningNode": PromptConditioningNode
-}
+NODE_CLASS_MAPPINGS = {"PromptConditioningNode": PromptConditioningNode}
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "PromptConditioningNode": "Prompt (full-pipe)"
-}
+NODE_DISPLAY_NAME_MAPPINGS = {"PromptConditioningNode": "Prompt (full-pipe)"}
