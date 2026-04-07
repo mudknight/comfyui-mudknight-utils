@@ -817,6 +817,18 @@ function selectAutocomplete(index) {
 	input.value = newText;
 	input.setSelectionRange(newCursorPos, newCursorPos);
 	
+	// Sync with ComfyUI LiteGraph widgets (classic UI)
+	if (input._comfyWidget) {
+		input._comfyWidget.value = input.value;
+		if (input._comfyWidget.callback) {
+			input._comfyWidget.callback(input.value);
+		}
+	}
+	
+	// Notify reactive frameworks (like Vue/ComfyUI Nodes 2.0) that the value changed
+	input.dispatchEvent(new Event('input', { bubbles: true }));
+	input.dispatchEvent(new Event('change', { bubbles: true }));
+	
 	hideAutocomplete();
 	input.focus();
 	

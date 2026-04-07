@@ -238,11 +238,19 @@ app.registerExtension({
         app.queuePrompt = async function(...args) {
             const result = await originalExecute.apply(this, args);
 
+            // Check if collection is enabled
+            const collectUsage = app.ui.settings.getSettingValue(
+                "Mudknight Utils.Autocomplete.CollectUsage"
+            );
+
+            if (collectUsage === false) return result;
+
             // Update usage counts after execution
             setTimeout(async () => {
                 try {
                     console.log("Updating tag usage counts...");
-                    autocompleteState.tags = await api.updateTagUsageCounts(
+                    // updateTagUsageCounts updates the array in-place
+                    await api.updateTagUsageCounts(
                         autocompleteState.tags
                     );
                 } catch (error) {
@@ -379,6 +387,7 @@ app.registerExtension({
                                 }
                                 return enabled;
                             };
+                            w.element._comfyWidget = w;
                             setupAutocomplete(w.element, true);
                         }
                     });
