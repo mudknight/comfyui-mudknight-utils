@@ -773,6 +773,104 @@ class PromptConditioningNode:
         return pos_cond, pos_text, neg_cond, neg_text
 
 
-NODE_CLASS_MAPPINGS = {"PromptConditioningNode": PromptConditioningNode}
+class SimplePromptNode:
+    """
+    Simpler version of PromptConditioningNode.
+    Functions as 2 CLIPTextEncode nodes with comment removal and LoRA syntax parsing.
+    """
 
-NODE_DISPLAY_NAME_MAPPINGS = {"PromptConditioningNode": "Prompt (full-pipe)"}
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "full_pipe": ("FULL_PIPE",),
+            },
+            "optional": {
+                "trigger_words": ("STRING", {"forceInput": True, "default": ""}),
+                "positive": ("STRING", {"multiline": True, "default": ""}),
+                "negative": ("STRING", {"multiline": True, "default": ""}),
+            },
+        }
+
+    RETURN_TYPES = ("FULL_PIPE",)
+    RETURN_NAMES = ("full_pipe",)
+    FUNCTION = "process"
+    CATEGORY = "custom/conditioning"
+
+    def process(
+        self,
+        full_pipe,
+        trigger_words="",
+        positive="",
+        negative="",
+    ):
+        model = full_pipe.get("model")
+        clip = full_pipe.get("clip")
+
+        # 1. Remove commented lines
+        positive = common.strip_comments(positive)
+        negative = common.strip_comments(negative)
+
+        # 2. Append trigger_words to the end of the positive string
+        if trigger_words and trigger_words.strip():
+            if positive and not positive.strip().endswith(","):
+                positive = positive.rstrip() + ", " + trigger_words.strip()
+            else:
+                positive = positive + trigger_words.strip()
+
+        # 3. Extract LoRAs and embeddings (lora syntax parsing)
+        # We'll use the same extraction logic as PromptConditioningNode
+        # to keep LoRA application and removal of syntax from prompt.
+        cleaned_sources, loras, embeds = self._extract_syntax(
+            {"pos": positive, "neg": negative}
+        )
+
+        pos_text = cleaned_sources["pos"]
+        neg_text = cleaned_sources["neg"]
+
+        # 4. CLIP Text Encoding
+        encoder = common.Node("CLIPTextEncode")
+        pos_cond = encoder.function(clip=clip, text=pos_text)[0]
+        neg_cond = encoder.function(clip=clip, text=neg_text)[0]
+
+        # 5. Apply LoRAs
+        combined_loras = ",".join(filter(None, loras))
+        lora_list = parse_lora_syntax(combined_loras)
+        model_out, clip_out = apply_loras(model, clip, lora_list)
+
+        new_pipe = full_pipe.copy()
+        new_pipe.update(
+            {
+                "model": model_out,
+                "clip": clip_out,
+                "positive": pos_cond,
+                "negative": neg_cond,
+                "positive_text": pos_text,
+                "negative_text": neg_text,
+            }
+        )
+
+        return (new_pipe,)
+
+    def _extract_syntax(self, text_sources):
+        cleaned = {}
+        loras = []
+        for key, text in text_sources.items():
+            text, lora_str = extract_loras(text)
+            # We don't necessarily need to extract embeddings since CLIPTextEncode handles them,
+            # but extract_loras is necessary for the LoRA application logic.
+            cleaned[key] = text
+            if lora_str:
+                loras.append(lora_str)
+        return cleaned, loras, []
+
+
+NODE_CLASS_MAPPINGS = {
+    "PromptConditioningNode": PromptConditioningNode,
+    "SimplePromptNode": SimplePromptNode,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "PromptConditioningNode": "Prompt (full-pipe)",
+    "SimplePromptNode": "Simple Prompt (full-pipe)",
+}
