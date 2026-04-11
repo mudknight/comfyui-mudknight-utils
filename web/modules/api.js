@@ -129,11 +129,12 @@ function clearRemovedCaches(currentUrls) {
 
 export async function loadAllAutocompleteData(
     customSources = '',
-    customTags = ''
+    customTags = '',
+    loadDanbooru = true
 ) {
     console.log('Loading autocomplete data...');
     
-    const tags = await loadAutocompleteTags(customSources, customTags);
+    const tags = await loadAutocompleteTags(customSources, customTags, loadDanbooru);
     
     const [characterPresets, tagPresets, wildcardPresets, loras, embeddings] = 
         await Promise.all([
@@ -262,7 +263,7 @@ async function parseTagFile(text, url) {
     return tags;
 }
 
-export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr = '') {
+export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr = '', loadDanbooru = true) {
     try {
         const allTags = new Map();
 
@@ -278,24 +279,28 @@ export async function loadAutocompleteTags(customSourcesStr = '', customTagsStr 
         clearRemovedCaches(sources);
 
         // Load base Danbooru CSV
-        try {
-            const response = await fetch(
-                '/extensions/comfyui-mudknight-utils/danbooru.csv'
-            );
-            if (response.ok) {
-                const text = await response.text();
-                const tags = await parseTagFile(text, 'danbooru.csv');
-
-                for (const tag of tags) {
-                    allTags.set(tag.tag.toLowerCase(), tag);
-                }
-
-                console.log(
-                    `Loaded ${tags.length} tags from Danbooru CSV`
+        if (loadDanbooru) {
+            try {
+                const response = await fetch(
+                    '/extensions/comfyui-mudknight-utils/danbooru.csv'
                 );
+                if (response.ok) {
+                    const text = await response.text();
+                    const tags = await parseTagFile(text, 'danbooru.csv');
+
+                    for (const tag of tags) {
+                        allTags.set(tag.tag.toLowerCase(), tag);
+                    }
+
+                    console.log(
+                        `Loaded ${tags.length} tags from Danbooru CSV`
+                    );
+                }
+            } catch (error) {
+                console.log('Danbooru CSV not found, skipping');
             }
-        } catch (error) {
-            console.log('Danbooru CSV not found, skipping');
+        } else {
+            console.log('Danbooru CSV disabled by setting');
         }
 
         // Load custom sources

@@ -62,6 +62,10 @@ async function loadData() {
 			"Comfy.Settings.Mudknight Utils.Autocomplete.CustomTags"
 		) || "";
 
+		const loadDanbooru = localStorage.getItem(
+			"Comfy.Settings.Mudknight Utils.Autocomplete.LoadDanbooru"
+		) !== 'false';
+
 		console.log(
 			"Preset Manager: Loading with custom sources:",
 			customSources
@@ -70,7 +74,8 @@ async function loadData() {
 		// Use cached data loader
 		const autocompleteData = await api.loadAllAutocompleteData(
 			customSources,
-			customTags
+			customTags,
+			loadDanbooru
 		);
 
 		Object.assign(autocompleteState, autocompleteData);

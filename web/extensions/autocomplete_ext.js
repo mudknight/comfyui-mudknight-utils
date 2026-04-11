@@ -91,7 +91,18 @@ app.registerExtension({
             onChange: async (value) => {
                 console.log("Reloading autocomplete tags with custom sources...");
                 try {
-                    const tags = await api.loadAutocompleteTags(value);
+                    const customTags = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomTags",
+                    ) || "";
+                    const loadDanbooru = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.LoadDanbooru",
+                    ) !== false;
+
+                    const tags = await api.loadAutocompleteTags(
+                        value,
+                        customTags,
+                        loadDanbooru
+                    );
                     autocompleteState.tags = tags;
 
                     const [characterPresets, tagPresets] = await Promise.all([
@@ -121,10 +132,14 @@ app.registerExtension({
                     const customSources = app.ui.settings.getSettingValue(
                         "Mudknight Utils.Autocomplete.CustomSources",
                     ) || "";
+                    const loadDanbooru = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.LoadDanbooru",
+                    ) !== false;
 
                     const tags = await api.loadAutocompleteTags(
                         customSources,
-                        value
+                        value,
+                        loadDanbooru
                     );
                     autocompleteState.tags = tags;
 
@@ -164,6 +179,43 @@ app.registerExtension({
             tooltip: "When enabled, aliased tags appear at the bottom of " +
             "autocomplete results (count set to 0) instead of inheriting " +
             "the parent tag's priority. Requires reload to take effect.",
+        },
+        {
+            id: "Mudknight Utils.Autocomplete.LoadDanbooru",
+            name: "Load Built-in Danbooru CSV",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Load the built-in Danbooru tag list. Disable if you only want to use your own custom sources.",
+            onChange: async (value) => {
+                console.log("Reloading autocomplete tags (Danbooru toggle)...");
+                try {
+                    const customSources = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomSources",
+                    ) || "";
+                    const customTags = app.ui.settings.getSettingValue(
+                        "Mudknight Utils.Autocomplete.CustomTags",
+                    ) || "";
+
+                    const tags = await api.loadAutocompleteTags(
+                        customSources,
+                        customTags,
+                        value
+                    );
+                    autocompleteState.tags = tags;
+
+                    const [characterPresets, tagPresets] = await Promise.all([
+                        api.loadCharacterPresets(tags),
+                        api.loadTagPresets(tags)
+                    ]);
+
+                    autocompleteState.characterPresets = characterPresets;
+                    autocompleteState.tagPresets = tagPresets;
+
+                    console.log("Autocomplete reloaded successfully");
+                } catch (error) {
+                    console.error("Error reloading autocomplete:", error);
+                }
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.Enabled",
@@ -223,12 +275,17 @@ app.registerExtension({
             "Mudknight Utils.Autocomplete.CustomTags",
         ) || "";
 
+        const loadDanbooru = app.ui.settings.getSettingValue(
+            "Mudknight Utils.Autocomplete.LoadDanbooru",
+        ) !== false;
+
         console.log("Loading autocomplete with custom sources:", customSources);
 
         // Use cached data loader
         const data = await api.loadAllAutocompleteData(
             customSources,
-            customTags
+            customTags,
+            loadDanbooru
         );
 
         Object.assign(autocompleteState, data);
