@@ -221,7 +221,7 @@ app.registerExtension({
             id: "Mudknight Utils.Autocomplete.Enabled",
             name: "Enable Autocomplete in ComfyUI",
             type: "boolean",
-            defaultValue: true,
+            defaultValue: false,
             tooltip: "Enable autocomplete for multiline strings.",
         },
     ],

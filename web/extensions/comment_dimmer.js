@@ -284,7 +284,7 @@ app.registerExtension({
             id: "Mudknight Utils.CommentDimmer.Enabled",
             name: "Dim Comments in Prompts (#)",
             type: "boolean",
-            defaultValue: true,
+            defaultValue: false,
             onChange: (value) => {
                 dimmer.setEnabled(value);
             }

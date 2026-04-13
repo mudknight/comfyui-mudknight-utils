@@ -8,7 +8,7 @@ app.registerExtension({
             id: "Mudknight Utils.NodeProfiles.ShowButton",
             name: "Show Node Profiles Button",
             type: "boolean",
-            defaultValue: true,
+            defaultValue: false,
             tooltip: "Show/hide the Node Profiles button in the toolbar"
         });
 

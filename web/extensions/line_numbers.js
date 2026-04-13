@@ -238,7 +238,7 @@ app.registerExtension({
 			id: "Mudknight Utils.Line Numbers.Enabled",
 			name: "Enable Line Numbers in Textareas",
 			type: "boolean",
-			defaultValue: true,
+			defaultValue: false,
 			tooltip: "Show line numbers on the left side of multiline text inputs when focused",
 			onChange: (value) => {
 				lineNumberManager.setEnabled(value);
