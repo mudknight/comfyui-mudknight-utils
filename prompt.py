@@ -789,6 +789,7 @@ class SimplePromptNode:
                 "trigger_words": ("STRING", {"forceInput": True, "default": ""}),
                 "positive": ("STRING", {"multiline": True, "default": ""}),
                 "negative": ("STRING", {"multiline": True, "default": ""}),
+                "negative_to_negpip": ("BOOLEAN", {"default": False}),
             },
         }
 
@@ -803,6 +804,7 @@ class SimplePromptNode:
         trigger_words="",
         positive="",
         negative="",
+        negative_to_negpip=False,
     ):
         model = full_pipe.get("model")
         clip = full_pipe.get("clip")
@@ -811,7 +813,30 @@ class SimplePromptNode:
         positive = common.strip_comments(positive)
         negative = common.strip_comments(negative)
 
-        # 2. Append trigger_words to the end of the positive string
+        # 2. Handle Negpip conversion
+        if negative_to_negpip and negative.strip():
+            neg_dict = parse_prompt_to_dict(negative)
+            negpip_parts = []
+            for tag, weight in neg_dict.items():
+                try:
+                    w = float(weight)
+                    new_weight = -w
+                except (ValueError, TypeError):
+                    new_weight = -1.0
+
+                # Format per negpip requirements: (tag,:-weight)
+                negpip_parts.append(f"({tag},:{new_weight:g})")
+
+            negpip_string = " ".join(negpip_parts)
+
+            if positive.strip():
+                positive = positive.rstrip().rstrip(",") + ", " + negpip_string
+            else:
+                positive = negpip_string
+
+            negative = ""
+
+        # 3. Append trigger_words to the end of the positive string
         if trigger_words and trigger_words.strip():
             if positive and not positive.strip().endswith(","):
                 positive = positive.rstrip() + ", " + trigger_words.strip()
