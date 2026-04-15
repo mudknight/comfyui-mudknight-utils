@@ -813,9 +813,29 @@ class SimplePromptNode:
         positive = common.strip_comments(positive)
         negative = common.strip_comments(negative)
 
-        # 2. Handle Negpip conversion
-        if negative_to_negpip and negative.strip():
-            neg_dict = parse_prompt_to_dict(negative)
+        # 2. Append trigger_words to the end of the positive string
+        if trigger_words and trigger_words.strip():
+            if positive and not positive.strip().endswith(","):
+                positive = positive.rstrip() + ", " + trigger_words.strip()
+            else:
+                positive = positive + trigger_words.strip()
+
+        # 3. Extract LoRAs and embeddings (lora syntax parsing)
+        # We do this BEFORE metadata capture to ensure metadata is clean
+        cleaned_sources, loras, embeds = self._extract_syntax(
+            {"pos": positive, "neg": negative}
+        )
+
+        # 4. Capture metadata text (Clean tags, no LoRAs, no Negpip transformation)
+        metadata_pos_text = cleaned_sources["pos"]
+        metadata_neg_text = cleaned_sources["neg"]
+
+        # 5. Handle Negpip conversion for conditioning
+        cond_pos = metadata_pos_text
+        cond_neg = metadata_neg_text
+
+        if negative_to_negpip and cond_neg.strip():
+            neg_dict = parse_prompt_to_dict(cond_neg)
             negpip_parts = []
             for tag, weight in neg_dict.items():
                 try:
@@ -829,36 +849,19 @@ class SimplePromptNode:
 
             negpip_string = " ".join(negpip_parts)
 
-            if positive.strip():
-                positive = positive.rstrip().rstrip(",") + ", " + negpip_string
+            if cond_pos.strip():
+                cond_pos = cond_pos.rstrip().rstrip(",") + ", " + negpip_string
             else:
-                positive = negpip_string
+                cond_pos = negpip_string
 
-            negative = ""
+            cond_neg = ""
 
-        # 3. Append trigger_words to the end of the positive string
-        if trigger_words and trigger_words.strip():
-            if positive and not positive.strip().endswith(","):
-                positive = positive.rstrip() + ", " + trigger_words.strip()
-            else:
-                positive = positive + trigger_words.strip()
-
-        # 3. Extract LoRAs and embeddings (lora syntax parsing)
-        # We'll use the same extraction logic as PromptConditioningNode
-        # to keep LoRA application and removal of syntax from prompt.
-        cleaned_sources, loras, embeds = self._extract_syntax(
-            {"pos": positive, "neg": negative}
-        )
-
-        pos_text = cleaned_sources["pos"]
-        neg_text = cleaned_sources["neg"]
-
-        # 4. CLIP Text Encoding
+        # 6. CLIP Text Encoding
         encoder = common.Node("CLIPTextEncode")
-        pos_cond = encoder.function(clip=clip, text=pos_text)[0]
-        neg_cond = encoder.function(clip=clip, text=neg_text)[0]
+        pos_cond = encoder.function(clip=clip, text=cond_pos)[0]
+        neg_cond = encoder.function(clip=clip, text=cond_neg)[0]
 
-        # 5. Apply LoRAs
+        # 7. Apply LoRAs
         combined_loras = ",".join(filter(None, loras))
         lora_list = parse_lora_syntax(combined_loras)
         model_out, clip_out = apply_loras(model, clip, lora_list)
@@ -870,8 +873,8 @@ class SimplePromptNode:
                 "clip": clip_out,
                 "positive": pos_cond,
                 "negative": neg_cond,
-                "positive_text": pos_text,
-                "negative_text": neg_text,
+                "positive_text": metadata_pos_text,
+                "negative_text": metadata_neg_text,
             }
         )
 
