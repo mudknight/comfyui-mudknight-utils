@@ -173,7 +173,7 @@ class SplitLoaderFullPipe:
                 "stop_at_clip_layer": (
                     "INT",
                     {
-                        "default": -2,
+                        "default": 0,
                         "min": -24,
                         "max": 0,
                         "step": 1,
@@ -183,7 +183,7 @@ class SplitLoaderFullPipe:
                 "shift": (
                     "FLOAT",
                     {
-                        "default": 3,
+                        "default": 0,
                         "min": 0.0,
                         "max": 10.0,
                         "step": 0.01,
