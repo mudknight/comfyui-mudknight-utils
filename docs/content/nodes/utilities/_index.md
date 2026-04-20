@@ -3,12 +3,17 @@ title: "Utilities"
 weight: 4
 ---
 
+### Image Difference
+![Image Difference](/assets/image-difference.png)
+This node shows the difference between two images. This is useful for visualizing denoising and upscaling.
+
+
 ### OpenCV Denoise
 Based on the opencv script [here](https://rentry.org/RemovingDiffusionGunk). It removes noise left behind by the diffusion process.
 
 ComfyUI seems to limit nodes to a single core, so using the CPU for this node is excruciatingly slow. 
 
-{{< details title="GPU selection on multi-GPU systems" >}}
+{{< details title="GPU selection on multi-GPU systems on Linux" >}}
 If you want to use a specific gpu on a multi-gpu system, use `clinfo -l` to get a list of devices and set the environment variable `OPENCV_OPENCL_DEVICE` to `<platform>:GPU:<index>`, where `<platform>` is everything listed after `Platform #*:` and `<index>` is the `Device #`. For example:
 
 ```

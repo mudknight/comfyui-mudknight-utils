@@ -8,12 +8,15 @@ A full pipe can either be made with the `Loader (full-pipe)` node or manually wi
 
 The main differences between easy use pipes and full pipes are:
 - Full pipes store additional information, like `ckpt_name`, `positive_text`, and `negative_text`
-- Easy use's pipe in node takes ~5 seconds to run, compared to full pipe in which is almost instantaneous.
+- The `Full Pipe In` node is almost instantaneous, compared to Easy use's pipe in node takes ~5 seconds to run.
 - Less ambiguity with the seed input.
-- Pipe nodes can be used independently, without relying on the loader node (but you'll need to use a `Full Pipe Loader` node).
+- Full pipes can be packed manually.
 
 ### Loader (full-pipe)
 Loads a selected checkpoint, sets CLIP skip, sets a seed, and optionally applies a LoRA stack from the input.
+
+### Split Loader (full-pipe)
+Same as the loader node, but loads separate diffusion, CLIP, and vae models.
 
 ### Prompt (full-pipe)
 This is a combined positive and negative prompt box that lets you use pre-defined prompt text. Features include:
@@ -21,6 +24,9 @@ This is a combined positive and negative prompt box that lets you use pre-define
 - Ignores `#` commented lines
 - Automatically applies quality tags, embeddings, style tags, character tags, and preset tags from Preset Manager.
 - Splits quality tags+embeddings, style tags, character tags, and the main prompt into separate conditionings and then concatenates the conditionings.
+
+### Simple Prompt (full-pipe)
+This is a simpler version of the prompt node, made primarily for anima. It keeps the lora syntax and commenting, but omits the rest of the features. There's a setting at the bottom of the node to convert the negative prompt to negpip, which requires the `CLIP NegPip` node from [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm).
 
 ### Base (full-pipe)
 This is the base image generation node. By default it will use an empty latent with the dimensions defined by the node, but it also has an `image` input and `denoise` parameter for img2img generation.
