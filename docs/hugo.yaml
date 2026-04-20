@@ -1,0 +1,30 @@
+baseURL: "https://mudknight.github.io/comfyui-mudknight-utils"
+languageCode: 'en-us'
+title: "Mudknight Utils Docs"
+theme: ["github.com/imfing/hextra"]
+disableKinds: ["RSS"]
+
+params:
+  author: "mudknight"
+  description: "Documentation for ComfyUI mudknight utils"
+  github: "https://github.com/mudknight/comfyui-mudknight-utils"
+
+  navbar:
+    displayLogo: false
+    displaySearch: true
+
+  footer:
+    displayCopyright: false
+    displayPoweredBy: false
+
+menu:
+  main:
+    - name: Search
+      weight: 1
+      params:
+        type: search
+    - name: Github
+      weight: 2
+      url: "https://github.com/mudknight/comfyui-mudknight-utils"
+      params:
+        icon: github

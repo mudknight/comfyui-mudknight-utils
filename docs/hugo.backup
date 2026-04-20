@@ -1,0 +1,35 @@
+baseURL = "/"
+title = "Mudknight Utils Docs"
+theme = ["github.com/imfing/hextra"]
+disableKinds = ["RSS"]
+
+[markup.goldmark.renderer]
+unsafe = true
+
+[author]
+  name = "mudknight"
+  email = "contact@example.com"
+
+[languages]
+  [languages.en]
+    languageName = "English"
+    title = "ComfyUI Mudknight Utils"
+    weight = 1
+
+[params]
+  author = "mudknight"
+  description = "Documentation for ComfyUI mudknight utils"
+  github = "https://github.com/mudknight/comfyui-mudknight-utils"
+  
+  [params.navbar]
+    displayLogo = false
+    displaySearch = true
+    
+  [params.footer]
+    displayCopyright = false
+    displayPoweredBy = false
+
+[[menu.main]]
+  name = "Github"
+  url = "https://github.com/mudknight/comfyui-mudknight-utils"
+  weight = 2
