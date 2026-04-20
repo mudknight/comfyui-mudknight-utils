@@ -4,19 +4,17 @@ weight: 2
 ---
 
 ### Full Pipe Concept
-A full pipe can either be made with the `Loader (full-pipe)` node or manually with `Full Pipe Loader`. The pipe functions as the only necessary connection between discrete sections of a workflow, storing all necessary data.
+![test](/assets/anima-workflow.png)
 
-The main differences between easy use pipes and full pipes are:
-- Full pipes store additional information, like `ckpt_name`, `positive_text`, and `negative_text`
-- The `Full Pipe In` node is almost instantaneous, compared to Easy use's pipe in node takes ~5 seconds to run.
-- Less ambiguity with the seed input.
-- Full pipes can be packed manually.
+The idea of the full pipe nodes is to have a single connection between nodes and allow for easy inlining within full pipes through dedicated nodes and subgraphs. The above example shows a simple workflow for anima adding the `CLIP NegPip` node to the pipe via a subgraph and adding a lora with the `Load LoRA (full-pipe)` node.
+
+These were made as an alternative to [ComfyUI-Easy-Use](https://github.com/yolain/ComfyUI-Easy-Use) pipe nodes, with the intention of being faster and storing metadata info in the pipe.
 
 ### Loader (full-pipe)
 Loads a selected checkpoint, sets CLIP skip, sets a seed, and optionally applies a LoRA stack from the input.
 
 ### Split Loader (full-pipe)
-Same as the loader node, but loads separate diffusion, CLIP, and vae models.
+Same as the loader node, but loads separate diffusion, CLIP, and VAE models.
 
 ### Prompt (full-pipe)
 This is a combined positive and negative prompt box that lets you use pre-defined prompt text. Features include:
