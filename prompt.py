@@ -468,6 +468,14 @@ class PromptConditioningNode:
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
     CATEGORY = "custom/conditioning"
+    DESCRIPTION = (
+        "Prompt node that conditions positive and negative text. "
+        "Lines commented with # are stripped. "
+        "Accepts LoRA syntax with <lora:file.safetensors:strength>. "
+        "Model and CLIP strength can both be specified with another colon. "
+        "Uses quality tags, embeddings, styles, characters, and tags from "
+        "Preset Manager."
+    )
 
     def process(
         self,
@@ -797,6 +805,14 @@ class SimplePromptNode:
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
     CATEGORY = "custom/conditioning"
+    DESCRIPTION = (
+        "Simple prompt node that conditions positive and negative text. "
+        "Lines commented with # are stripped. "
+        "Accepts LoRA syntax with <lora:file.safetensors:strength>. "
+        "Model and CLIP strength can both be specified with another colon. "
+        "Negative to NegPip uses an empty negative prompt and moves negative "
+        "tags to the positive prompt with inverted weights."
+    )
 
     def process(
         self,
