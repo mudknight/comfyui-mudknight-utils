@@ -714,10 +714,14 @@ function selectAutocomplete(index) {
 	if (autocompleteState.contextType === 'lora') {
 		const beforeLora = 
 			text.lastIndexOf('<lora:', input.selectionStart) + 6;
-		const rest = text.substring(input.selectionStart);
-		const after = rest.includes('>')
-			? rest.substring(rest.indexOf('>') + 1)
-			: rest;
+		// Find the closing > of the current <lora:...> tag, but
+		// don't cross a <, comma, or newline — those mean the tag
+		// was never closed and we shouldn't consume further text.
+		const afterCursor = text.substring(input.selectionStart);
+		const stopMatch = afterCursor.match(/[>,\n<]/);
+		const after = (stopMatch && stopMatch[0] === '>')
+			? afterCursor.substring(stopMatch.index + 1)
+			: afterCursor;
 		newText = `${text.substring(0, beforeLora)}${item.value}:1.0>${after}`;
 		newCursorPos = beforeLora + item.value.length + 5;
 		
