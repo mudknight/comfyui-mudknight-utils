@@ -660,8 +660,24 @@ function selectAutocomplete(index) {
 		index >= autocompleteState.filteredTags.length) { return; }
 	
 	const input = autocompleteState.activeElement;
-	const item = autocompleteState.filteredTags[index];
 	const context = detectContext(input);
+
+	// Re-check the current input state at completion time, since
+	// filteredTags may reflect a debounced (stale) search term.
+	// If the selected item still matches the fresh search, keep it.
+	// Otherwise, fall back to the first item that does match.
+	const freshSearch = context.searchTerm
+		.toLowerCase().replace(/ /g, '_');
+	const tagMatches = t =>
+		t.display.toLowerCase().replace(/ /g, '_')
+			.includes(freshSearch) ||
+		t.value.toLowerCase().replace(/ /g, '_')
+			.includes(freshSearch);
+	const selectedItem = autocompleteState.filteredTags[index];
+	const item = tagMatches(selectedItem)
+		? selectedItem
+		: (autocompleteState.filteredTags.find(tagMatches)
+			?? selectedItem);
 	const text = input.value;
 	
 	let newText, newCursorPos;
