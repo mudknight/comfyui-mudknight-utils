@@ -839,6 +839,21 @@ export async function deleteImage(name, type = 'character') {
 	throw new Error('Failed to delete image');
 }
 
+export async function loadLoraTriggerWords(name) {
+	try {
+		// Encode the path but preserve slashes so aiohttp's {name:.*}
+		// route pattern matches correctly.
+		const encoded = name.split('/').map(encodeURIComponent).join('/');
+		const response = await fetch(`/lora_trigger_words/${encoded}`);
+		if (!response.ok) return [];
+		const words = await response.json();
+		return Array.isArray(words) ? words : [];
+	} catch (error) {
+		console.error('Error loading LoRA trigger words:', error);
+		return [];
+	}
+}
+
 export async function loadLoras() {
 	try {
 		const response = await fetch('/lora_list');

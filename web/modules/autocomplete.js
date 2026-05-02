@@ -1,5 +1,5 @@
 import { autocompleteState } from './state.js';
-import { getImageUrl } from './api.js';
+import { getImageUrl, loadLoraTriggerWords } from './api.js';
 
 // Shared thumbnail element for autocomplete
 let sharedThumbnail = null;
@@ -712,7 +712,7 @@ function selectAutocomplete(index) {
 	}
 	
 	if (autocompleteState.contextType === 'lora') {
-		const beforeLora = 
+		const beforeLora =
 			text.lastIndexOf('<lora:', input.selectionStart) + 6;
 		// Find the closing > of the current <lora:...> tag, but
 		// don't cross a <, comma, or newline — those mean the tag
@@ -724,6 +724,68 @@ function selectAutocomplete(index) {
 			: afterCursor;
 		newText = `${text.substring(0, beforeLora)}${item.value}:1.0>${after}`;
 		newCursorPos = beforeLora + item.value.length + 5;
+
+		// Apply the lora tag immediately, then async-append trigger
+		// words if the setting is enabled and words are available.
+		input.value = newText;
+		input.setSelectionRange(newCursorPos, newCursorPos);
+		if (input._comfyWidget) {
+			input._comfyWidget.value = input.value;
+			if (input._comfyWidget.callback) {
+				input._comfyWidget.callback(input.value);
+			}
+		}
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		hideAutocomplete();
+		input.focus();
+
+		const insertTriggers = localStorage.getItem(
+			'Comfy.Settings.Mudknight Utils.Autocomplete' +
+			'.LoRATriggerWords'
+		) !== 'false';
+		console.log(
+			'[Autocomplete] LoRA trigger words enabled:',
+			insertTriggers,
+			'item:', item
+		);
+		if (insertTriggers) {
+			// Prefer item.previewPath (includes extension) so the
+			// backend can resolve the file without guessing.
+			const loraPath = item.previewPath || item.value;
+			console.log('[Autocomplete] Fetching trigger words for:', loraPath);
+			loadLoraTriggerWords(loraPath).then(words => {
+				console.log('[Autocomplete] Trigger words received:', words);
+				if (!words.length) return;
+				// Insert trigger words after the closing > of the tag.
+				// Locate the tag we just inserted by searching from
+				// the cursor position backwards.
+				const cur = input.value;
+				const insertPos = beforeLora + item.value.length + 5;
+				const triggerStr = ', ' + words.join(', ') + ', ';
+				input.value =
+					cur.substring(0, insertPos) +
+					triggerStr +
+					cur.substring(insertPos);
+				const triggerCursorPos = insertPos + triggerStr.length;
+				input.setSelectionRange(
+					triggerCursorPos, triggerCursorPos
+				);
+				if (input._comfyWidget) {
+					input._comfyWidget.value = input.value;
+					if (input._comfyWidget.callback) {
+						input._comfyWidget.callback(input.value);
+					}
+				}
+				input.dispatchEvent(
+					new Event('input', { bubbles: true })
+				);
+				input.dispatchEvent(
+					new Event('change', { bubbles: true })
+				);
+			});
+		}
+		return;
 		
 	} else if (autocompleteState.contextType === 'embedding') {
 		const beforeEmbed = 

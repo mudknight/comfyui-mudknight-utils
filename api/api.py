@@ -669,6 +669,103 @@ async def get_embedding_preview(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+@server.PromptServer.instance.routes.get('/lora_trigger_words/{name:.*}')
+async def get_lora_trigger_words(request):
+    """Get trigger words for a LoRA from its civitai metadata."""
+    try:
+        from urllib.parse import unquote
+        name = unquote(request.match_info['name'])
+        print(f"[TriggerWords] Requested name: {repr(name)}")
+
+        # Resolve the lora file path. The name may already include
+        # a file extension if passed as a full relative path.
+        lora_file = None
+        try:
+            full_path = folder_paths.get_full_path("loras", name)
+            print(f"[TriggerWords] get_full_path result: {repr(full_path)}")
+            if full_path and os.path.exists(full_path):
+                lora_file = full_path
+        except Exception as e:
+            print(f"[TriggerWords] get_full_path exception: {e}")
+
+        if not lora_file:
+            for ext in ['.safetensors', '.ckpt', '.pt', '.bin']:
+                try:
+                    full_path = folder_paths.get_full_path(
+                        "loras", name + ext
+                    )
+                    if full_path and os.path.exists(full_path):
+                        lora_file = full_path
+                        print(
+                            f"[TriggerWords] Found via ext fallback: "
+                            f"{repr(lora_file)}"
+                        )
+                        break
+                except Exception:
+                    continue
+
+        # Fall back to manually joining against each lora directory,
+        # since get_full_path can be unreliable with subdirectory paths.
+        if not lora_file:
+            lora_dirs = folder_paths.get_folder_paths("loras")
+            print(f"[TriggerWords] Lora dirs: {lora_dirs}")
+            for lora_dir in lora_dirs:
+                candidate = os.path.join(lora_dir, name)
+                print(f"[TriggerWords] Trying candidate: {repr(candidate)}")
+                if os.path.exists(candidate):
+                    lora_file = candidate
+                    break
+                for ext in ['.safetensors', '.ckpt', '.pt', '.bin']:
+                    candidate = os.path.join(lora_dir, name + ext)
+                    if os.path.exists(candidate):
+                        lora_file = candidate
+                        break
+                if lora_file:
+                    print(
+                        f"[TriggerWords] Found via manual join: "
+                        f"{repr(lora_file)}"
+                    )
+                    break
+
+        if not lora_file:
+            print(f"[TriggerWords] Could not resolve lora file for "
+                  f"{repr(name)}")
+            return web.json_response([])
+
+        # Look for sidecar metadata file — check .metadata.json first
+        # (lora manager format), then fall back to plain .json.
+        base = os.path.splitext(lora_file)[0]
+        for meta_suffix in ['.metadata.json', '.json']:
+            meta_path = base + meta_suffix
+            print(
+                f"[TriggerWords] Looking for metadata at: {repr(meta_path)}"
+            )
+            if os.path.exists(meta_path):
+                break
+        else:
+            print(f"[TriggerWords] Metadata file not found")
+            return web.json_response([])
+        print(f"[TriggerWords] Using metadata file: {repr(meta_path)}")
+
+        with open(meta_path, 'r', encoding='utf-8') as f:
+            meta = json.load(f)
+
+        # Extract civitai trainedWords
+        trained_words = (
+            meta.get('civitai', {}).get('trainedWords', [])
+        )
+        print(f"[TriggerWords] Returning words: {trained_words}")
+        if not isinstance(trained_words, list):
+            return web.json_response([])
+
+        return web.json_response(trained_words)
+    except Exception as e:
+        print(f"[TriggerWords] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response([])
+
+
 @server.PromptServer.instance.routes.get('/lora_list')
 async def get_lora_list(request):
     """Get list of all available LoRAs"""

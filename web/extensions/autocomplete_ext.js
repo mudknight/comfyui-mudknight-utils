@@ -17,6 +17,15 @@ app.registerExtension({
     name: "Mudknight Utils.Autocomplete",
     settings: [
         {
+            id: "Mudknight Utils.Autocomplete.LoRATriggerWords",
+            name: "Insert LoRA Trigger Words on Completion",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Automatically append civitai trigger words after " +
+            "completing a LoRA tag. Words are fetched from the LoRA's " +
+            "sidecar .json metadata file.",
+        },
+        {
             id: "Mudknight Utils.Autocomplete.PresetManagerEnabled",
             name: "Enable Autocomplete in Preset Manager",
             type: "boolean",
