@@ -155,6 +155,20 @@ function detectContext(input) {
 	const cursorPos = input.selectionStart;
 	const text = input.value.substring(0, cursorPos);
 	
+	// Check for @ artist prefix (Anima model convention)
+	const artistMatch = text.match(/(?:^|[,\n])\s*(@([^,\n]*))$/);
+	if (artistMatch) {
+		const fullMatch = artistMatch[1]; // includes @
+		const searchTerm = artistMatch[2]; // excludes @
+		return {
+			type: 'artist',
+			searchTerm,
+			// start covers the @ so completion replaces @term
+			start: cursorPos - fullMatch.length,
+			end: cursorPos
+		};
+	}
+
 	// Check for LoRA syntax: <lora:
 	const loraMatch = text.match(/<lora:([^:>]*)$/);
 	if (loraMatch) {
@@ -302,7 +316,7 @@ function showAutocomplete(input, context) {
 	if (type === 'lora' || type === 'embedding' ||
 		type === 'character' || type === 'character-outfit' ||
 		type === 'character-part' || type === 'tagpreset' ||
-		type === 'wildcard') {
+		type === 'wildcard' || type === 'artist') {
 		// Allow showing with empty search term
 		if (searchTerm === undefined) {
 			hideAutocomplete();
@@ -320,7 +334,28 @@ function showAutocomplete(input, context) {
 	let filtered = [];
 
 	// Filter based on context type
-	if (type === 'lora') {
+	if (type === 'artist') {
+		// Filter to danbooru category 1 (artist) only, stripping @
+		// from the search term since tags themselves don't have it.
+		const searchLower = searchTerm.toLowerCase().replace(/ /g, '_');
+		filtered = autocompleteState.tags
+			.filter(item =>
+				item.category === 1 &&
+				!autocompleteState.blacklist.has(
+					item.tag.toLowerCase().trim()
+				) &&
+				(searchLower === '' ||
+					item.tag.toLowerCase().includes(searchLower))
+			)
+			.slice(0, 10)
+			.map(item => ({
+				display: item.tag.replace(/_/g, ' '),
+				value: item.tag.replace(/_/g, ' '),
+				count: item.count,
+				category: item.category,
+				type: 'tag'
+			}));
+	} else if (type === 'lora') {
 		const searchLower = searchTerm.toLowerCase();
 		filtered = autocompleteState.loras
 			.filter(item => 
@@ -888,6 +923,14 @@ function selectAutocomplete(index) {
 		newText = 
 			`${text.substring(0, beforeWildcard)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeWildcard + item.value.length + suffix.length;
+	} else if (autocompleteState.contextType === 'artist') {
+		// Prepend @ to the completed value, replacing from context.start
+		// which covers the original @ the user typed.
+		const tag = '@' + item.value
+			.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+		newText = text.substring(0, context.start) + tag + suffix +
+			text.substring(context.end);
+		newCursorPos = context.start + tag.length + suffix.length;
 	} else {
 		// Replace the entire tag from start to end
 		let tag = item.value.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
@@ -972,17 +1015,31 @@ export function setupAutocomplete(input, insertComma = true) {
 		input._insertComma = insertComma;
 
 		input.addEventListener('input', (e) => {
-			const enabled = input._checkEnabled ? 
+			const enabled = input._checkEnabled ?
 				input._checkEnabled() : true;
 			if (!enabled) return;
+
+			autocompleteState.insertComma = input._insertComma;
+			const context = detectContext(input);
+
+			// Bypass debounce for @ artist prefix if setting is enabled
+			const artistEnabled = localStorage.getItem(
+				'Comfy.Settings.Mudknight Utils.Autocomplete' +
+				'.ArtistAtPrefix'
+			) !== 'false';
+			if (context.type === 'artist' && artistEnabled) {
+				if (autocompleteTimeout) {
+					clearTimeout(autocompleteTimeout);
+				}
+				showAutocomplete(input, context);
+				return;
+			}
 
 			// Debounce: wait 100ms after typing stops
 			if (autocompleteTimeout) {
 				clearTimeout(autocompleteTimeout);
 			}
-
 			autocompleteTimeout = setTimeout(() => {
-				autocompleteState.insertComma = input._insertComma;
 				showAutocomplete(input, detectContext(input));
 			}, 100);
 		});

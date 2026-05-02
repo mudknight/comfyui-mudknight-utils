@@ -17,6 +17,15 @@ app.registerExtension({
     name: "Mudknight Utils.Autocomplete",
     settings: [
         {
+            id: "Mudknight Utils.Autocomplete.ArtistAtPrefix",
+            name: "Prefix Artist Completion",
+            type: "boolean",
+            defaultValue: true,
+            tooltip: "Typing @ immediately triggers artist tag completion " +
+                "without debounce. The @ is preserved in the inserted " +
+                "tag for anima.",
+        },
+        {
             id: "Mudknight Utils.Autocomplete.LoRATriggerWords",
             name: "Insert LoRA Trigger Words on Completion",
             type: "boolean",
