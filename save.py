@@ -329,11 +329,151 @@ class SaveFullPipe:
         }
 
 
+class SaveGif:
+    """
+    Save a batch of images from FULL_PIPE or image input as a
+    looping GIF.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        tooltip = (
+            "Available variables: %date, %time, %model, "
+            "%width, %height, %seed"
+        )
+
+        return {
+            "required": {
+                "full_pipe": ("FULL_PIPE",),
+                "filename_prefix": (
+                    "STRING",
+                    {
+                        "default": "%time_%seed",
+                        "tooltip": tooltip
+                    }
+                ),
+                "path": (
+                    "STRING",
+                    {
+                        "default": "%date",
+                        "tooltip": tooltip
+                    }
+                ),
+                "frame_duration": ("FLOAT", {
+                    "default": 0.15,
+                    "min": 0.01,
+                    "max": 10.0,
+                    "step": 0.01,
+                }),
+                "scale": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 0.1,
+                    "max": 1.0,
+                    "step": 0.01,
+                }),
+                "gif_quality": ("INT", {
+                    "default": 128,
+                    "min": 1,
+                    "max": 256,
+                }),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "save_gif"
+    CATEGORY = "custom/pipe"
+    DESCRIPTION = "Save a batch of images as a looping GIF."
+
+    def save_gif(
+        self,
+        full_pipe,
+        filename_prefix,
+        path,
+        frame_duration,
+        scale,
+        gif_quality,
+        image=None,
+    ):
+        # Fall back to pipe image if no input provided
+        if image is None:
+            image = full_pipe.get("image")
+            if image is None:
+                return {"ui": {"text": ["No image in pipe"]}}
+
+        # Get dimensions from tensor (B, H, W, C)
+        height = image.shape[1]
+        width = image.shape[2]
+
+        timestamp = datetime.now()
+
+        # Resolve output directory
+        resolved_path = replace_variables(
+            path, full_pipe, width, height, timestamp
+        )
+        output_dir = folder_paths.get_output_directory()
+        if resolved_path:
+            output_dir = os.path.join(output_dir, resolved_path)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Resolve filename
+        filename = replace_variables(
+            filename_prefix, full_pipe, width, height, timestamp
+        )
+        filepath = os.path.join(output_dir, f"{filename}.gif")
+
+        # Convert each frame tensor to a PIL image, applying scale
+        target_w = max(1, int(width * scale))
+        target_h = max(1, int(height * scale))
+        frames = []
+        for img_tensor in image:
+            arr = (255.0 * img_tensor.cpu().numpy()).astype(np.uint8)
+            pil_frame = Image.fromarray(arr)
+            if scale != 1.0:
+                pil_frame = pil_frame.resize(
+                    (target_w, target_h), Image.LANCZOS
+                )
+            # Quantize to palette for GIF encoding
+            pil_frame = pil_frame.quantize(colors=gif_quality)
+            frames.append(pil_frame)
+
+        if not frames:
+            return {"ui": {"text": ["No frames to save"]}}
+
+        # frame_duration is in seconds; Pillow uses milliseconds
+        duration_ms = int(frame_duration * 1000)
+
+        # Save as looping GIF (loop=0 means infinite)
+        frames[0].save(
+            filepath,
+            format="GIF",
+            save_all=True,
+            append_images=frames[1:],
+            loop=0,
+            duration=duration_ms,
+        )
+
+        return {
+            "ui": {
+                "images": [{
+                    "filename": f"{filename}.gif",
+                    "subfolder": resolved_path,
+                    "type": "output",
+                }]
+            }
+        }
+
+
 # Node registration
 NODE_CLASS_MAPPINGS = {
-    "SaveFullPipe": SaveFullPipe
+    "SaveFullPipe": SaveFullPipe,
+    "SaveGif": SaveGif,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SaveFullPipe": "Save (Full Pipe)"
+    "SaveFullPipe": "Save (Full Pipe)",
+    "SaveGif": "Save GIF",
 }

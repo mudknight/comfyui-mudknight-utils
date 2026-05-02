@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import torch
 import nodes
 import comfy.samplers
 import comfy.sample
@@ -56,6 +57,10 @@ class BaseNode:
                     {"default": "832x1216 (2:3)"}
                 ),
                 "portrait": ("BOOLEAN", {"default": True}),
+                "batch_size": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                }),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -71,7 +76,8 @@ class BaseNode:
 
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, resolution, portrait, image=None, extra_pnginfo=None):
+            denoise, resolution, portrait, batch_size=1,
+            image=None, extra_pnginfo=None):
         """Generate image from latent using sampling."""
 
         # Unpack full_pipe
@@ -82,7 +88,7 @@ class BaseNode:
         seed = full_pipe.get("seed")
         latent = full_pipe.get("latent")
 
-        # Determine latent source
+        # Determine latent source — encoded once, reused for all samples
         if image is not None:
             # Scale image to target resolution
             scale_node = common.Node("ImageScaleToTotalPixels")
@@ -103,23 +109,28 @@ class BaseNode:
             # Override denoise to 1 if no input image
             denoise = 1.0
 
-        # Sample latent
-        sampled_latent = common.sample_latent(
-            model, positive, negative, seed, sampler_name,
-            scheduler, steps, cfg, denoise, latent
-        )
-
-        # Decode
+        # Sample batch_size times, incrementing seed each iteration
         vae_decode = common.Node("VAEDecode")
-        decoded_image = vae_decode.function(vae, sampled_latent)[0]
+        decoded_images = []
+        for i in range(batch_size):
+            sampled_latent = common.sample_latent(
+                model, positive, negative, seed + i, sampler_name,
+                scheduler, steps, cfg, denoise, latent
+            )
+            decoded_images.append(
+                vae_decode.function(vae, sampled_latent)[0]
+            )
 
-        # Pack back into full_pipe
+        # Concatenate all decoded images into a single batch tensor
+        batch = torch.cat(decoded_images, dim=0)
+
+        # Pack back into full_pipe with the full image batch
         full_pipe_in = common.Node("FullPipeIn")
-        result = full_pipe_in.function(full_pipe, image=decoded_image)[0]
+        result = full_pipe_in.function(full_pipe, image=batch)[0]
 
         return common.return_preview(
-            (result, decoded_image),
-            decoded_image,
+            (result, batch),
+            batch,
             extra_pnginfo
         )
 
@@ -148,6 +159,10 @@ class UpscaleNode:
                     "max": 8.0,
                     "step": 0.01
                 }),
+                "batch_size": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                }),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -162,7 +177,8 @@ class UpscaleNode:
 
     def upscale(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, upscale_model, scale_by, image=None, extra_pnginfo=None):
+            denoise, upscale_model, scale_by, batch_size=1,
+            image=None, extra_pnginfo=None):
         """Upscale and sample image."""
         # Unpack full_pipe
         model = full_pipe.get("model")
@@ -175,7 +191,7 @@ class UpscaleNode:
         if image is None:
             image = full_pipe.get("image")
 
-        # Scale image
+        # Scale image once — reused for all samples
         if upscale_model != "none":
             image_scale = common.Node("CombinedUpscaleNode")
             scaled_image = image_scale.function(
@@ -185,27 +201,32 @@ class UpscaleNode:
             scaled_image = image_scale.function(
                 image, "lanczos", scale_by)[0]
 
-        # Encode to latent
+        # Encode to latent once — reused for all samples
         vae_encode = common.Node("VAEEncode")
         latent = vae_encode.function(vae, scaled_image)[0]
 
-        # Sample latent
-        sampled_latent = common.sample_latent(
-            model, positive, negative, seed, sampler_name,
-            scheduler, steps, cfg, denoise, latent
-        )
-
-        # Decode
+        # Sample batch_size times, incrementing seed each iteration
         vae_decode = common.Node("VAEDecode")
-        decoded_image = vae_decode.function(vae, sampled_latent)[0]
+        decoded_images = []
+        for i in range(batch_size):
+            sampled_latent = common.sample_latent(
+                model, positive, negative, seed + i, sampler_name,
+                scheduler, steps, cfg, denoise, latent
+            )
+            decoded_images.append(
+                vae_decode.function(vae, sampled_latent)[0]
+            )
 
-        # Pack back into full_pipe
+        # Concatenate all decoded images into a single batch tensor
+        batch = torch.cat(decoded_images, dim=0)
+
+        # Pack back into full_pipe with the full image batch
         full_pipe_in = common.Node("FullPipeIn")
-        result = full_pipe_in.function(full_pipe, image=decoded_image)[0]
+        result = full_pipe_in.function(full_pipe, image=batch)[0]
 
         return common.return_preview(
-            (result, decoded_image),
-            decoded_image,
+            (result, batch),
+            batch,
             extra_pnginfo
         )
 
