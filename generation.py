@@ -57,9 +57,13 @@ class BaseNode:
                     {"default": "832x1216 (2:3)"}
                 ),
                 "portrait": ("BOOLEAN", {"default": True}),
-                "batch_size": ("INT", {
+                "variations": ("INT", {
                     "default": 1,
                     "min": 1,
+                    "tooltip": (
+                        "Number of images to generate. Each variation "
+                        "uses the base seed incremented by its index."
+                    ),
                 }),
             },
             "optional": {
@@ -76,7 +80,7 @@ class BaseNode:
 
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, resolution, portrait, batch_size=1,
+            denoise, resolution, portrait, variations=1,
             image=None, extra_pnginfo=None):
         """Generate image from latent using sampling."""
 
@@ -109,10 +113,10 @@ class BaseNode:
             # Override denoise to 1 if no input image
             denoise = 1.0
 
-        # Sample batch_size times, incrementing seed each iteration
+        # Sample variations times, incrementing seed each iteration
         vae_decode = common.Node("VAEDecode")
         decoded_images = []
-        for i in range(batch_size):
+        for i in range(variations):
             sampled_latent = common.sample_latent(
                 model, positive, negative, seed + i, sampler_name,
                 scheduler, steps, cfg, denoise, latent
@@ -159,9 +163,13 @@ class UpscaleNode:
                     "max": 8.0,
                     "step": 0.01
                 }),
-                "batch_size": ("INT", {
+                "variations": ("INT", {
                     "default": 1,
                     "min": 1,
+                    "tooltip": (
+                        "Number of images to generate. Each variation "
+                        "uses the base seed incremented by its index."
+                    ),
                 }),
             },
             "optional": {
@@ -177,7 +185,7 @@ class UpscaleNode:
 
     def upscale(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, upscale_model, scale_by, batch_size=1,
+            denoise, upscale_model, scale_by, variations=1,
             image=None, extra_pnginfo=None):
         """Upscale and sample image."""
         # Unpack full_pipe
@@ -205,10 +213,10 @@ class UpscaleNode:
         vae_encode = common.Node("VAEEncode")
         latent = vae_encode.function(vae, scaled_image)[0]
 
-        # Sample batch_size times, incrementing seed each iteration
+        # Sample variations times, incrementing seed each iteration
         vae_decode = common.Node("VAEDecode")
         decoded_images = []
-        for i in range(batch_size):
+        for i in range(variations):
             sampled_latent = common.sample_latent(
                 model, positive, negative, seed + i, sampler_name,
                 scheduler, steps, cfg, denoise, latent
