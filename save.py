@@ -428,7 +428,7 @@ class SaveGif:
         # Convert each frame tensor to a PIL image, applying scale
         target_w = max(1, int(width * scale))
         target_h = max(1, int(height * scale))
-        frames = []
+        rgb_frames = []
         for img_tensor in image:
             arr = (255.0 * img_tensor.cpu().numpy()).astype(np.uint8)
             pil_frame = Image.fromarray(arr)
@@ -436,12 +436,23 @@ class SaveGif:
                 pil_frame = pil_frame.resize(
                     (target_w, target_h), Image.LANCZOS
                 )
-            # Quantize to palette for GIF encoding
-            pil_frame = pil_frame.quantize(colors=gif_quality)
-            frames.append(pil_frame)
+            rgb_frames.append(pil_frame)
 
-        if not frames:
+        if not rgb_frames:
             return {"ui": {"text": ["No frames to save"]}}
+
+        # Build a shared palette from all frames combined so that
+        # colours stay consistent across the GIF animation
+        combined_w = target_w * len(rgb_frames)
+        combined = Image.new("RGB", (combined_w, target_h))
+        for i, f in enumerate(rgb_frames):
+            combined.paste(f, (i * target_w, 0))
+        palette_image = combined.quantize(colors=gif_quality)
+
+        # Apply the shared palette to each frame individually
+        frames = [
+            f.quantize(palette=palette_image) for f in rgb_frames
+        ]
 
         # frame_duration is in seconds; Pillow uses milliseconds
         duration_ms = int(frame_duration * 1000)
