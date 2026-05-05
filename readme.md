@@ -2,8 +2,12 @@
 
 <p align="center">
   <img src="https://github.com/mudknight/comfyui-mudknight-utils/blob/main/assets/pipe.svg?raw=true" alt="Logo" width="400"/>
-Nodes to clean up your workflow.
-<a href="https://mudknight.github.io/comfyui-mudknight-utils/"> [Documentation] </a>
+</p>
+<p align="center">
+  Nodes to clean up your workflow.
+</p>
+<p align="center">
+  <a href="https://mudknight.github.io/comfyui-mudknight-utils/"> [Documentation] </a>
 </p>
 
 ## Dependencies
