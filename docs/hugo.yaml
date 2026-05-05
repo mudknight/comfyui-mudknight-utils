@@ -1,8 +1,14 @@
 baseURL: "https://mudknight.github.io/comfyui-mudknight-utils"
-languageCode: 'en-us'
+locale: 'en-us'
 title: "Mudknight Utils Docs"
 theme: ["github.com/imfing/hextra"]
 disableKinds: ["RSS"]
+
+security:
+  http:
+    urls:
+      - '(?i)^https?://[a-z]'
+      - 'https://cdn.jsdelivr.net'
 
 params:
   author: "mudknight"
@@ -10,7 +16,11 @@ params:
   github: "https://github.com/mudknight/comfyui-mudknight-utils"
 
   navbar:
-    displayLogo: false
+    displayLogo: true
+    logo: 
+      path: "https://github.com/mudknight/comfyui-mudknight-utils/blob/main/assets/pipe.svg?raw=true"
+      width: 64
+      height: 32
     displaySearch: true
 
   footer:
