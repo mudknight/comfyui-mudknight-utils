@@ -95,8 +95,9 @@ class BaseNode:
         # Determine latent source — encoded once, reused for all samples
         if image is not None:
             # Scale image to target resolution
-            scale_node = common.Node("ImageScaleToTotalPixels")
-            scaled_image = scale_node.function(image, "lanczos", 1, 1)[0]
+            # scale_node = common.Node("ImageScaleToTotalPixels")
+            # scaled_image = scale_node.function(image, "lanczos", 1, 1)[0]
+            scaled_image = image
 
             # Encode to latent
             vae_encode = common.Node("VAEEncode")
