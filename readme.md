@@ -1,11 +1,16 @@
 # ComfyUI mudknight utils
 
+<p align="center">
+  <img src="https://github.com/mudknight/comfyui-mudknight-utils/blob/main/assets/pipe.svg?raw=true" alt="Logo"/>
+</p>
+
 Nodes to clean up your workflow.
 
-![full workflow](assets/workflow-full.png)
 <div align="center">
 <a href="https://mudknight.github.io/comfyui-mudknight-utils/"> [Documentation] </a>
 </div>
+
+![full workflow](assets/workflow-full.png)
 
 ## Dependencies
 This node pack optionally requires the following node packs.
