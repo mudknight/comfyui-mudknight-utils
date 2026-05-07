@@ -495,6 +495,7 @@ class MaskDetailerNode:
             "required": {
                 # Core inputs
                 **CORE_INPUTS,
+                "mask": ("MASK",),
                 # KSampler parameters
                 **SEED_INPUT,
                 **KSAMPLER_INPUTS,
@@ -729,6 +730,6 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DetailerNode": "FastDetailer",
     "DetailerPipeNode": "FastDetailer (full-pipe)",
-    "MaskDetailerNode": "MaskDetailer",
-    "MaskDetailerPipeNode": "MaskDetailer (full-pipe)",
+    "MaskDetailerNode": "FastMaskDetailer",
+    "MaskDetailerPipeNode": "FastMaskDetailer (full-pipe)",
 }
