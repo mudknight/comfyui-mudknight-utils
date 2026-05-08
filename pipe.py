@@ -13,12 +13,10 @@ PIPE_FIELDS = {
     "optional": {
         "positive": ("CONDITIONING",),
         "negative": ("CONDITIONING",),
-        "positive_text": ("STRING", {"forceInput": True}),
-        "negative_text": ("STRING", {"forceInput": True}),
-        "ckpt_name": ("STRING", {"forceInput": True}),
         "seed": ("INT", {"forceInput": True}),
         "image": ("IMAGE",),
         "latent": ("LATENT",),
+        "meta": ("META", {"forceInput": True}),
     }
 }
 

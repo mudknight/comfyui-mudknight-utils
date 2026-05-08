@@ -577,8 +577,11 @@ class PromptConditioningNode:
                 "clip": clip_out,
                 "positive": pos_cond,
                 "negative": neg_cond,
-                "positive_text": pos_text,
-                "negative_text": neg_text,
+                "meta": {
+                    **full_pipe.get("meta", {}),
+                    "positive_text": pos_text,
+                    "negative_text": neg_text,
+                },
             }
         )
 
@@ -889,8 +892,11 @@ class SimplePromptNode:
                 "clip": clip_out,
                 "positive": pos_cond,
                 "negative": neg_cond,
-                "positive_text": metadata_pos_text,
-                "negative_text": metadata_neg_text,
+                "meta": {
+                    **full_pipe.get("meta", {}),
+                    "positive_text": metadata_pos_text,
+                    "negative_text": metadata_neg_text,
+                },
             }
         )
 

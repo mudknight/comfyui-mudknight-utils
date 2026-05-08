@@ -141,8 +141,8 @@ class LoaderFullPipe:
             "model": model,
             "clip": clip,
             "vae": vae,
-            "ckpt_name": ckpt_name,
             "seed": seed,
+            "meta": {"ckpt_name": ckpt_name},
         }
 
         return (full_pipe,)
@@ -302,8 +302,12 @@ class SplitLoaderFullPipe:
             "model": model,
             "clip": clip,
             "vae": vae,
-            "ckpt_name": f"{unet_name}+{clip_name}+{vae_name}",
             "seed": seed,
+            "meta": {
+                "ckpt_name": (
+                    f"{unet_name}+{clip_name}+{vae_name}"
+                ),
+            },
         }
 
         return (full_pipe,)

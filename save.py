@@ -50,8 +50,9 @@ def get_node_by_type(prompt, node_type):
 
 
 def build_a1111_meta(pipe, prompt, w, h, model):
-    p_text = pipe.get("positive_text", "")
-    n_text = pipe.get("negative_text", "")
+    pipe_meta = pipe.get("meta", {})
+    p_text = pipe_meta.get("positive_text", "")
+    n_text = pipe_meta.get("negative_text", "")
     seed = pipe.get("seed", 0)
 
     if not prompt:
@@ -150,7 +151,8 @@ def replace_variables(text, full_pipe, width, height, timestamp):
     Returns:
         String with variables replaced
     """
-    ckpt_name = full_pipe.get('ckpt_name', 'unknown')
+    pipe_meta = full_pipe.get('meta', {})
+    ckpt_name = pipe_meta.get('ckpt_name', 'unknown')
     if '/' in ckpt_name:
         ckpt_name = ckpt_name.split('/')[-1]
 
@@ -238,7 +240,11 @@ class SaveFullPipe:
             if image is None:
                 return {"ui": {"text": ["No image in pipe"]}}
 
-        ckpt_name = full_pipe.get("ckpt_name", "unknown").split('/')[-1]
+        ckpt_name = (
+            full_pipe.get("meta", {})
+            .get("ckpt_name", "unknown")
+            .split('/')[-1]
+        )
 
         # Get image dimensions
         batch_size = image.shape[0]
