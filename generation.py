@@ -57,6 +57,17 @@ class BaseNode:
                     {"default": "832x1216 (2:3)"}
                 ),
                 "portrait": ("BOOLEAN", {"default": True}),
+                "scale": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 0.01,
+                    "step": 0.01,
+                    "round": 0.01,
+                    "tooltip": (
+                        "Multiplier applied to the empty latent width "
+                        "and height. A value of 1.0 uses the base "
+                        "resolution."
+                    ),
+                }),
                 "variations": ("INT", {
                     "default": 1,
                     "min": 1,
@@ -80,7 +91,7 @@ class BaseNode:
 
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
-            denoise, resolution, portrait, variations=1,
+            denoise, resolution, portrait, scale=1.0, variations=1,
             image=None, extra_pnginfo=None):
         """Generate image from latent using sampling."""
 
@@ -108,6 +119,9 @@ class BaseNode:
             # Get resolution
             width, height = ResolutionSelector().get_resolution(
                 resolution, portrait)
+            # Apply scale multiplier to empty latent dimensions
+            width = int(width * scale)
+            height = int(height * scale)
             # Create empty latent
             empty_latent = common.Node("EmptyLatentImage")
             latent = empty_latent.function(width, height, 1)[0]
