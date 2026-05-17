@@ -337,12 +337,87 @@ class InpaintPipeNode:
         )
 
 
+class LoadImageToLatentPipe:
+    """
+    Load an image via LoadImage, optionally scale it to a target
+    megapixel count, VAE-encode it into a latent, and pack it into
+    the pipe's latent field. If the image has a mask (e.g. from the
+    MaskEditor), attach it as a latent noise mask.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        # Pull image widget definition from LoadImage directly
+        load_image_inputs = common.Node("LoadImage").node.INPUT_TYPES()
+        image_input = load_image_inputs["required"]["image"]
+        return {
+            "required": {
+                "full_pipe": ("FULL_PIPE",),
+                "image": image_input,
+                "scale": ("BOOLEAN", {"default": False}),
+                "megapixels": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 0.1,
+                    "max": 16.0,
+                    "step": 0.1,
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("FULL_PIPE",)
+    RETURN_NAMES = ("full_pipe",)
+    FUNCTION = "process"
+    CATEGORY = "mudknight/inpainting"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, image):
+        # Delegate image validation to LoadImage so clipspace/uploaded
+        # filenames aren't rejected against the static file list.
+        load_image_cls = common.Node("LoadImage").node.__class__
+        return load_image_cls.VALIDATE_INPUTS(image)
+
+    def process(self, full_pipe, image, scale, megapixels):
+        # Load image (and optional mask) via built-in LoadImage
+        load_image = common.Node("LoadImage")
+        img, mask = load_image.function(image)
+
+        if scale:
+            # Scale to target megapixels, preserving aspect ratio
+            orig_h, orig_w = img.shape[1], img.shape[2]
+            aspect = orig_w / orig_h
+            target_px = int(megapixels * 1_048_576)
+            new_h = int(round((target_px / aspect) ** 0.5 / 8) * 8)
+            new_w = int(round(aspect * new_h / 8) * 8)
+            img = _scale_image(img, new_w, new_h)
+
+        # VAE-encode image to latent
+        vae = full_pipe.get("vae")
+        vae_encode = common.Node("VAEEncode")
+        latent = vae_encode.function(vae, img)[0]
+
+        # Only attach a noise mask if the image actually had one;
+        # LoadImage returns an all-zeros mask when there's no alpha.
+        if mask is not None and mask.max() > 0:
+            if scale:
+                mask = _scale_mask(mask, new_w, new_h)
+            latent = _set_latent_mask(latent, mask)
+
+        new_pipe = full_pipe.copy()
+        new_pipe["latent"] = latent
+        # Keep image in sync so downstream nodes can reference it
+        new_pipe["image"] = img
+
+        return (new_pipe,)
+
+
 NODE_CLASS_MAPPINGS = {
     "InpaintNode": InpaintNode,
     "InpaintPipeNode": InpaintPipeNode,
+    "LoadImageToLatentPipe": LoadImageToLatentPipe,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "InpaintNode": "Inpaint",
     "InpaintPipeNode": "Inpaint (full-pipe)",
+    "LoadImageToLatentPipe": "Load Image to Latent (full-pipe)",
 }
