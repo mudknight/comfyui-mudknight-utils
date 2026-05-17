@@ -1,4 +1,5 @@
 import os
+import torch
 import folder_paths
 
 
@@ -62,6 +63,21 @@ def sample_latent(
         model_type = detect_model_type(model)
         ays_scheduler = Node("AlignYourStepsScheduler")
         sigmas = ays_scheduler.function(model_type, steps, denoise)[0]
+    elif scheduler == "beta57":
+        total_steps = steps
+        if denoise < 1.0:
+            if denoise <= 0.0:
+                sigmas = torch.FloatTensor([])
+            else:
+                total_steps = int(steps / denoise)
+        
+        if total_steps > 0:
+            beta_scheduler = Node("BetaSamplingScheduler")
+            sigmas = beta_scheduler.function(model=model, steps=total_steps, alpha=0.5, beta=0.7)[0]
+            if denoise < 1.0:
+                sigmas = sigmas[-(steps + 1):]
+        else:
+            sigmas = torch.FloatTensor([])
     else:
         scheduler_node = Node("BasicScheduler")
         sigmas = scheduler_node.function(

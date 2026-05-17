@@ -13,7 +13,7 @@ KSAMPLER_INPUTS = {
         {"default": "euler_ancestral_cfg_pp"}
     ),
     "scheduler": (
-        list(comfy.samplers.KSampler.SCHEDULERS) + ["align_your_steps"],
+        list(comfy.samplers.KSampler.SCHEDULERS) + ["align_your_steps", "beta57"],
         {"default": "karras"}
     ),
     "steps": ("INT", {
