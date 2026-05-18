@@ -24,6 +24,12 @@ app.registerExtension({
             tooltip: "Typing @ immediately triggers artist tag completion " +
                 "without debounce. The @ is preserved in the inserted " +
                 "tag for anima.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.ArtistAtPrefix",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.LoRATriggerWords",
@@ -33,13 +39,25 @@ app.registerExtension({
             tooltip: "Automatically append civitai trigger words after " +
             "completing a LoRA tag. Words are fetched from the LoRA's " +
             "sidecar .json metadata file.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.LoRATriggerWords",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.PresetManagerEnabled",
             name: "Enable Autocomplete in Preset Manager",
             type: "boolean",
             defaultValue: true,
-            tooltip: "Enable autocomplete in the Preset Manager interface"
+            tooltip: "Enable autocomplete in the Preset Manager interface",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.PresetManagerEnabled",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.UsageOnlyExisting",
@@ -48,6 +66,12 @@ app.registerExtension({
             defaultValue: false,
             tooltip: "Only boost tags that already exist in your tag " +
             "sources. Prevents creating new tags from usage data.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.UsageOnlyExisting",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.ApplyUsage",
@@ -56,6 +80,12 @@ app.registerExtension({
             defaultValue: true,
             tooltip: "Boost autocomplete priority for tags you've used " +
             "before. Requires reload to take effect.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.ApplyUsage",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.CollectUsage",
@@ -197,6 +227,12 @@ app.registerExtension({
             tooltip: "When enabled, aliased tags appear at the bottom of " +
             "autocomplete results (count set to 0) instead of inheriting " +
             "the parent tag's priority. Requires reload to take effect.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.LowerAliasPriority",
+                    value
+                );
+            }
         },
         {
             id: "Mudknight Utils.Autocomplete.LoadDanbooru",
@@ -206,6 +242,10 @@ app.registerExtension({
             tooltip: "Load the built-in Danbooru tag list. Disable if you only want to use your own custom sources.",
             onChange: async (value) => {
                 console.log("Reloading autocomplete tags (Danbooru toggle)...");
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.LoadDanbooru",
+                    value
+                );
                 try {
                     const customSources = app.ui.settings.getSettingValue(
                         "Mudknight Utils.Autocomplete.CustomSources",
@@ -241,6 +281,12 @@ app.registerExtension({
             type: "boolean",
             defaultValue: false,
             tooltip: "Enable autocomplete for multiline strings.",
+            onChange: (value) => {
+                localStorage.setItem(
+                    "Comfy.Settings.Mudknight Utils.Autocomplete.Enabled",
+                    value
+                );
+            }
         },
     ],
     async setup() {
@@ -260,6 +306,25 @@ app.registerExtension({
         }
 
         initAutocomplete();
+
+        // Sync settings to localStorage for external modules andPreset Manager to read
+        const syncSettings = [
+            "Mudknight Utils.Autocomplete.ArtistAtPrefix",
+            "Mudknight Utils.Autocomplete.LoRATriggerWords",
+            "Mudknight Utils.Autocomplete.PresetManagerEnabled",
+            "Mudknight Utils.Autocomplete.UsageOnlyExisting",
+            "Mudknight Utils.Autocomplete.ApplyUsage",
+            "Mudknight Utils.Autocomplete.LowerAliasPriority",
+            "Mudknight Utils.Autocomplete.LoadDanbooru",
+            "Mudknight Utils.Autocomplete.Enabled",
+            "Mudknight Utils.Autocomplete.Blacklist",
+            "Mudknight Utils.Autocomplete.CustomSources",
+            "Mudknight Utils.Autocomplete.CustomTags"
+        ];
+        for (const settingId of syncSettings) {
+            const val = app.ui.settings.getSettingValue(settingId);
+            localStorage.setItem("Comfy.Settings." + settingId, val);
+        }
 
         const hideAliases = app.ui.settings.getSettingValue(
             "Mudknight Utils.Autocomplete.HideAliasesWithMain",
