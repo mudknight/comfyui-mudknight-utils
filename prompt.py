@@ -832,6 +832,10 @@ class SimplePromptNode:
         positive = common.strip_comments(positive)
         negative = common.strip_comments(negative)
 
+        # Strip newlines
+        positive = positive.replace("\n", "")
+        negative = negative.replace("\n", "")
+
         # 2. Append trigger_words to the end of the positive string
         if trigger_words and trigger_words.strip():
             if positive and not positive.strip().endswith(","):
