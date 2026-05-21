@@ -107,14 +107,72 @@ class FullPipeIn:
         return (new_pipe,)
 
 
+class MetaEditNode:
+    """Set a key-value pair on a meta dict."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "key": ("STRING", {"default": ""}),
+                "value": ("STRING", {"default": ""}),
+            },
+            "optional": {
+                "meta": ("META", {"forceInput": True}),
+            },
+        }
+
+    RETURN_TYPES = ("META",)
+    RETURN_NAMES = ("meta",)
+    FUNCTION = "edit"
+    CATEGORY = "custom/pipe"
+
+    def edit(self, key, value, meta=None):
+        # Start from empty dict if no meta provided
+        result = dict(meta) if meta else {}
+        result[key] = value
+        return (result,)
+
+
+class PipeMetaEditNode:
+    """Set a key-value pair on the meta dict inside a full pipe."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "full_pipe": ("FULL_PIPE",),
+                "key": ("STRING", {"default": ""}),
+                "value": ("STRING", {"default": ""}),
+            },
+        }
+
+    RETURN_TYPES = ("FULL_PIPE",)
+    RETURN_NAMES = ("full_pipe",)
+    FUNCTION = "edit"
+    CATEGORY = "custom/pipe"
+
+    def edit(self, full_pipe, key, value):
+        new_pipe = full_pipe.copy()
+        # Copy existing meta or start fresh
+        meta = dict(new_pipe.get("meta") or {})
+        meta[key] = value
+        new_pipe["meta"] = meta
+        return (new_pipe,)
+
+
 NODE_CLASS_MAPPINGS = {
     "FullPipeLoader": FullPipeLoader,
     "FullPipeOut": FullPipeOut,
     "FullPipeIn": FullPipeIn,
+    "MetaEditNode": MetaEditNode,
+    "PipeMetaEditNode": PipeMetaEditNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FullPipeLoader": "Full Pipe Loader",
     "FullPipeOut": "Full Pipe Out",
     "FullPipeIn": "Full Pipe In",
+    "MetaEditNode": "Meta Edit",
+    "PipeMetaEditNode": "Pipe Meta Edit",
 }
