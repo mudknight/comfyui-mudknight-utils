@@ -80,7 +80,6 @@ class BaseNode:
             "optional": {
                 "image": ("IMAGE",),
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
@@ -92,7 +91,7 @@ class BaseNode:
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
             denoise, resolution, portrait, scale=1.0, variations=1,
-            image=None, extra_pnginfo=None):
+            image=None):
         """Generate image from latent using sampling."""
 
         # Unpack full_pipe
@@ -147,11 +146,7 @@ class BaseNode:
         full_pipe_in = common.Node("FullPipeIn")
         result = full_pipe_in.function(full_pipe, image=batch)[0]
 
-        return common.return_preview(
-            (result, batch),
-            batch,
-            extra_pnginfo
-        )
+        return common.return_preview((result, batch), batch)
 
 
 class UpscaleNode:
@@ -190,7 +185,6 @@ class UpscaleNode:
             "optional": {
                 "image": ("IMAGE",),
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
@@ -201,7 +195,7 @@ class UpscaleNode:
     def upscale(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
             denoise, upscale_model, scale_by, variations=1,
-            image=None, extra_pnginfo=None):
+            image=None):
         """Upscale and sample image."""
         # Unpack full_pipe
         model = full_pipe.get("model")
@@ -247,11 +241,7 @@ class UpscaleNode:
         full_pipe_in = common.Node("FullPipeIn")
         result = full_pipe_in.function(full_pipe, image=batch)[0]
 
-        return common.return_preview(
-            (result, batch),
-            batch,
-            extra_pnginfo
-        )
+        return common.return_preview((result, batch), batch)
 
 
 NODE_CLASS_MAPPINGS = {

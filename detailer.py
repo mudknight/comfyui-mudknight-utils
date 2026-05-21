@@ -352,7 +352,6 @@ class DetailerNode:
                 # Detection parameters
                 **DETAILER_INPUTS,
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE", "IMAGE")
@@ -365,7 +364,7 @@ class DetailerNode:
     def process(self, bbox_model, fallback_model, threshold, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, feather,
-                context_padding, extra_pnginfo=None):
+                context_padding):
         """Main processing function."""
 
         # Handle batched images
@@ -390,11 +389,10 @@ class DetailerNode:
 
                 # Process it
                 result = self._process_single_image(
-                    bbox_model, fallback_model, single_image, model, vae,
-                    positive, negative, seed + i, steps, cfg, sampler,
-                    scheduler, denoise, upscale_method, upscale_model,
-                    threshold, feather, context_padding,
-                    extra_pnginfo
+                bbox_model, fallback_model, single_image, model, vae,
+                positive, negative, seed + i, steps, cfg, sampler,
+                scheduler, denoise, upscale_method, upscale_model,
+                threshold, feather, context_padding
                 )
 
                 # Handle both dict and tuple returns
@@ -414,15 +412,14 @@ class DetailerNode:
 
             return common.return_preview(
                 (final_batch, padded_crops_batch),
-                padded_crops_batch,
-                extra_pnginfo
+                padded_crops_batch
             )
 
     def _process_single_image(
             self, bbox_model, fallback_model, image, model, vae,
             positive, negative, seed, steps, cfg, sampler, scheduler,
             denoise, upscale_method, upscale_model, threshold, feather,
-            context_padding, extra_pnginfo=None):
+            context_padding):
         """Process a single image (batch size must be 1)."""
 
         # Create placeholder for early returns
@@ -479,8 +476,7 @@ class DetailerNode:
 
         return common.return_preview(
             (final_image, padded_crops_batch,),
-            padded_crops_batch,
-            extra_pnginfo
+            padded_crops_batch
         )
 
 
@@ -548,8 +544,7 @@ class MaskDetailerNode:
 
         return common.return_preview(
             (final_image, padded_crops_batch,),
-            padded_crops_batch,
-            extra_pnginfo
+            padded_crops_batch
         )
 
 
@@ -579,7 +574,6 @@ class DetailerPipeNode(DetailerNode):
                 # Detection parameters
                 **DETAILER_INPUTS,
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
@@ -591,8 +585,7 @@ class DetailerPipeNode(DetailerNode):
 
     def process_pipe(self, bbox_model, fallback_model, threshold, full_pipe,
                      steps, cfg, sampler, scheduler, denoise, upscale_method,
-                     upscale_model, feather, context_padding,
-                     extra_pnginfo=None):
+                     upscale_model, feather, context_padding):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         image = full_pipe.get("image")
@@ -633,8 +626,7 @@ class DetailerPipeNode(DetailerNode):
 
         return common.return_preview(
             (new_pipe, final_image, cropped_image),
-            cropped_image,
-            extra_pnginfo
+            cropped_image
         )
 
 
@@ -659,7 +651,6 @@ class MaskDetailerPipeNode(MaskDetailerNode):
             "optional": {
                 "image": ("IMAGE",),
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
@@ -672,7 +663,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
     def process_pipe(self, full_pipe, mask, steps, cfg, sampler,
                      scheduler, denoise, upscale_method, upscale_model,
                      feather, context_padding,
-                     image=None, extra_pnginfo=None):
+                     image=None):
         """Process using full_pipe input and return updated pipe."""
         # Extract values from pipe
         if image is None:
@@ -715,8 +706,7 @@ class MaskDetailerPipeNode(MaskDetailerNode):
 
         return common.return_preview(
             (new_pipe, final_image, cropped_image),
-            cropped_image,
-            extra_pnginfo
+            cropped_image
         )
 
 

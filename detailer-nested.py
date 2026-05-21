@@ -357,7 +357,6 @@ class NestedDetailerNode:
                 # Detailer parameters
                 **DETAILER_INPUTS,
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE", "IMAGE")
@@ -370,7 +369,7 @@ class NestedDetailerNode:
         threshold, image, model, vae, positive, negative, seed,
         cfg, sampler, scheduler, face_steps, face_denoise, face_scale,
         eye_steps, eye_denoise, eye_scale, upscale_method, max_megapixels,
-        feather, context_padding, extra_pnginfo=None
+        feather, context_padding
     ):
         """Process image with nested face/eye detection."""
         # Load detectors
@@ -394,8 +393,7 @@ class NestedDetailerNode:
             )
             return common.return_preview(
                 (image, placeholder),
-                placeholder,
-                extra_pnginfo
+                placeholder
             )
 
         # For each face, find matching eyes
@@ -509,8 +507,7 @@ class NestedDetailerNode:
 
         return common.return_preview(
             (final_image, face_batch),
-            face_batch,
-            extra_pnginfo
+            face_batch
         )
 
 
@@ -533,7 +530,6 @@ class NestedDetailerPipeNode(NestedDetailerNode):
                 "full_pipe": ("FULL_PIPE",),
                 **base_inputs["required"]
             },
-            "hidden": base_inputs["hidden"]
         }
 
         return pipe_inputs
@@ -545,7 +541,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,
         threshold, cfg, sampler, scheduler, face_steps, face_denoise,
         face_scale, eye_steps, eye_denoise, eye_scale, upscale_method,
-        max_megapixels, feather, context_padding, extra_pnginfo=None
+        max_megapixels, feather, context_padding
     ):
         """Process using full_pipe."""
         # Extract from pipe
@@ -574,7 +570,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
             threshold, image, model, vae, positive, negative, seed,
             cfg, sampler, scheduler, face_steps, face_denoise, face_scale,
             eye_steps, eye_denoise, eye_scale, upscale_method,
-            max_megapixels, feather, context_padding, extra_pnginfo
+            max_megapixels, feather, context_padding
         )
 
         if isinstance(result, dict):
@@ -588,8 +584,7 @@ class NestedDetailerPipeNode(NestedDetailerNode):
 
         return common.return_preview(
             (new_pipe, final_image, face_batch),
-            face_batch,
-            extra_pnginfo
+            face_batch
         )
 
 

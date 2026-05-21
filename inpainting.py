@@ -241,7 +241,6 @@ class InpaintNode:
                 **_DETAIL_SAMPLER_INPUTS,
                 **_UPSCALE_INPUTS,
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -255,8 +254,7 @@ class InpaintNode:
             inpaint_cfg, inpaint_denoise,
             detail_sampler, detail_scheduler, detail_steps,
             detail_cfg, detail_denoise,
-            upscale_model, blur_radius,
-            extra_pnginfo=None):
+            upscale_model, blur_radius):
         """Run two-pass inpainting and return the final image."""
         final = inpaint(
             image, mask, model, vae, positive, negative, seed,
@@ -266,9 +264,7 @@ class InpaintNode:
             detail_cfg, detail_denoise,
             upscale_model, blur_radius
         )
-        return common.return_preview(
-            (final,), final, extra_pnginfo
-        )
+        return common.return_preview((final,), final)
 
 
 class InpaintPipeNode:
@@ -291,7 +287,6 @@ class InpaintPipeNode:
             "optional": {
                 "image": ("IMAGE",),
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
@@ -306,7 +301,7 @@ class InpaintPipeNode:
             detail_sampler, detail_scheduler, detail_steps,
             detail_cfg, detail_denoise,
             upscale_model, blur_radius,
-            image=None, extra_pnginfo=None):
+            image=None):
         """Run two-pass inpainting via full_pipe and return updated pipe."""
         model = full_pipe.get("model")
         vae = full_pipe.get("vae")
@@ -332,9 +327,7 @@ class InpaintPipeNode:
         full_pipe_in = common.Node("FullPipeIn")
         updated_pipe = full_pipe_in.function(full_pipe, image=final)[0]
 
-        return common.return_preview(
-            (updated_pipe, final), final, extra_pnginfo
-        )
+        return common.return_preview((updated_pipe, final), final)
 
 
 class LoadImageToLatentPipe:
