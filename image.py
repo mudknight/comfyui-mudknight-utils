@@ -326,7 +326,6 @@ class ImageDifference:
                     "tooltip": "Padding around cropped image"
                 }),
             },
-            "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -338,7 +337,7 @@ class ImageDifference:
         "around the detected changed area.")
 
     def process_difference(self, image_a, image_b, scale_diff, crop,
-                           sensitivity, padding, extra_pnginfo):
+                           sensitivity, padding):
 
         # Determine total pixels (H * W)
         size_a = image_a.shape[1] * image_a.shape[2]
@@ -367,22 +366,14 @@ class ImageDifference:
         diff_out = torch.clamp(diff * scale_diff, 0.0, 1.0)
 
         if not crop:
-            return common.return_preview(
-                (diff_out,),
-                diff_out,
-                extra_pnginfo
-            )
+            return common.return_preview((diff_out,), diff_out)
 
         # Masking for crop logic
         mask = torch.max(diff, dim=-1)[0] > sensitivity
         coords = torch.nonzero(mask)
 
         if coords.size(0) == 0:
-            return common.return_preview(
-                (diff_out,),
-                diff_out,
-                extra_pnginfo
-            )
+            return common.return_preview((diff_out,), diff_out)
 
         y_min, x_min = torch.min(coords[:, 1]), torch.min(coords[:, 2])
         y_max, x_max = torch.max(coords[:, 1]), torch.max(coords[:, 2])
@@ -395,11 +386,7 @@ class ImageDifference:
 
         cropped_diff = diff_out[:, y_start:y_end, x_start:x_end, :]
 
-        return common.return_preview(
-            (cropped_diff,),
-            cropped_diff,
-            extra_pnginfo
-        )
+        return common.return_preview((cropped_diff,), cropped_diff)
 
 
 NODE_CLASS_MAPPINGS = {
