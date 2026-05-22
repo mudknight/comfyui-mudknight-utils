@@ -1,6 +1,12 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
+const NODE_TYPES = [
+    "BaseNode", "UpscaleNode", "DetailerNode",
+    "DetailerPipeNode", "MaskDetailerNode", "MaskDetailerPipeNode",
+    "NestedDetailerNode", "NestedDetailerPipeNode"
+];
+
 // Check if Vue nodes mode is active. LiteGraph.vueNodesMode is the
 // canonical runtime flag set from the Comfy.VueNodes.Enabled setting.
 function isVueWorkflow() {
@@ -10,14 +16,30 @@ function isVueWorkflow() {
 app.registerExtension({
     name: "mudknight.Preview",
 
-    async nodeCreated(node) {
-        const nodeTypes = [
-            "BaseNode", "UpscaleNode", "DetailerNode",
-            "DetailerPipeNode", "MaskDetailerNode", "MaskDetailerPipeNode",
-            "NestedDetailerNode", "NestedDetailerPipeNode"
-        ];
+    async init() {
+        // Intercept the 'executed' event before the app's handler
+        // (registered in addApiUpdateHandlers, which runs after init).
+        // getNodeImageUrls prioritises nodePreviewImages (blobs) over
+        // nodeOutputs, so the Vue watcher would load the low-res blob
+        // instead of the full-res output. Deleting the blob here first
+        // ensures the watcher only sees nodeOutputs.
+        api.addEventListener("executed", (event) => {
+            if (!isVueWorkflow()) return;
+            const nodeId = String(
+                event.detail?.display_node || event.detail?.node
+            );
+            if (!nodeId) return;
 
-        if (!nodeTypes.includes(node.comfyClass)) return;
+            const graph = app.rootGraph ?? app.graph;
+            const node = graph?.getNodeById(Number(nodeId));
+            if (!node || !NODE_TYPES.includes(node.comfyClass)) return;
+
+            delete app.nodePreviewImages[nodeId];
+        });
+    },
+
+    async nodeCreated(node) {
+        if (!NODE_TYPES.includes(node.comfyClass)) return;
 
         node._customImgs = null;
         node._isExecutionFinished = false;
@@ -27,18 +49,9 @@ app.registerExtension({
             if (origOnExecuted) origOnExecuted.apply(this, arguments);
             if (!message?.images?.length) return;
 
-            if (isVueWorkflow()) {
-                // By the time onExecuted fires, nodeOutputs is already
-                // populated (the executed event handler runs first).
-                // nodePreviewImages blobs take priority over nodeOutputs
-                // in getNodeImageUrls, so clear them immediately.
-                // app.nodePreviewImages is the same object reference as
-                // the store's Q.nodePreviewImages — deleting the key
-                // is equivalent to calling revokePreviewsByLocatorId.
-                const locatorId = String(this.id);
-                delete app.nodePreviewImages[locatorId];
-                return;
-            }
+            // Vue mode is handled entirely by the init-phase
+            // 'executed' listener; nothing to do here.
+            if (isVueWorkflow()) return;
 
             // LiteGraph path: load full-res images and lock them in
             // via the imgs sentinel defined below.
@@ -114,4 +127,5 @@ app.registerExtension({
         });
     }
 });
+
 
