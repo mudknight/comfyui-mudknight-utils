@@ -285,7 +285,7 @@ class SaveFullPipe:
             metadata = PngInfo()
 
             # Create A1111-style parameters text
-            if a1111_metadata and prompt:
+            if a1111_metadata:
                 meta_text = build_a1111_meta(full_pipe, prompt, width,
                                              height, ckpt_name)
                 metadata.add_text("parameters", meta_text)
