@@ -53,7 +53,7 @@ function setVueBadge(nodeId, text) {
             "flex", "h-6", "items-center", "justify-center",
             "overflow-clip", "rounded-full",
             "bg-component-node-widget-background",
-            "mx-auto"
+            "absolute", "left-1/2", "-translate-x-1/2"
         ].join(" ");
         const inner = document.createElement("div");
         inner.className = [
@@ -63,13 +63,9 @@ function setVueBadge(nodeId, text) {
         ].join(" ");
         inner.style.cssText = "color: currentcolor; background-color: transparent;";
         badge.appendChild(inner);
-        // Insert after the first child (#id badge) so exec time stays last.
-        const firstChild = footer.firstElementChild;
-        if (firstChild?.nextSibling) {
-            footer.insertBefore(badge, firstChild.nextSibling);
-        } else {
-            footer.appendChild(badge);
-        }
+        footer.appendChild(badge);
+        // Make footer relative so absolute centering works.
+        footer.classList.add("relative");
     }
 
     badge.querySelector("div").textContent = text;
