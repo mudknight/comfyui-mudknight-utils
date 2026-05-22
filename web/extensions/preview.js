@@ -7,10 +7,21 @@ const NODE_TYPES = [
     "NestedDetailerNode", "NestedDetailerPipeNode"
 ];
 
-// Check if Vue nodes mode is active. LiteGraph.vueNodesMode is the
-// canonical runtime flag set from the Comfy.VueNodes.Enabled setting.
+// LiteGraph.vueNodesMode is the canonical runtime flag for Vue nodes,
+// set reactively from the Comfy.VueNodes.Enabled setting.
 function isVueWorkflow() {
     return !!window.LiteGraph?.vueNodesMode;
+}
+
+// Lazily resolved pinia nodeOutput store. Cached after first access
+// since the store instance is stable for the lifetime of the page.
+let _nodeOutputStore = null;
+function getNodeOutputStore() {
+    if (_nodeOutputStore) return _nodeOutputStore;
+    const pinia = document.getElementById("vue-app")
+        ?.__vue_app__?.config?.globalProperties?.$pinia;
+    _nodeOutputStore = pinia?._s?.get("nodeOutput") ?? null;
+    return _nodeOutputStore;
 }
 
 app.registerExtension({
@@ -28,16 +39,10 @@ app.registerExtension({
             if (!message?.images?.length) return;
 
             if (isVueWorkflow()) {
-                const nodeId = String(this.id);
-                const vueApp = document.getElementById('vue-app')
-                    ?.__vue_app__;
-                const pinia = vueApp?.config?.globalProperties?.$pinia;
-                const store = pinia?._s?.get('nodeOutput');
-                if (store) {
-                    // Revoke the live preview blob so the Vue component
-                    // re-renders using nodeOutputs (full-res) instead.
-                    store.revokePreviewsByLocatorId(nodeId);
-                }
+                // Revoke the live preview blob so the Vue component
+                // re-renders using nodeOutputs (full-res) instead.
+                getNodeOutputStore()?.revokePreviewsByLocatorId(
+                    String(this.id));
                 return;
             }
 
@@ -88,15 +93,9 @@ app.registerExtension({
             this._customImgs = null;
 
             if (isVueWorkflow()) {
-                const vueApp = document.getElementById('vue-app')
-                    ?.__vue_app__;
-                const pinia = vueApp?.config?.globalProperties?.$pinia;
-                const store = pinia?._s?.get('nodeOutput');
-                if (store) {
-                    // Remove stale full-res output so only the incoming
-                    // live preview blob is shown during generation.
-                    store.removeNodeOutputs(String(this.id));
-                }
+                // Remove stale full-res output so only the incoming
+                // live preview blob is shown during generation.
+                getNodeOutputStore()?.removeNodeOutputs(String(this.id));
             }
         };
 
