@@ -3,6 +3,47 @@ import { api } from "/scripts/api.js";
 
 const SETTING_ID = "Mudknight Utils.Execution Time.enabled";
 
+// Badge element ID injected into the Vue node footer.
+const BADGE_CLASS = "mk-exec-time";
+
+// Sets or removes the time badge in a Vue node's footer bar.
+// The footer bar is the mt-auto flex row that also contains the #id badge.
+function setVueBadge(nodeId, text) {
+    const footer = document.querySelector(
+        `[data-node-id="${nodeId}"] .mt-auto`
+    );
+    if (!footer) return;
+
+    let badge = footer.querySelector(`.${BADGE_CLASS}`);
+
+    if (!text) {
+        badge?.remove();
+        return;
+    }
+
+    if (!badge) {
+        badge = document.createElement("div");
+        badge.className = [
+            BADGE_CLASS,
+            "flex", "h-6", "items-center", "justify-center",
+            "overflow-clip", "rounded-full",
+            "bg-component-node-widget-background",
+            "ml-auto"
+        ].join(" ");
+        const inner = document.createElement("div");
+        inner.className = [
+            "flex", "min-w-max", "items-center", "gap-1",
+            "rounded-sm", "px-1", "py-0.5", "text-xs", "h-6",
+            "first:pl-2", "last:pr-2"
+        ].join(" ");
+        inner.style.cssText = "color: currentcolor; background-color: transparent;";
+        badge.appendChild(inner);
+        footer.appendChild(badge);
+    }
+
+    badge.querySelector("div").textContent = text;
+}
+
 app.registerExtension({
     name: "Mudknight Utils.Execution Time",
 
@@ -14,73 +55,73 @@ app.registerExtension({
             defaultValue: false,
         });
 
-        const time_map = new Map();
-        let last_id = null;
+        const timeMap = new Map();
+        // Map of nodeId -> elapsed seconds, kept for display.
+        const durationMap = new Map();
+        let lastId = null;
 
         api.addEventListener("execution_start", () => {
-            if (!app.graph) {
-                return;
-            }
+            // Clear all durations and badges on a new run.
+            durationMap.clear();
+            timeMap.clear();
+            lastId = null;
 
+            if (!app.graph) return;
             for (const node of app.graph._nodes) {
-                delete node.executionDuration;
+                node.executionDuration = undefined;
+                setVueBadge(node.id, null);
             }
-
-            time_map.clear();
-            last_id = null;
         });
 
         api.addEventListener("executing", (e) => {
-            if (!app.ui.settings.getSettingValue(SETTING_ID)) {
-                return;
-            }
+            // The executing event detail is the node ID directly.
+            const id = e.detail ?? null;
 
-            const id = e?.node ?? e?.detail ?? null;
-
-            if (last_id !== null && time_map.has(last_id)) {
+            // Record elapsed time for the previously executing node.
+            if (lastId !== null && timeMap.has(lastId)) {
                 const delta =
-                    (performance.now() - time_map.get(last_id)) / 1000;
+                    (performance.now() - timeMap.get(lastId)) / 1000;
+                durationMap.set(lastId, delta);
 
-                const node = app.graph.getNodeById(last_id);
-                if (node) {
-                    node.executionDuration =
-                        (node.executionDuration ?? 0) + delta;
+                if (app.ui.settings.getSettingValue(SETTING_ID)) {
+                    const text = `${delta.toFixed(3)}s`;
+                    // LiteGraph node.
+                    const node = app.graph?.getNodeById(lastId);
+                    if (node) node.executionDuration = delta;
+                    // Vue node DOM badge.
+                    setVueBadge(lastId, text);
                 }
 
-                time_map.delete(last_id);
+                timeMap.delete(lastId);
             }
 
-            last_id = id;
-            if (id !== null) {
-                time_map.set(id, performance.now());
-            }
+            lastId = id;
+            if (id !== null) timeMap.set(id, performance.now());
         });
     },
 
-    beforeRegisterNodeDef(node_type) {
-        const orig = node_type.prototype.onDrawForeground;
+    beforeRegisterNodeDef(nodeType) {
+        const orig = nodeType.prototype.onDrawForeground;
 
-        node_type.prototype.onDrawForeground = function (ctx) {
+        // LiteGraph canvas rendering path.
+        nodeType.prototype.onDrawForeground = function(ctx) {
             if (
-                this.executionDuration &&
-                app.ui.settings.getSettingValue(SETTING_ID)
+                this.executionDuration
+                && app.ui.settings.getSettingValue(SETTING_ID)
             ) {
-                draw_time(ctx, this.executionDuration);
+                drawTime(ctx, this.executionDuration);
             }
 
-            if (orig) {
-                return orig.apply(this, arguments);
-            }
+            if (orig) return orig.apply(this, arguments);
         };
     },
 });
 
-function draw_time(ctx, seconds) {
+function drawTime(ctx, seconds) {
     const text = `${seconds.toFixed(3)}s`;
 
     ctx.save();
-    // ctx.font = LiteGraph.NODE_TEXT_FONT;
-    ctx.font = "12px sans-serif"
+    ctx.font = "12px sans-serif";
 
     const padding = 4;
     const w = ctx.measureText(text).width + padding * 2;
@@ -89,9 +130,8 @@ function draw_time(ctx, seconds) {
     const y = -LiteGraph.NODE_TITLE_HEIGHT - 22;
     const r = 4;
 
-    // ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR; // Use node titlebar color
     ctx.fillStyle = LiteGraph.NODE_DEFAULT_BGCOLOR;
-    rounded_rect(ctx, x, y, w, h, r);
+    roundedRect(ctx, x, y, w, h, r);
     ctx.fill();
 
     ctx.fillStyle = LiteGraph.NODE_TITLE_COLOR;
@@ -100,7 +140,7 @@ function draw_time(ctx, seconds) {
     ctx.restore();
 }
 
-function rounded_rect(ctx, x, y, w, h, r) {
+function roundedRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);
