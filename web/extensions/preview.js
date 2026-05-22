@@ -16,28 +16,6 @@ function isVueWorkflow() {
 app.registerExtension({
     name: "mudknight.Preview",
 
-    async init() {
-        // Intercept the 'executed' event before the app's handler
-        // (registered in addApiUpdateHandlers, which runs after init).
-        // getNodeImageUrls prioritises nodePreviewImages (blobs) over
-        // nodeOutputs, so the Vue watcher would load the low-res blob
-        // instead of the full-res output. Deleting the blob here first
-        // ensures the watcher only sees nodeOutputs.
-        api.addEventListener("executed", (event) => {
-            if (!isVueWorkflow()) return;
-            const nodeId = String(
-                event.detail?.display_node || event.detail?.node
-            );
-            if (!nodeId) return;
-
-            const graph = app.rootGraph ?? app.graph;
-            const node = graph?.getNodeById(Number(nodeId));
-            if (!node || !NODE_TYPES.includes(node.comfyClass)) return;
-
-            delete app.nodePreviewImages[nodeId];
-        });
-    },
-
     async nodeCreated(node) {
         if (!NODE_TYPES.includes(node.comfyClass)) return;
 
@@ -49,9 +27,19 @@ app.registerExtension({
             if (origOnExecuted) origOnExecuted.apply(this, arguments);
             if (!message?.images?.length) return;
 
-            // Vue mode is handled entirely by the init-phase
-            // 'executed' listener; nothing to do here.
-            if (isVueWorkflow()) return;
+            if (isVueWorkflow()) {
+                const nodeId = String(this.id);
+                const vueApp = document.getElementById('vue-app')
+                    ?.__vue_app__;
+                const pinia = vueApp?.config?.globalProperties?.$pinia;
+                const store = pinia?._s?.get('nodeOutput');
+                if (store) {
+                    // Revoke the live preview blob so the Vue component
+                    // re-renders using nodeOutputs (full-res) instead.
+                    store.revokePreviewsByLocatorId(nodeId);
+                }
+                return;
+            }
 
             // LiteGraph path: load full-res images and lock them in
             // via the imgs sentinel defined below.
@@ -98,6 +86,18 @@ app.registerExtension({
             }
             this._isExecutionFinished = false;
             this._customImgs = null;
+
+            if (isVueWorkflow()) {
+                const vueApp = document.getElementById('vue-app')
+                    ?.__vue_app__;
+                const pinia = vueApp?.config?.globalProperties?.$pinia;
+                const store = pinia?._s?.get('nodeOutput');
+                if (store) {
+                    // Remove stale full-res output so only the incoming
+                    // live preview blob is shown during generation.
+                    store.removeNodeOutputs(String(this.id));
+                }
+            }
         };
 
         // LiteGraph only: sentinel to prevent ComfyUI from overwriting
@@ -110,7 +110,6 @@ app.registerExtension({
             },
             set: function(val) {
                 if (isVueWorkflow()) {
-                    // Let the store manage display; don't fight it.
                     this._internalImgs = val;
                     return;
                 }
