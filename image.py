@@ -219,7 +219,7 @@ class OpenCVDenoise:
                     "step": 0.01,
                     "round": 0.01,
                     "tooltip": (
-                        "0.1 is recommended, higher values will filter more "
+                        "0.01 is recommended, higher values will filter more "
                         "noise at the expense of detail.")
                 }),
                 "sigma_color": ("FLOAT", {
@@ -229,6 +229,16 @@ class OpenCVDenoise:
                     "tooltip": (
                         "8 is recommended, higher values cause more gradient "
                         "banding")
+                }),
+                "bilateral_diameter": ("INT", {
+                    "default": 128,
+                    "min": 0,
+                    "max": 256,
+                    "tooltip": (
+                        "Pixel neighbourhood diameter for the bilateral "
+                        "filter. 128 or 256 are recommended — higher values "
+                        "produce better smoothing but are significantly "
+                        "slower.")
                 }),
             },
             "optional": {
@@ -241,8 +251,14 @@ class OpenCVDenoise:
     RETURN_NAMES = ("full_pipe", "image")
     FUNCTION = "run"
     CATEGORY = "image/filter"
+    DESCRIPTION = (
+        "Denoises an image using OpenCV's edge-preserving filter followed "
+        "by a bilateral filter. Reduces noise while preserving edges and "
+        "fine detail. GPU is strongly recommended for reasonable performance."
+    )
 
-    def run(self, device, sigma_r, sigma_color, full_pipe=None, image=None):
+    def run(self, device, sigma_r, sigma_color, bilateral_diameter,
+             full_pipe=None, image=None):
         # Handle input image from direct input or pipe
         if image is None and full_pipe is not None:
             image = full_pipe.get("image")
@@ -273,7 +289,9 @@ class OpenCVDenoise:
             processed = cv2.edgePreservingFilter(
                 img_uint8, flags=2, sigma_s=128, sigma_r=sigma_r
             )
-            processed = cv2.bilateralFilter(processed, 128, sigma_color, 60)
+            processed = cv2.bilateralFilter(
+                processed, bilateral_diameter, sigma_color, 60
+            )
 
             if isinstance(processed, cv2.UMat):
                 processed = processed.get()
