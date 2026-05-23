@@ -52,7 +52,10 @@ class CombinedUpscaleNode:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "upscale"
-    CATEGORY = "image/upscaling"
+    CATEGORY = "mudknight/upscaling"
+    DESCRIPTION = (
+        "This is a convenience node when using an upscaling model to be able "
+        "to scale the image to a factor based on the original image.")
 
     def upscale(
         self, image, upscale_model_name, scale_factor, upscale_method

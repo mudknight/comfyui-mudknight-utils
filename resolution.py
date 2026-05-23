@@ -32,7 +32,11 @@ class ResolutionSelector:
     RETURN_TYPES = ("INT", "INT")
     RETURN_NAMES = ("width", "height")
     FUNCTION = "get_resolution"
-    CATEGORY = "image/resolution"
+    CATEGORY = "mudknight/resolution"
+    DESCRIPTION = (
+        "Set resolution based on 1MP resolutions close to aspect ratios."
+        "Dimensions are divisible by 8 for VAE."
+    )
 
     def get_resolution(self, resolution, portrait):
         width, height = self.RESOLUTIONS[resolution]
@@ -66,7 +70,10 @@ class CustomResolutionPipe:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "get_latent"
-    CATEGORY = "image/resolution"
+    CATEGORY = "mudknight/resolution"
+    DESCRIPTION = (
+        "Creates an empty latent using specific dimensions."
+    )
 
     def get_latent(self, full_pipe, width, height, batch_size):
         latent_width = width // 8

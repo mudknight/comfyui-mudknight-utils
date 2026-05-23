@@ -49,7 +49,7 @@ class OpenCVDenoise:
     RETURN_TYPES = ("FULL_PIPE", "IMAGE")
     RETURN_NAMES = ("full_pipe", "image")
     FUNCTION = "run"
-    CATEGORY = "image/filter"
+    CATEGORY = "mudknight/image"
     DESCRIPTION = (
         "Denoises an image using OpenCV's edge-preserving filter followed "
         "by a bilateral filter. Reduces noise while preserving edges and "
@@ -148,7 +148,7 @@ class ImageDifference:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "process_difference"
-    CATEGORY = "image/effects"
+    CATEGORY = "mudknight/image"
     OUTPUT_NODE = True
     DESCRIPTION = (
         "Show the difference between 2 images, with optional cropping "

@@ -220,8 +220,12 @@ class SaveFullPipe:
     RETURN_NAMES = ("image",)
     OUTPUT_NODE = True
     FUNCTION = "save_images"
-    CATEGORY = "custom/pipe"
-    DESCRIPTION = "Save images from full pipe or optional image input."
+    CATEGORY = "mudknight/save"
+    DESCRIPTION = (
+        "Save images from full pipe or optional image input."
+        "Optionally saves ComfyUI and A1111 metadata."
+        "ComfyUI samplers are mapped to their A1111 equivalents."
+        )
 
     def save_images(
         self,
@@ -393,7 +397,7 @@ class SaveGif:
     RETURN_TYPES = ()
     OUTPUT_NODE = True
     FUNCTION = "save_gif"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/save"
     DESCRIPTION = "Save a batch of images as a looping GIF."
 
     def save_gif(

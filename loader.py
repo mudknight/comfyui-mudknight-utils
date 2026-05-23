@@ -85,7 +85,7 @@ class LoaderFullPipe:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "load"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
     DESCRIPTION = "Load checkpoint, seed, and loras into full pipe"
 
     def load(self, ckpt_name, stop_at_clip_layer, seed, lora_stack=None):
@@ -208,7 +208,7 @@ class SplitLoaderFullPipe:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "load"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
     DESCRIPTION = (
         "Load separate diffusion model, CLIP, and VAE, "
         "apply AuraFlow sampling, and create full pipe"

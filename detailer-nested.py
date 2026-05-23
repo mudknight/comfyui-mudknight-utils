@@ -362,7 +362,12 @@ class NestedDetailerNode:
     RETURN_TYPES = ("IMAGE", "IMAGE")
     RETURN_NAMES = ("image", "detailed_faces")
     FUNCTION = "process"
-    CATEGORY = "detailer"
+    CATEGORY = "mudknight/detailer"
+    DESCRIPTION = (
+        "Detail faces and then eyes within the face. FastDetailer nodes "
+        "always scale regions to 1MP so this does the nested detailing on the "
+        "scaled image instead of doing it on the final composited image."
+    )
 
     def process(
         self, face_model, eyes_pair_model, eye_single_model,
@@ -536,6 +541,13 @@ class NestedDetailerPipeNode(NestedDetailerNode):
 
     RETURN_TYPES = ("FULL_PIPE", "IMAGE", "IMAGE")
     RETURN_NAMES = ("full_pipe", "image", "detailed_faces")
+    FUNCTION = "process"
+    CATEGORY = "mudknight/detailer"
+    DESCRIPTION = (
+        "Detail faces and then eyes within the face. FastDetailer nodes "
+        "always scale regions to 1MP so this does the nested detailing on the "
+        "scaled image instead of doing it on the final composited image."
+    )
 
     def process(
         self, full_pipe, face_model, eyes_pair_model, eye_single_model,

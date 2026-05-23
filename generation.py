@@ -39,7 +39,7 @@ KSAMPLER_INPUTS = {
 
 class BaseNode:
     """
-    Custom base generation node that creates images from either empty
+    Base generation node that creates images from either empty
     latent or an optional input image. Exposes sampler, scheduler,
     steps, CFG, denoise, width, and height parameters.
     """
@@ -86,7 +86,12 @@ class BaseNode:
     RETURN_NAMES = ("full_pipe", "image",)
     OUTPUT_NODE = True
     FUNCTION = "generate"
-    CATEGORY = "mudknight/custom"
+    CATEGORY = "mudknight/generation"
+    DESCRIPTION = (
+        "Base generation node that creates images from either empty latent"
+        "(for t2i) or an image or latent (for i2i and inpainting)."
+        "Resolution can be used with scale to generate images above 1MP."
+    )
 
     def generate(
             self, full_pipe, sampler_name, scheduler, steps, cfg,
@@ -104,14 +109,9 @@ class BaseNode:
 
         # Determine latent source — encoded once, reused for all samples
         if image is not None:
-            # Scale image to target resolution
-            # scale_node = common.Node("ImageScaleToTotalPixels")
-            # scaled_image = scale_node.function(image, "lanczos", 1, 1)[0]
-            scaled_image = image
-
             # Encode to latent
             vae_encode = common.Node("VAEEncode")
-            latent = vae_encode.function(vae, scaled_image)[0]
+            latent = vae_encode.function(vae, image)[0]
         elif latent is not None:
             pass
         else:
@@ -190,7 +190,11 @@ class UpscaleNode:
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
     RETURN_NAMES = ("full_pipe", "image",)
     FUNCTION = "upscale"
-    CATEGORY = "mudknight/custom"
+    CATEGORY = "mudknight/generation"
+    DESCRIPTION = (
+        "Do an i2i upscale on an image, optionally with an upscale model "
+        "to improve sharpness."
+    )
 
     def upscale(
             self, full_pipe, sampler_name, scheduler, steps, cfg,

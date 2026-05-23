@@ -30,7 +30,8 @@ class BBoxInsetAndCrop:
     RETURN_TYPES = ("IMAGE", "BBOX")
     RETURN_NAMES = ("cropped_image", "inset_bbox")
     FUNCTION = "inset_and_crop"
-    CATEGORY = "image/bbox"
+    CATEGORY = "mudknight/detailer"
+    DESCRIPTION = "Used internally in detailer nodes for cropping from bbox."
 
     def inset_and_crop(self, crop_image, bbox, inset_pixels):
         """

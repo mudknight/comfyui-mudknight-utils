@@ -232,7 +232,7 @@ class CharacterPresetNode(PresetNodeBase):
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("positive", "negative")
     FUNCTION = "select_character"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     def select_character(
         self, character, use_default_outfit, use_bottom, unique_id=None
@@ -289,7 +289,7 @@ class CharacterReplacementNode(PresetNodeBase):
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("prompt", "character_pos", "character_neg")
     FUNCTION = "process_tags"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     def process_tags(self, input_tags, unique_id=None):
         if not input_tags.strip():
@@ -373,7 +373,7 @@ class ModelPresetNode(PresetNodeBase):
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("positive", "negative")
     FUNCTION = "generate_prompts"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     def generate_prompts(
         self, ckpt_name, quality_tags, embeddings, unique_id=None
@@ -428,7 +428,7 @@ class StylePresetNode(PresetNodeBase):
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("positive", "negative")
     FUNCTION = "generate_style"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     def generate_style(self, style, unique_id=None):
         if style == "none":
@@ -474,7 +474,7 @@ class WildcardNode(PresetNodeBase):
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("output",)
     FUNCTION = "replace_wildcards"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     @classmethod
     def IS_CHANGED(cls, text, opt_string="", unique_id=None):
@@ -522,7 +522,7 @@ class TagPresetNode(PresetNodeBase):
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("positive", "negative")
     FUNCTION = "process_tags"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/presets"
 
     def process_tags(self, text, unique_id=None):
         if not text.strip():

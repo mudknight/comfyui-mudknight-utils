@@ -467,7 +467,7 @@ class PromptConditioningNode:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
-    CATEGORY = "custom/conditioning"
+    CATEGORY = "mudknight/prompt"
     DESCRIPTION = (
         "Prompt node that conditions positive and negative text. "
         "Lines commented with # are stripped. "
@@ -807,7 +807,7 @@ class SimplePromptNode:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
-    CATEGORY = "custom/conditioning"
+    CATEGORY = "mudknight/prompt"
     DESCRIPTION = (
         "Simple prompt node that conditions positive and negative text. "
         "Lines commented with # are stripped. "

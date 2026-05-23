@@ -48,7 +48,7 @@ class FullPipePack:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "pack"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
 
     def pack(self, **kwargs):
         # Pack all provided kwargs into pipe dictionary
@@ -69,7 +69,7 @@ class FullPipeOut:
     RETURN_TYPES = ("FULL_PIPE",) + tuple(get_all_field_types())
     RETURN_NAMES = ("full_pipe",) + tuple(get_all_field_names())
     FUNCTION = "unpack"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
 
     def unpack(self, full_pipe):
         # Return pipe followed by all fields in order
@@ -93,7 +93,7 @@ class FullPipeIn:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "edit"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
 
     def edit(self, full_pipe, **kwargs):
         new_pipe = full_pipe.copy()
@@ -125,7 +125,7 @@ class MetaEditNode:
     RETURN_TYPES = ("META",)
     RETURN_NAMES = ("meta",)
     FUNCTION = "edit"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
 
     def edit(self, key, value, meta=None):
         # Start from empty dict if no meta provided
@@ -150,7 +150,7 @@ class PipeMetaEditNode:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "edit"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
 
     def edit(self, full_pipe, key, value):
         new_pipe = full_pipe.copy()

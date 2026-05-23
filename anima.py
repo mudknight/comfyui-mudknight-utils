@@ -7,6 +7,7 @@ Splits positive prompts into specific categories for better organization.
 from . import common
 from .prompt import extract_loras, parse_lora_syntax, apply_loras, parse_prompt_to_dict
 
+
 class AnimaPromptNode:
     """
     Anime-focused prompt node that splits positive input into category-specific fields.
@@ -33,7 +34,7 @@ class AnimaPromptNode:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
-    CATEGORY = "custom/conditioning"
+    CATEGORY = "mudknight/prompt"
     DESCRIPTION = (
         "Anime-focused prompt node. Splices category fields into a single positive prompt. "
         "Lines commented with # are stripped. Supports <lora:file:strength> syntax."
@@ -61,7 +62,7 @@ class AnimaPromptNode:
             common.strip_comments(style),
             common.strip_comments(prompt),
         ]
-        
+
         # 2. Concatenate non-empty positive parts
         positive_text = ", ".join([p.strip() for p in parts if p and p.strip()])
         negative_text = common.strip_comments(negative)

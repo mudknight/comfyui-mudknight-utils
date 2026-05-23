@@ -40,7 +40,7 @@ class ApplyControlNetPipe:
     RETURN_TYPES = ("FULL_PIPE", "IMAGE")
     RETURN_NAMES = ("full_pipe", "image")
     FUNCTION = "apply_controlnet"
-    CATEGORY = "custom/controlnet"
+    CATEGORY = "mudknight/controlnet"
     DESCRIPTION = "Load and apply ControlNet to full pipe"
 
     def apply_controlnet(

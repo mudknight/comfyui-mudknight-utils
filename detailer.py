@@ -376,7 +376,7 @@ class DetailerNode:
                 bbox_model, fallback_model, image, model, vae,
                 positive, negative, seed, steps, cfg, sampler, scheduler,
                 denoise, upscale_method, upscale_model, threshold, feather,
-                context_padding, extra_pnginfo
+                context_padding
             )
         else:
             # Batch processing - process each image separately
@@ -389,10 +389,10 @@ class DetailerNode:
 
                 # Process it
                 result = self._process_single_image(
-                bbox_model, fallback_model, single_image, model, vae,
-                positive, negative, seed + i, steps, cfg, sampler,
-                scheduler, denoise, upscale_method, upscale_model,
-                threshold, feather, context_padding
+                    bbox_model, fallback_model, single_image, model, vae,
+                    positive, negative, seed + i, steps, cfg, sampler,
+                    scheduler, denoise, upscale_method, upscale_model,
+                    threshold, feather, context_padding
                 )
 
                 # Handle both dict and tuple returns

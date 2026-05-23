@@ -35,7 +35,7 @@ class MultiStringConditioning:
     RETURN_TYPES = ("CONDITIONING", "STRING", "STRING")
     RETURN_NAMES = ("conditioning", "combined_text", "lora_syntax")
     FUNCTION = "concatenate_conditionings"
-    CATEGORY = "conditioning"
+    CATEGORY = "mudknight/conditioning"
 
     def strip_comments(self, text):
         """

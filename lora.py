@@ -63,7 +63,7 @@ class LoraFullPipe:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "apply_lora"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
     DESCRIPTION = "Apply a LoRA to the model and CLIP in a full pipe."
 
     def apply_lora(
@@ -126,7 +126,7 @@ class ConditionalLoraFullPipe:
     RETURN_TYPES = ("FULL_PIPE",)
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "apply_conditional_lora"
-    CATEGORY = "custom/pipe"
+    CATEGORY = "mudknight/pipe"
     DESCRIPTION = "Add lora if substring is in positive_text."
 
     def apply_conditional_lora(
