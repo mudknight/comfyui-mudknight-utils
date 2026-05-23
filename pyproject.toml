@@ -1,7 +1,7 @@
 [project]
 name = "mudknight-utils"
 description = "Nodes to clean up your workflow. Includes pipe nodes, detailer nodes, OpenCV denoising node, as well as extensions for tag autocompletion, full-res image previews on generation nodes, and node badges for filesize and runtime. Extensions are compatible with 2.0 Vue nodes."
-version = "1.1.0"
+version = "1.1.1"
 license = {file = "LICENSE"}
 classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
