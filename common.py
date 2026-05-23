@@ -121,16 +121,22 @@ def get_upscale_model_list():
 class Node:
     """Wrapper for ComfyUI nodes to simplify function calls."""
 
-    def __init__(self, node_name):
+    def __init__(self, node_name, silent=False):
         """
         Initialize the wrapper with a node name.
 
         Args:
             node_name: Name of the node in NODE_CLASS_MAPPINGS
+            silent: If True, return None instead of raising when
+                the node is not found
         """
         self.node_name = node_name
+        self.silent = silent
         self._node_instance = None
         self._function = None
+        # Sentinel so __bool__ can distinguish "not yet resolved"
+        # from "resolved and missing"
+        self._found = None
 
     @property
     def node(self):
@@ -140,9 +146,13 @@ class Node:
 
             node_class = NODE_CLASS_MAPPINGS.get(self.node_name)
             if node_class is None:
-                raise ValueError(
-                    f"Node '{self.node_name}' not found in mappings"
-                )
+                self._found = False
+                if not self.silent:
+                    raise ValueError(
+                        f"Node '{self.node_name}' not found in mappings"
+                    )
+                return None
+            self._found = True
             self._node_instance = node_class()
         return self._node_instance
 
@@ -150,8 +160,18 @@ class Node:
     def function(self):
         """Get the node's main function."""
         if self._function is None:
-            self._function = getattr(self.node, self.node.FUNCTION)
+            n = self.node
+            if n is None:
+                return None
+            self._function = getattr(n, n.FUNCTION)
         return self._function
+
+    def __bool__(self):
+        """True if the underlying node exists."""
+        if self._found is None:
+            # Trigger resolution without raising
+            self.node
+        return bool(self._found)
 
     def __call__(self, *args, **kwargs):
         """Allow calling the wrapper directly."""

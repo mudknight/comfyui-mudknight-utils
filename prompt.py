@@ -800,7 +800,10 @@ class SimplePromptNode:
                 "trigger_words": ("STRING", {"forceInput": True, "default": ""}),
                 "positive": ("STRING", {"multiline": True, "default": ""}),
                 "negative": ("STRING", {"multiline": True, "default": ""}),
-                "negative_to_negpip": ("BOOLEAN", {"default": False}),
+                "negative_to_negpip": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Invert weights and use tags in positive prompt"
+                }),
             },
         }
 

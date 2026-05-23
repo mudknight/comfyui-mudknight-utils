@@ -79,6 +79,13 @@ class LoaderFullPipe:
             },
             "optional": {
                 "lora_stack": ("LORA_STACK",),
+                "apply_negpip": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Applies the CLIPNegPip patch to enable negative "
+                        "weights in prompts. Requires pamparamm/ComfyUI-ppm"
+                    ),
+                }),
             },
         }
 
@@ -88,14 +95,22 @@ class LoaderFullPipe:
     CATEGORY = "mudknight/pipe"
     DESCRIPTION = "Load checkpoint, seed, and loras into full pipe"
 
-    def load(self, ckpt_name, stop_at_clip_layer, seed, lora_stack=None):
+    def load(
+        self,
+        ckpt_name,
+        stop_at_clip_layer,
+        seed,
+        lora_stack=None,
+        apply_negpip=False,
+    ):
         # Create cache key from model-affecting parameters
         lora_key = None
         if lora_stack is not None:
             lora_key = tuple(
-                tuple(item) if isinstance(item, list) else item for item in lora_stack
+                tuple(item) if isinstance(item, list) else item
+                for item in lora_stack
             )
-        cache_key = (ckpt_name, stop_at_clip_layer, lora_key)
+        cache_key = (ckpt_name, stop_at_clip_layer, lora_key, apply_negpip)
 
         # Check if we have cached model/clip/vae
         if cache_key in self._cache:
@@ -132,6 +147,18 @@ class LoaderFullPipe:
             # Apply LoRA stack if provided
             if lora_stack is not None:
                 model, clip = apply_lora_stack(model, clip, lora_stack)
+
+            # Apply CLIPNegPip patch if requested and available
+            if apply_negpip:
+                from . import common
+                negpip = common.Node("CLIPNegPip", silent=True)
+                if negpip:
+                    model, clip = negpip(model=model, clip=clip)
+                else:
+                    print(
+                        "Warning: CLIPNegPip not found. "
+                        "Install pamparamm/ComfyUI-ppm to use negpip."
+                    )
 
             # Cache the loaded models
             self._cache[cache_key] = {"model": model, "clip": clip, "vae": vae}
@@ -202,6 +229,13 @@ class SplitLoaderFullPipe:
             },
             "optional": {
                 "lora_stack": ("LORA_STACK",),
+                "apply_negpip": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Applies the CLIPNegPip patch to enable negative "
+                        "weights in prompts. Requires pamparamm/ComfyUI-ppm"
+                    ),
+                }),
             },
         }
 
@@ -223,12 +257,14 @@ class SplitLoaderFullPipe:
         shift,
         seed,
         lora_stack=None,
+        apply_negpip=False,
     ):
         # Create cache key from model-affecting parameters
         lora_key = None
         if lora_stack is not None:
             lora_key = tuple(
-                tuple(item) if isinstance(item, list) else item for item in lora_stack
+                tuple(item) if isinstance(item, list) else item
+                for item in lora_stack
             )
         cache_key = (
             unet_name,
@@ -237,6 +273,7 @@ class SplitLoaderFullPipe:
             stop_at_clip_layer,
             shift,
             lora_key,
+            apply_negpip,
         )
 
         # Check if we have cached model/clip/vae
@@ -293,6 +330,18 @@ class SplitLoaderFullPipe:
                 model_sampling = ModelSamplingAuraFlow(model.model.model_config)
                 model_sampling.set_parameters(shift=shift, multiplier=1.0)
                 model.add_object_patch("model_sampling", model_sampling)
+
+            # Apply CLIPNegPip patch if requested and available
+            if apply_negpip:
+                from . import common
+                negpip = common.Node("CLIPNegPip", silent=True)
+                if negpip:
+                    model, clip = negpip(model=model, clip=clip)
+                else:
+                    print(
+                        "Warning: CLIPNegPip not found. "
+                        "Install pamparamm/ComfyUI-ppm to use negpip."
+                    )
 
             # Cache the loaded models
             self._cache[cache_key] = {"model": model, "clip": clip, "vae": vae}
