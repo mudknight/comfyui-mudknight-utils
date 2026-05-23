@@ -246,7 +246,7 @@ class InpaintNode:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "process"
-    CATEGORY = "mudknight/custom"
+    CATEGORY = "mudknight/inpainting"
 
     def process(
             self, image, mask, model, vae, positive, negative, seed,
@@ -292,7 +292,7 @@ class InpaintPipeNode:
     RETURN_TYPES = ("FULL_PIPE", "IMAGE",)
     RETURN_NAMES = ("full_pipe", "image",)
     FUNCTION = "process"
-    CATEGORY = "mudknight/custom"
+    CATEGORY = "mudknight/inpainting"
 
     def process(
             self, full_pipe, mask,
@@ -361,6 +361,9 @@ class LoadImageToLatentPipe:
     RETURN_NAMES = ("full_pipe",)
     FUNCTION = "process"
     CATEGORY = "mudknight/inpainting"
+    DESCRIPTIONN = (
+        "Loads an image, optionally resizes it, and encodes it into latent "
+        "space. A mask can be used to apply a latent mask.")
 
     @classmethod
     def VALIDATE_INPUTS(cls, image):
