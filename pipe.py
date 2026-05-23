@@ -38,7 +38,7 @@ def get_all_field_types():
     return types
 
 
-class FullPipeLoader:
+class FullPipePack:
     """Pack inputs into a dictionary pipe."""
 
     @classmethod
@@ -162,7 +162,7 @@ class PipeMetaEditNode:
 
 
 NODE_CLASS_MAPPINGS = {
-    "FullPipeLoader": FullPipeLoader,
+    "FullPipePack": FullPipePack,
     "FullPipeOut": FullPipeOut,
     "FullPipeIn": FullPipeIn,
     "MetaEditNode": MetaEditNode,
@@ -170,7 +170,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FullPipeLoader": "Full Pipe Loader",
+    "FullPipePack": "Full Pipe Pack",
     "FullPipeOut": "Full Pipe Out",
     "FullPipeIn": "Full Pipe In",
     "MetaEditNode": "Meta Edit",
