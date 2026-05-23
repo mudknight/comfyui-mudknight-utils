@@ -205,6 +205,7 @@ class SaveFullPipe:
                     ["png", "jpg", "jpeg", "webp"], {"default": "png"}),
                 "a1111_metadata": ("BOOLEAN", {"default": True}),
                 "comfyui_workflow": ("BOOLEAN", {"default": True}),
+                "show_preview": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "image": ("IMAGE",)
@@ -230,6 +231,7 @@ class SaveFullPipe:
         extension,
         a1111_metadata,
         comfyui_workflow,
+        show_preview,
         image=None,
         prompt=None,
         extra_pnginfo=None
@@ -330,7 +332,7 @@ class SaveFullPipe:
 
         # Return preview images
         return {
-            "ui": {"images": results},
+            "ui": {"images": results if show_preview else []},
             "result": (image,)
         }
 
