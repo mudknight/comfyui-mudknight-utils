@@ -13,7 +13,9 @@ const registry = new Map();
 // nodeId       - node ID as a string
 // text         - display text, or null to remove
 // color        - optional CSS variable name e.g. "--success-background"
-export function setVueBadge(badgeClass, extraClasses, nodeId, text, color = null) {
+// icon         - optional Lucide icon name e.g. "clock"
+export function setVueBadge(
+        badgeClass, extraClasses, nodeId, text, color = null, icon = null) {
     if (!registry.has(nodeId)) registry.set(nodeId, new Map());
     const nodeBadges = registry.get(nodeId);
 
@@ -23,8 +25,8 @@ export function setVueBadge(badgeClass, extraClasses, nodeId, text, color = null
         return;
     }
 
-    nodeBadges.set(badgeClass, { text, extraClasses, color });
-    _applyBadge(badgeClass, extraClasses, nodeId, text, color);
+    nodeBadges.set(badgeClass, { text, extraClasses, color, icon });
+    _applyBadge(badgeClass, extraClasses, nodeId, text, color, icon);
 }
 
 // Clears all badges for a node from both the DOM and the registry.
@@ -45,7 +47,7 @@ function _removeBadge(badgeClass, nodeId) {
     _getFooter(nodeId)?.querySelector(`.${badgeClass}`)?.remove();
 }
 
-function _applyBadge(badgeClass, extraClasses, nodeId, text, color = null) {
+function _applyBadge(badgeClass, extraClasses, nodeId, text, color = null, icon = null) {
     const footer = _getFooter(nodeId);
     if (!footer) return;
 
@@ -75,7 +77,18 @@ function _applyBadge(badgeClass, extraClasses, nodeId, text, color = null) {
     }
 
     const inner = badge.querySelector("div");
-    inner.textContent = text;
+
+    // Rebuild inner content: optional icon + text.
+    inner.innerHTML = "";
+    if (icon) {
+        const i = document.createElement("i");
+        i.className = `icon-[lucide--${icon}] size-3`;
+        inner.appendChild(i);
+    }
+    const span = document.createElement("span");
+    span.textContent = text;
+    inner.appendChild(span);
+
     // Apply theme color via CSS variable, or reset to transparent.
     // Set text color for maximum contrast against the background.
     inner.style.backgroundColor = color
@@ -88,8 +101,8 @@ function _applyBadge(badgeClass, extraClasses, nodeId, text, color = null) {
 function _reapplyBadges(nodeId) {
     const nodeBadges = registry.get(nodeId);
     if (!nodeBadges) return;
-    for (const [badgeClass, { text, extraClasses, color }] of nodeBadges) {
-        _applyBadge(badgeClass, extraClasses, nodeId, text, color);
+    for (const [badgeClass, { text, extraClasses, color, icon }] of nodeBadges) {
+        _applyBadge(badgeClass, extraClasses, nodeId, text, color, icon);
     }
 }
 

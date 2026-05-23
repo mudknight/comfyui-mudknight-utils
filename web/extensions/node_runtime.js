@@ -83,7 +83,7 @@ app.registerExtension({
                         ([l]) => l === label)?.[1] ?? null;
                     setVueBadge(
                         BADGE_CLASS, BADGE_EXTRA, String(lastId),
-                        text, color
+                        text, color, "clock"
                     );
                 }
 
