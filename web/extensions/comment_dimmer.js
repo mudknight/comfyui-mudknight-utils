@@ -212,14 +212,6 @@ const dimmer = new CommentDimmer();
 function setupTextarea(textarea) {
     if (textarea._commentDimmerSetup) return;
 
-    const node = textarea.closest(".comfy-node");
-    const isTargetNode = node && (
-        node.textContent.includes("Prompt (full-pipe)") || 
-        node.textContent.includes("Multi-String Conditioning")
-    );
-
-    if (!textarea._isPromptTextarea && !isTargetNode) return;
-
     dimmer.getOrCreateBackdrop(textarea);
 
     const isEnabled = app.ui.settings.getSettingValue("Mudknight Utils.CommentDimmer.Enabled");
@@ -309,24 +301,4 @@ app.registerExtension({
 
         observer.observe(document.body, { childList: true, subtree: true });
     },
-
-    async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name === "PromptConditioningNode" || nodeData.name === "MultiStringConditioning") {
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function() {
-                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
-
-                setTimeout(() => {
-                    this.widgets?.forEach(w => {
-                        if (w.element && w.element.tagName === "TEXTAREA") {
-                            w.element._isPromptTextarea = true;
-                            setupTextarea(w.element);
-                        }
-                    });
-                }, 100);
-
-                return r;
-            };
-        }
-    }
 });
