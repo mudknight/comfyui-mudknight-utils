@@ -1,53 +1,21 @@
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
+import {
+    setVueBadge,
+    clearVueBadges,
+    startBadgeObserver
+} from "../modules/node_badges.js";
 
 const SETTING_ID = "Mudknight Utils.Execution Time.enabled";
-
-// Badge element ID injected into the Vue node footer.
 const BADGE_CLASS = "mk-exec-time";
-
-// Sets or removes the time badge in a Vue node's footer bar.
-// The footer bar is the mt-auto flex row that also contains the #id badge.
-function setVueBadge(nodeId, text) {
-    const footer = document.querySelector(
-        `[data-node-id="${nodeId}"] .mt-auto`
-    );
-    if (!footer) return;
-
-    let badge = footer.querySelector(`.${BADGE_CLASS}`);
-
-    if (!text) {
-        badge?.remove();
-        return;
-    }
-
-    if (!badge) {
-        badge = document.createElement("div");
-        badge.className = [
-            BADGE_CLASS,
-            "flex", "h-6", "items-center", "justify-center",
-            "overflow-clip", "rounded-full",
-            "bg-component-node-widget-background",
-            "ml-auto"
-        ].join(" ");
-        const inner = document.createElement("div");
-        inner.className = [
-            "flex", "min-w-max", "items-center", "gap-1",
-            "rounded-sm", "px-1", "py-0.5", "text-xs", "h-6",
-            "first:pl-2", "last:pr-2"
-        ].join(" ");
-        inner.style.cssText = "color: currentcolor; background-color: transparent;";
-        badge.appendChild(inner);
-        footer.appendChild(badge);
-    }
-
-    badge.querySelector("div").textContent = text;
-}
+const BADGE_EXTRA = ["ml-auto"];
 
 app.registerExtension({
     name: "Mudknight Utils.Execution Time",
 
     setup() {
+        startBadgeObserver();
+
         app.ui.settings.addSetting({
             id: SETTING_ID,
             name: "Show node execution time",
@@ -69,7 +37,7 @@ app.registerExtension({
             if (!app.graph) return;
             for (const node of app.graph._nodes) {
                 node.executionDuration = undefined;
-                setVueBadge(node.id, null);
+                clearVueBadges(String(node.id));
             }
         });
 
@@ -89,7 +57,7 @@ app.registerExtension({
                     const node = app.graph?.getNodeById(lastId);
                     if (node) node.executionDuration = delta;
                     // Vue node DOM badge.
-                    setVueBadge(lastId, text);
+                    setVueBadge(BADGE_CLASS, BADGE_EXTRA, String(lastId), text);
                 }
 
                 timeMap.delete(lastId);

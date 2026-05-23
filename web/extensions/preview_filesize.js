@@ -1,7 +1,12 @@
 import { app } from "../../../scripts/app.js";
+import {
+    setVueBadge,
+    startBadgeObserver
+} from "../modules/node_badges.js";
 
 const SETTING_ID = "Mudknight Utils.Filesize.display";
 const BADGE_CLASS = "mk-filesize";
+const BADGE_EXTRA = ["absolute", "left-1/2", "-translate-x-1/2"];
 
 function formatBytes(bytes, decimals = 2) {
     if (!bytes) return null;
@@ -31,48 +36,12 @@ async function getImageFileSize(filename, subfolder, type) {
     }
 }
 
-// Sets or removes the filesize badge in the Vue node footer.
-// Sits in the middle of the mt-auto flex row between #id and exec time.
-function setVueBadge(nodeId, text) {
-    const footer = document.querySelector(
-        `[data-node-id="${nodeId}"] .mt-auto`
-    );
-    if (!footer) return;
-
-    let badge = footer.querySelector(`.${BADGE_CLASS}`);
-
-    if (!text) {
-        badge?.remove();
-        return;
-    }
-
-    if (!badge) {
-        badge = document.createElement("div");
-        badge.className = [
-            BADGE_CLASS,
-            "flex", "h-6", "items-center", "justify-center",
-            "overflow-clip", "rounded-full",
-            "bg-component-node-widget-background",
-            "absolute", "left-1/2", "-translate-x-1/2"
-        ].join(" ");
-        const inner = document.createElement("div");
-        inner.className = [
-            "flex", "min-w-max", "items-center", "gap-1",
-            "rounded-sm", "px-1", "py-0.5", "text-xs", "h-6",
-            "first:pl-2", "last:pr-2"
-        ].join(" ");
-        inner.style.cssText = "color: currentcolor; background-color: transparent;";
-        badge.appendChild(inner);
-        footer.appendChild(badge);
-        // Make footer relative so absolute centering works.
-        footer.classList.add("relative");
-    }
-
-    badge.querySelector("div").textContent = text;
-}
-
 app.registerExtension({
     name: "Mudknight Utils.Filesize",
+
+    setup() {
+        startBadgeObserver();
+    },
 
     settings: [
         {
@@ -107,7 +76,9 @@ app.registerExtension({
             const text = formatBytes(bytes);
 
             // Vue node: inject into footer DOM.
-            if (text) setVueBadge(this.id, text);
+            if (text) {
+                setVueBadge(BADGE_CLASS, BADGE_EXTRA, String(this.id), text);
+            }
 
             // LiteGraph node: store on images array for onDrawForeground.
             if (this.images) {
@@ -176,4 +147,3 @@ function roundedRect(ctx, x, y, w, h, r) {
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
 }
-
