@@ -12,7 +12,8 @@ const registry = new Map();
 // extraClasses - additional Tailwind classes for the outer wrapper
 // nodeId       - node ID as a string
 // text         - display text, or null to remove
-export function setVueBadge(badgeClass, extraClasses, nodeId, text) {
+// color        - optional CSS variable name e.g. "--success-background"
+export function setVueBadge(badgeClass, extraClasses, nodeId, text, color = null) {
     if (!registry.has(nodeId)) registry.set(nodeId, new Map());
     const nodeBadges = registry.get(nodeId);
 
@@ -22,8 +23,8 @@ export function setVueBadge(badgeClass, extraClasses, nodeId, text) {
         return;
     }
 
-    nodeBadges.set(badgeClass, { text, extraClasses });
-    _applyBadge(badgeClass, extraClasses, nodeId, text);
+    nodeBadges.set(badgeClass, { text, extraClasses, color });
+    _applyBadge(badgeClass, extraClasses, nodeId, text, color);
 }
 
 // Clears all badges for a node from both the DOM and the registry.
@@ -44,7 +45,7 @@ function _removeBadge(badgeClass, nodeId) {
     _getFooter(nodeId)?.querySelector(`.${badgeClass}`)?.remove();
 }
 
-function _applyBadge(badgeClass, extraClasses, nodeId, text) {
+function _applyBadge(badgeClass, extraClasses, nodeId, text, color = null) {
     const footer = _getFooter(nodeId);
     if (!footer) return;
 
@@ -73,16 +74,58 @@ function _applyBadge(badgeClass, extraClasses, nodeId, text) {
         footer.appendChild(badge);
     }
 
-    badge.querySelector("div").textContent = text;
+    const inner = badge.querySelector("div");
+    inner.textContent = text;
+    // Apply theme color via CSS variable, or reset to transparent.
+    // Set text color for maximum contrast against the background.
+    inner.style.backgroundColor = color
+        ? `var(${color})`
+        : "transparent";
+    inner.style.color = _contrastColor(color) ?? "currentcolor";
 }
 
 // Re-applies all registered badges for a given node ID.
 function _reapplyBadges(nodeId) {
     const nodeBadges = registry.get(nodeId);
     if (!nodeBadges) return;
-    for (const [badgeClass, { text, extraClasses }] of nodeBadges) {
-        _applyBadge(badgeClass, extraClasses, nodeId, text);
+    for (const [badgeClass, { text, extraClasses, color }] of nodeBadges) {
+        _applyBadge(badgeClass, extraClasses, nodeId, text, color);
     }
+}
+
+// Cache of CSS variable -> "#fff" or "#000" for contrast text.
+const _contrastCache = new Map();
+
+// Returns "#fff" or "#000" for maximum contrast against the given CSS
+// variable's resolved color. Result is cached per variable name.
+function _contrastColor(cssVar) {
+    if (!cssVar) return null;
+    if (_contrastCache.has(cssVar)) return _contrastCache.get(cssVar);
+
+    const el = document.createElement("div");
+    el.style.cssText = `position:absolute;visibility:hidden;background-color:var(${cssVar})`;
+    document.body.appendChild(el);
+    const rgb = getComputedStyle(el).backgroundColor;
+    document.body.removeChild(el);
+
+    // Parse rgb(r, g, b) or rgba(r, g, b, a).
+    const m = rgb.match(/\d+/g);
+    let result = "#000";
+    if (m) {
+        const [r, g, b] = m.map(Number);
+        // Relative luminance per WCAG 2.1.
+        const lum = (c) => {
+            const s = c / 255;
+            return s <= 0.03928
+                ? s / 12.92
+                : Math.pow((s + 0.055) / 1.055, 2.4);
+        };
+        const L = 0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(b);
+        result = L > 0.179 ? "#000" : "#fff";
+    }
+
+    _contrastCache.set(cssVar, result);
+    return result;
 }
 
 // Single MutationObserver watching for [data-node-id] elements being

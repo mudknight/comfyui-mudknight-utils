@@ -7,8 +7,20 @@ import {
 } from "../modules/node_badges.js";
 
 const SETTING_ID = "Mudknight Utils.Execution Time.enabled";
+const SETTING_COLOR = "Mudknight Utils.Execution Time.color";
 const BADGE_CLASS = "mk-exec-time";
 const BADGE_EXTRA = ["ml-auto"];
+
+// Semantic theme colors available as badge background presets.
+// Values are CSS custom property names defined by the ComfyUI theme.
+const COLOR_PRESETS = [
+    ["None",   null],
+    ["Grey",   "--muted-background"],
+    ["Blue",   "--primary-background"],
+    ["Yellow", "--warning-background"],
+    ["Green",  "--success-background"],
+    ["Red",    "--color-error"],
+];
 
 app.registerExtension({
     name: "Mudknight Utils.Execution Time",
@@ -21,6 +33,14 @@ app.registerExtension({
             name: "Show node execution time",
             type: "boolean",
             defaultValue: false,
+        });
+
+        app.ui.settings.addSetting({
+            id: SETTING_COLOR,
+            name: "Execution time badge color",
+            type: "combo",
+            defaultValue: "None",
+            options: COLOR_PRESETS.map(([label]) => label),
         });
 
         const timeMap = new Map();
@@ -57,7 +77,14 @@ app.registerExtension({
                     const node = app.graph?.getNodeById(lastId);
                     if (node) node.executionDuration = delta;
                     // Vue node DOM badge.
-                    setVueBadge(BADGE_CLASS, BADGE_EXTRA, String(lastId), text);
+                    const label = app.ui.settings
+                        .getSettingValue(SETTING_COLOR) ?? "None";
+                    const color = COLOR_PRESETS.find(
+                        ([l]) => l === label)?.[1] ?? null;
+                    setVueBadge(
+                        BADGE_CLASS, BADGE_EXTRA, String(lastId),
+                        text, color
+                    );
                 }
 
                 timeMap.delete(lastId);

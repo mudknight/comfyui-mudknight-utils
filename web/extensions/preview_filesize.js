@@ -5,8 +5,20 @@ import {
 } from "../modules/node_badges.js";
 
 const SETTING_ID = "Mudknight Utils.Filesize.display";
+const SETTING_COLOR = "Mudknight Utils.Filesize.color";
 const BADGE_CLASS = "mk-filesize";
 const BADGE_EXTRA = ["absolute", "left-1/2", "-translate-x-1/2"];
+
+// Semantic theme colors available as badge background presets.
+// Values are CSS custom property names defined by the ComfyUI theme.
+const COLOR_PRESETS = [
+    ["None",   null],
+    ["Grey",   "--muted-background"],
+    ["Blue",   "--primary-background"],
+    ["Yellow", "--warning-background"],
+    ["Green",  "--success-background"],
+    ["Red",    "--color-error"],
+];
 
 function formatBytes(bytes, decimals = 2) {
     if (!bytes) return null;
@@ -49,6 +61,13 @@ app.registerExtension({
             name: "Show image file size",
             type: "boolean",
             defaultValue: true
+        },
+        {
+            id: SETTING_COLOR,
+            name: "Filesize badge color",
+            type: "combo",
+            defaultValue: "None",
+            options: COLOR_PRESETS.map(([label]) => label),
         }
     ],
 
@@ -77,7 +96,14 @@ app.registerExtension({
 
             // Vue node: inject into footer DOM.
             if (text) {
-                setVueBadge(BADGE_CLASS, BADGE_EXTRA, String(this.id), text);
+                const label = app.ui.settings
+                    .getSettingValue(SETTING_COLOR) ?? "None";
+                const color = COLOR_PRESETS.find(
+                    ([l]) => l === label)?.[1] ?? null;
+                setVueBadge(
+                    BADGE_CLASS, BADGE_EXTRA, String(this.id),
+                    text, color
+                );
             }
 
             // LiteGraph node: store on images array for onDrawForeground.
