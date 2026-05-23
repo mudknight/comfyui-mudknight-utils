@@ -3,6 +3,8 @@ title: "Extensions"
 weight: 3
 ---
 
+## Prompting
+
 ### Tag Autocomplete
 ![autocomplete](/assets/autocomplete.png)
 This was originally just for the Preset Manager, but I now consider it an upgrade from the [pythongosssss/ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) autocomplete extension. Features include:
@@ -15,26 +17,36 @@ This was originally just for the Preset Manager, but I now consider it an upgrad
 - Custom tag sources
 - Tag blacklist
 
-### Preset Manager Button
+### Line Numbers
+![line numbers](/assets/line-numbers.png)
+Adds line numbers to the left side of all textarea inputs when focused.
+
+### Comment dimmer
+![comments](/assets/comments.png)
+Dims commented lines
+
+## Preset Manager Button
 ![preset manager button](/assets/preset-manager-button.png)
 The node pack automatically adds a button to the left of the ComfyUI Manager button, that brings up a web interface for managing prompt presets used in the `Prompt (full-pipe)` node.
 
-### Full Pipe Previews
+## Full Pipe Previews
 ![full pipe preview](/assets/preview.png)
 This adds previews of the completed image to in-pack generation nodes when execution finishes, replacing the live preview.
+
+## Keyboard shortcuts
+- Alt+Up/Down will increment/decrement the batch count by 1
+- Shift+Alt+Up/Down will double/halve the batch count
+
+## Badges
 
 ### Preview File Sizes
 ![filesize preview](/assets/filesize-preview.png)
 This adds a label to the bottom right of an image preview, showing the filesize of the image.
 
-### Keyboard shortcuts
-- Alt+Up/Down will increment/decrement the batch count by 1
-- Shift+Alt+Up/Down will double/halve the batch count
-
 ### Node Runtime
 ![runtime](/assets/runtime.png)
 This shows how long nodes take to execute. Code taken from `comfyui-easy-use`.
 
-### Line Numbers
-![line numbers](/assets/line-numbers.png)
-Adds line numbers to the left side of all textarea inputs when focused.
+### Vue nodes
+![vue badges](/assets/vue-footer-badges.png)
+If you have `Nodes 2.0` enabled, both badges will appear in the footer of the node.
