@@ -185,8 +185,10 @@ class CommentDimmer {
         // Set border color to transparent so it takes space but doesn't show
         backdrop.style.setProperty("border-color", "transparent", "important");
 
-        // Geometry sync - using offsetWidth/Height to match total box size
-        backdrop.style.setProperty("width", textarea.offsetWidth + "px", "important");
+        // Geometry sync - use clientWidth (excludes scrollbar) + borders to match text layout width
+        const borderLeft  = parseFloat(style.borderLeftWidth)  || 0;
+        const borderRight = parseFloat(style.borderRightWidth) || 0;
+        backdrop.style.setProperty("width", (textarea.clientWidth + borderLeft + borderRight) + "px", "important");
         backdrop.style.setProperty("height", textarea.offsetHeight + "px", "important");
         backdrop.style.setProperty("top", textarea.offsetTop + "px", "important");
         backdrop.style.setProperty("left", textarea.offsetLeft + "px", "important");
