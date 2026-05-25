@@ -25,6 +25,3 @@ Platform #1: rusticl
 
 Here you would use `OPENCV_OPENCL_DEVICE=Intel(R) OpenCL Graphics:GPU:0` or `OPENCV_OPENCL_DEVICE=rusticl:GPU:0`
 {{< /details >}}
-
-### Auto-level
-Adjusts black and white levels to the closest values within a threshold.
