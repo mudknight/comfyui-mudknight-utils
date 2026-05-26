@@ -922,12 +922,50 @@ class SimplePromptNode:
         return cleaned, loras, []
 
 
+class LoraExtractNode:
+    """
+    Strips LoRA syntax from a string, applies the LoRAs to the model
+    and clip, and returns the cleaned string.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "clip": ("CLIP",),
+                "string": ("STRING", {"forceInput": True}),
+            },
+        }
+
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING")
+    RETURN_NAMES = ("model", "clip", "string")
+    FUNCTION = "process"
+    CATEGORY = "mudknight/prompt"
+    DESCRIPTION = (
+        "Strips LoRA syntax from the input string, applies the LoRAs "
+        "to model and clip, and outputs the cleaned string."
+    )
+
+    def process(self, model, clip, string):
+        # Remove lora tags and collect lora string
+        cleaned, lora_str = extract_loras(string)
+
+        # Parse and apply any found LoRAs
+        lora_list = parse_lora_syntax(lora_str)
+        model_out, clip_out = apply_loras(model, clip, lora_list)
+
+        return (model_out, clip_out, cleaned)
+
+
 NODE_CLASS_MAPPINGS = {
     "PromptConditioningNode": PromptConditioningNode,
     "SimplePromptNode": SimplePromptNode,
+    "LoraExtractNode": LoraExtractNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptConditioningNode": "Prompt (full-pipe)",
     "SimplePromptNode": "Simple Prompt (full-pipe)",
+    "LoraExtractNode": "Lora Extract",
 }
