@@ -1,0 +1,482 @@
+{
+  "id": "e7c4a29f-4465-49d4-a318-6623da7e7f3a",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "BaseNode",
+      "pos": [
+        -120,
+        270
+      ],
+      "size": [
+        340,
+        760
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 2
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BaseNode"
+      },
+      "widgets_values": [
+        "euler_ancestral_cfg_pp",
+        "karras",
+        20,
+        1.5,
+        1,
+        "832x1216 (2:3)",
+        true,
+        1,
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoaderFullPipe",
+      "pos": [
+        -1080,
+        270
+      ],
+      "size": [
+        420,
+        220
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoaderFullPipe"
+      },
+      "widgets_values": [
+        "Illustrious/waiIllustriousSDXL_v160.safetensors",
+        -2,
+        75282894441015,
+        "randomize",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PromptConditioningNode",
+      "pos": [
+        -640,
+        270
+      ],
+      "size": [
+        500,
+        760
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 12
+        },
+        {
+          "name": "trigger_words",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptConditioningNode"
+      },
+      "widgets_values": [
+        "none",
+        true,
+        false,
+        false,
+        "concatenate",
+        "hatsune miku,\nstanding, stage, spotlight, outstretched arm, holding microphone, smile, open mouth, looking at viewer, upper body, ",
+        "",
+        true
+      ]
+    },
+    {
+      "id": 4,
+      "type": "UpscaleNode",
+      "pos": [
+        240,
+        270
+      ],
+      "size": [
+        340,
+        760
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 3
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UpscaleNode"
+      },
+      "widgets_values": [
+        "euler_ancestral_cfg_pp",
+        "align_your_steps",
+        20,
+        1.5,
+        0.3,
+        "4x-UltraSharpV2_Lite.pth",
+        2,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "SaveFullPipe",
+      "pos": [
+        970,
+        270
+      ],
+      "size": [
+        380,
+        760
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 10
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveFullPipe"
+      },
+      "widgets_values": [
+        "%time_%seed",
+        "%date",
+        "png",
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 8,
+      "type": "DetailerPipeNode",
+      "pos": [
+        600,
+        270
+      ],
+      "size": [
+        350,
+        760
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DetailerPipeNode"
+      },
+      "widgets_values": [
+        "bbox/face_yolov8m.pt",
+        "none",
+        0.5,
+        20,
+        1.5,
+        "euler_ancestral_cfg_pp",
+        "align_your_steps",
+        0.3,
+        "lanczos",
+        "none",
+        0.2,
+        0.1
+      ]
+    },
+    {
+      "id": 9,
+      "type": "OpenCVDenoise",
+      "pos": [
+        970,
+        220
+      ],
+      "size": [
+        225,
+        8
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "shape": 7,
+          "type": "FULL_PIPE",
+          "link": 9
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OpenCVDenoise"
+      },
+      "widgets_values": [
+        "GPU",
+        0.01,
+        8,
+        128
+      ]
+    },
+    {
+      "id": 10,
+      "type": "LoadImageToLatentPipe",
+      "pos": [
+        -1080,
+        540
+      ],
+      "size": [
+        356.984375,
+        8
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 1,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImageToLatentPipe"
+      },
+      "widgets_values": [
+        "example.png",
+        false,
+        1,
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      3,
+      0,
+      1,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      3,
+      1,
+      0,
+      4,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      7,
+      4,
+      0,
+      8,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      9,
+      8,
+      0,
+      9,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      10,
+      9,
+      0,
+      6,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      11,
+      2,
+      0,
+      10,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      12,
+      10,
+      0,
+      3,
+      0,
+      "FULL_PIPE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8779149519890251,
+      "offset": [
+        520.7879368859847,
+        -103.6110839032167
+      ]
+    },
+    "frontendVersion": "1.43.18"
+  },
+  "version": 0.4
+}

@@ -1,0 +1,404 @@
+{
+  "id": "f153f60e-5eec-49e6-bb78-877c88d494dd",
+  "revision": 0,
+  "last_node_id": 144,
+  "last_link_id": 262,
+  "nodes": [
+    {
+      "id": 76,
+      "type": "OpenCVDenoise",
+      "pos": [
+        500,
+        180
+      ],
+      "size": [
+        310,
+        230
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "shape": 7,
+          "type": "FULL_PIPE",
+          "link": 246
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            153
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OpenCVDenoise",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "29dfc96ed6e3b67bbc7bf3878e5665a7587ad0cb"
+      },
+      "widgets_values": [
+        "GPU",
+        0.01,
+        8,
+        128
+      ]
+    },
+    {
+      "id": 59,
+      "type": "SaveFullPipe",
+      "pos": [
+        500,
+        460
+      ],
+      "size": [
+        310,
+        290
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 153
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveFullPipe",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "f40828661622628edc018125d820339b1c5631e6"
+      },
+      "widgets_values": [
+        "%time_%seed",
+        "%date",
+        "png",
+        true,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 132,
+      "type": "LoadImageToLatentPipe",
+      "pos": [
+        -870,
+        530
+      ],
+      "size": [
+        356.984375,
+        8
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 1,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 259
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            262
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImageToLatentPipe",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "ceef01d9125b5df4393e8f73581acdb177bda56f"
+      },
+      "widgets_values": [
+        "example.png",
+        false,
+        1,
+        "image"
+      ]
+    },
+    {
+      "id": 83,
+      "type": "SplitLoaderFullPipe",
+      "pos": [
+        -870,
+        180
+      ],
+      "size": [
+        360,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            259
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SplitLoaderFullPipe",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "29dfc96ed6e3b67bbc7bf3878e5665a7587ad0cb"
+      },
+      "widgets_values": [
+        "anima-base-v1.0.safetensors",
+        "qwen_3_06b_base.safetensors",
+        "qwen_image_vae.safetensors",
+        0,
+        3,
+        427498375303196,
+        "randomize",
+        true
+      ]
+    },
+    {
+      "id": 54,
+      "type": "BaseNode",
+      "pos": [
+        170,
+        180
+      ],
+      "size": [
+        310,
+        850
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 261
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            246
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BaseNode",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "e61242ae7e6134b1273ff5f6f34b14023aadc1c2"
+      },
+      "widgets_values": [
+        "er_sde",
+        "sgm_uniform",
+        24,
+        3,
+        1,
+        "832x1216 (2:3)",
+        true,
+        1,
+        1
+      ]
+    },
+    {
+      "id": 98,
+      "type": "SimplePromptNode",
+      "pos": [
+        -490,
+        180
+      ],
+      "size": [
+        640,
+        850
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "link": 262
+        },
+        {
+          "name": "trigger_words",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "full_pipe",
+          "type": "FULL_PIPE",
+          "links": [
+            261
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SimplePromptNode",
+        "aux_id": "git@github-ai:mudknight/comfyui-mudknight-utils",
+        "ver": "ad92e62d22ec3cba4de2b29f23557f6d764e82d1"
+      },
+      "widgets_values": [
+        "# Quality Tags\nmasterpiece, best quality, (score_9, score_8:0.5), safe, \n# Number of characters\n1girl, \n# Character tags\nhatsune miku, \n# Copyright tags\nvocaloid, \n\n# Style tags & loras\n<lora:Anima/base model/anima_preview3_rdbt_finetuned_v0.24_dmd2:0.5>,\n\n# Main prompt\nstanding, stage, spotlight, outstretched arm, holding microphone, smile, open mouth, looking at viewer, ",
+        "# Quality tags\nworst quality, low quality, score_1, score_2, score_3, artist name, \n",
+        false
+      ]
+    }
+  ],
+  "links": [
+    [
+      153,
+      76,
+      0,
+      59,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      246,
+      54,
+      0,
+      76,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      259,
+      83,
+      0,
+      132,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      261,
+      98,
+      0,
+      54,
+      0,
+      "FULL_PIPE"
+    ],
+    [
+      262,
+      132,
+      0,
+      98,
+      0,
+      "FULL_PIPE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "frontendVersion": "1.43.18",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "linearData": {
+      "inputs": [
+        [
+          "83",
+          "unet_name"
+        ],
+        [
+          "54",
+          "resolution"
+        ],
+        [
+          "54",
+          "portrait"
+        ],
+        [
+          "54",
+          "scale"
+        ],
+        [
+          "98",
+          "positive"
+        ],
+        [
+          "98",
+          "negative"
+        ]
+      ],
+      "outputs": [
+        "54",
+        "59"
+      ]
+    },
+    "ds": {
+      "scale": 0.8779149519890251,
+      "offset": [
+        1043.2480961877484,
+        249.95261543760427
+      ]
+    }
+  },
+  "version": 0.4
+}
