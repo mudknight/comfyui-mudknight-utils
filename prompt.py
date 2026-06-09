@@ -570,6 +570,19 @@ class PromptConditioningNode:
         lora_list = parse_lora_syntax(combined_loras)
         model_out, clip_out = apply_loras(model, clip, lora_list)
 
+        # Re-attach lora syntax to pos_text for a1111 compatibility
+        if combined_loras:
+            lora_tags = " ".join(
+                f"<lora:{name}:{ms}>"
+                if ms == cs else f"<lora:{name}:{ms}:{cs}>"
+                for name, ms, cs in lora_list
+            )
+            meta_pos_text = (
+                lora_tags + ", " + pos_text if pos_text else lora_tags
+            )
+        else:
+            meta_pos_text = pos_text
+
         new_pipe = full_pipe.copy()
         new_pipe.update(
             {
@@ -579,7 +592,7 @@ class PromptConditioningNode:
                 "negative": neg_cond,
                 "meta": {
                     **full_pipe.get("meta", {}),
-                    "positive_text": pos_text,
+                    "positive_text": meta_pos_text,
                     "negative_text": neg_text,
                 },
             }
@@ -846,18 +859,20 @@ class SimplePromptNode:
             else:
                 positive = positive + trigger_words.strip()
 
-        # 3. Extract LoRAs and embeddings (lora syntax parsing)
-        # We do this BEFORE metadata capture to ensure metadata is clean
+        # 3. Capture metadata text before lora extraction so lora
+        # syntax is preserved in meta (for a1111 compatibility).
+        # Negative is captured after extraction (no loras expected).
+        metadata_pos_text = positive
+
+        # 4. Extract LoRAs and embeddings (lora syntax parsing)
         cleaned_sources, loras, embeds = self._extract_syntax(
             {"pos": positive, "neg": negative}
         )
 
-        # 4. Capture metadata text (Clean tags, no LoRAs, no Negpip transformation)
-        metadata_pos_text = cleaned_sources["pos"]
         metadata_neg_text = cleaned_sources["neg"]
 
         # 5. Handle Negpip conversion for conditioning
-        cond_pos = metadata_pos_text
+        cond_pos = cleaned_sources["pos"]
         cond_neg = metadata_neg_text
 
         if negative_to_negpip and cond_neg.strip():
