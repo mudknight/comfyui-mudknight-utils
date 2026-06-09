@@ -102,7 +102,7 @@ app.registerExtension({
                     ([l]) => l === label)?.[1] ?? null;
                 setVueBadge(
                     BADGE_CLASS, BADGE_EXTRA, String(this.id),
-                    text, color, "file-output"
+                    text, color, "file"
                 );
             }
 
