@@ -847,6 +847,7 @@ class SimplePromptNode:
         # 1. Remove commented lines
         positive = common.strip_comments(positive)
         negative = common.strip_comments(negative)
+        trigger_words = common.strip_comments(trigger_words)
 
         # Strip newlines
         positive = positive.replace("\n", "")
