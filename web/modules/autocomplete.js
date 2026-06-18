@@ -766,8 +766,8 @@ function selectAutocomplete(index) {
 		const after = (stopMatch && stopMatch[0] === '>')
 			? afterCursor.substring(stopMatch.index + 1)
 			: afterCursor;
-		newText = `${text.substring(0, beforeLora)}${item.value}:1.0>${after}`;
-		newCursorPos = beforeLora + item.value.length + 5;
+		newText = `${text.substring(0, beforeLora)}${item.value}:1.0>, ${after}`;
+		newCursorPos = beforeLora + item.value.length + 7;
 
 		// Apply the lora tag immediately, then async-append trigger
 		// words if the setting is enabled and words are available.
@@ -806,7 +806,7 @@ function selectAutocomplete(index) {
 				// the cursor position backwards.
 				const cur = input.value;
 				const insertPos = beforeLora + item.value.length + 5;
-				const triggerStr = ', ' + words.join(', ') + ', ';
+				const triggerStr = ', ' + words.join(', ');
 				input.value =
 					cur.substring(0, insertPos) +
 					triggerStr +
