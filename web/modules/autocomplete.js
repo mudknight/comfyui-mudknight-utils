@@ -357,20 +357,29 @@ function showAutocomplete(input, context) {
 			}));
 	} else if (type === 'lora') {
 		const searchLower = searchTerm.toLowerCase();
+		const basenameCounts = {};
+		for (const lora of autocompleteState.loras) {
+			const base = lora.name.split('/').pop();
+			basenameCounts[base] = (basenameCounts[base] || 0) + 1;
+		}
 		filtered = autocompleteState.loras
 			.filter(item => 
 				searchLower === '' || 
 				item.name.toLowerCase().includes(searchLower)
 			)
 			.slice(0, 10)
-			.map(item => ({
-				display: item.name,
-				value: item.name,
-				type: 'lora',
-				hasPreview: item.hasPreview || false,
-				previewName: item.name,
-				previewPath: item.path  // Store full path as fallback
-			}));
+			.map(item => {
+				const base = item.name.split('/').pop();
+				const label = basenameCounts[base] === 1 ? base : item.name;
+				return {
+					display: label,
+					value: label,
+					type: 'lora',
+					hasPreview: item.hasPreview || false,
+					previewName: item.name,
+					previewPath: item.path  // Store full path as fallback
+				};
+			});
 	} else if (type === 'embedding') {
 		const searchLower = searchTerm.toLowerCase();
 		filtered = autocompleteState.embeddings
