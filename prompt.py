@@ -116,16 +116,19 @@ def apply_loras(model, clip, lora_list):
             ext = ".safetensors"
             s_name = lora_name if lora_name.endswith(ext) else lora_name + ext
 
-            full_rel_path = next(
-                (p for p in available_loras if p.endswith(s_name)), None
-            )
+            if s_name.startswith("/"):
+                lora_path = s_name if Path(s_name).is_file() else None
+            else:
+                full_rel_path = next(
+                    (p for p in available_loras if p.endswith(s_name)), None
+                )
+                if full_rel_path is not None:
+                    lora_path = folder_paths.get_full_path("loras", full_rel_path)
+                else:
+                    lora_path = None
 
-            if full_rel_path is None:
-                print(f"Warning: LoRA '{lora_name}' not found.")
-                continue
-
-            lora_path = folder_paths.get_full_path("loras", full_rel_path)
             if lora_path is None:
+                print(f"Warning: LoRA '{lora_name}' not found.")
                 continue
 
             lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
