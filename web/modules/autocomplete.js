@@ -698,6 +698,160 @@ export function hideAutocomplete() {
 	autocompleteState.contextType = 'tag';
 }
 
+function findItemInFullDataset(type, searchTerm) {
+	const searchLower = searchTerm.toLowerCase().replace(/ /g, '_');
+
+	if (type === 'tag') {
+		const match = autocompleteState.tags
+			.filter(item => {
+				const tagKey = item.tag.toLowerCase().trim();
+				const aliasKey = item.aliasFor ?
+					item.aliasFor.toLowerCase().trim() : null;
+				if (autocompleteState.blacklist.has(tagKey)) return false;
+				if (aliasKey &&
+					autocompleteState.blacklist.has(aliasKey)) return false;
+				return item.tag.toLowerCase().includes(searchLower);
+			})
+			.sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+		if (!match) return null;
+		return {
+			display: match.tag.replace(/_/g, ' '),
+			value: match.isAlias ?
+				match.aliasFor.replace(/_/g, ' ') :
+				match.tag.replace(/_/g, ' '),
+			type: 'tag'
+		};
+	}
+
+	if (type === 'artist') {
+		const match = autocompleteState.tags
+			.filter(item =>
+				item.category === 1 &&
+				!autocompleteState.blacklist.has(
+					item.tag.toLowerCase().trim()
+				) &&
+				item.tag.toLowerCase().includes(searchLower)
+			)
+			.sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+		if (!match) return null;
+		return {
+			display: match.tag.replace(/_/g, ' '),
+			value: match.tag.replace(/_/g, ' '),
+			type: 'tag'
+		};
+	}
+
+	if (type === 'lora') {
+		const basenameCounts = {};
+		for (const lora of autocompleteState.loras) {
+			const base = lora.name.split('/').pop();
+			basenameCounts[base] = (basenameCounts[base] || 0) + 1;
+		}
+		for (const item of autocompleteState.loras) {
+			if (item.name.toLowerCase().includes(searchLower)) {
+				const base = item.name.split('/').pop();
+				const label = basenameCounts[base] === 1 ? base : item.name;
+				return {
+					display: label,
+					value: label,
+					type: 'lora',
+					hasPreview: item.hasPreview || false,
+					previewName: item.name,
+					previewPath: item.path
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'embedding') {
+		for (const item of autocompleteState.embeddings) {
+			if (item.name.toLowerCase().includes(searchLower)) {
+				return {
+					display: item.name,
+					value: item.name,
+					type: 'embedding',
+					hasPreview: item.hasPreview || false,
+					previewPath: item.path
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'character') {
+		for (const item of autocompleteState.characterPresets) {
+			if (item.tag.toLowerCase().includes(searchLower)) {
+				return {
+					display: item.characterName || item.tag,
+					value: item.characterName || item.tag,
+					type: 'character',
+					hasPreview: item.hasImage || false,
+					characterName: item.characterName,
+					presetType: 'character'
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'character-outfit') {
+		for (const outfit of ['default']) {
+			if (outfit.includes(searchLower)) {
+				return {
+					display: outfit,
+					value: outfit,
+					type: 'character-outfit'
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'character-part') {
+		for (const part of ['top', 'bottom']) {
+			if (part.includes(searchLower)) {
+				return {
+					display: part,
+					value: part,
+					type: 'character-part'
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'tagpreset') {
+		for (const item of autocompleteState.tagPresets) {
+			if (item.tag.toLowerCase().includes(searchLower)) {
+				return {
+					display: item.tag.replace(/_/g, ' '),
+					value: item.tag.replace(/_/g, ' '),
+					type: 'tagpreset',
+					presetType: 'tag'
+				};
+			}
+		}
+		return null;
+	}
+
+	if (type === 'wildcard') {
+		for (const item of autocompleteState.wildcardPresets) {
+			if (item.tag.toLowerCase().includes(searchLower)) {
+				return {
+					display: item.tag.replace(/_/g, ' '),
+					value: item.tag.replace(/_/g, ' '),
+					type: 'wildcard',
+					presetType: 'wildcard'
+				};
+			}
+		}
+		return null;
+	}
+
+	return null;
+}
+
 function selectAutocomplete(index) {
 	if (!autocompleteState.activeElement || 
 		index < 0 || 
@@ -721,6 +875,7 @@ function selectAutocomplete(index) {
 	const item = tagMatches(selectedItem)
 		? selectedItem
 		: (autocompleteState.filteredTags.find(tagMatches)
+			?? findItemInFullDataset(context.type, freshSearch)
 			?? selectedItem);
 	const text = input.value;
 	
