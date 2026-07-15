@@ -1,1 +1,8 @@
+huggingface_hub
+numpy
 opencv-python
+# Install openvino for Intel/AMD GPU support
+openvino
+# Install onnxruntime for CPU, or onnxruntime-gpu for NVIDIA GPU support
+onnxruntime
+pillow

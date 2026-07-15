@@ -734,20 +734,20 @@ function selectAutocomplete(index) {
 		item.value.toLowerCase()
 	);
 	
-	if (isKeyword && autocompleteState.contextType === 'tag') {
+	if (isKeyword && context.type === 'tag') {
 		// Keywords get colon when selected from normal tag context
 		suffix = ':';
-	} else if (isKeyword && autocompleteState.contextType === 'wildcard') {
+	} else if (isKeyword && context.type === 'wildcard') {
 		// Keywords get colon when selected from normal tag context
 		suffix = ':';
-	} else if (autocompleteState.contextType === 'character' ||
-		autocompleteState.contextType === 'character-outfit') {
+	} else if (context.type === 'character' ||
+		context.type === 'character-outfit') {
 		// Jump to next colon for character contexts
 		suffix = ':';
-	} else if (autocompleteState.contextType === 'tagpreset') {
+	} else if (context.type === 'tagpreset') {
 		// Tag presets end with comma, not colon
 		suffix = autocompleteState.insertComma !== false ? ', ' : '';
-	} else if (autocompleteState.contextType === 'character-part') {
+	} else if (context.type === 'character-part') {
 		// End with comma for outfit parts
 		suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	} else {
@@ -755,7 +755,7 @@ function selectAutocomplete(index) {
 		suffix = autocompleteState.insertComma !== false ? ', ' : '';
 	}
 	
-	if (autocompleteState.contextType === 'lora') {
+	if (context.type === 'lora') {
 		const beforeLora =
 			text.lastIndexOf('<lora:', input.selectionStart) + 6;
 		// Find the closing > of the current <lora:...> tag, but
@@ -831,7 +831,7 @@ function selectAutocomplete(index) {
 		}
 		return;
 		
-	} else if (autocompleteState.contextType === 'embedding') {
+	} else if (context.type === 'embedding') {
 		const beforeEmbed = 
 			text.lastIndexOf('embedding:', input.selectionStart) + 10;
 		const rest = text.substring(input.selectionStart);
@@ -842,7 +842,7 @@ function selectAutocomplete(index) {
 			`${text.substring(0, beforeEmbed)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeEmbed + item.value.length + suffix.length;
 		
-	} else if (autocompleteState.contextType === 'character') {
+	} else if (context.type === 'character') {
 		const beforeChar = 
 			text.lastIndexOf('character:', input.selectionStart) + 10;
 		const rest = text.substring(input.selectionStart);
@@ -860,7 +860,7 @@ function selectAutocomplete(index) {
 			`${text.substring(0, beforeChar)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeChar + item.value.length + suffix.length;
 		
-	} else if (autocompleteState.contextType === 'character-outfit') {
+	} else if (context.type === 'character-outfit') {
 		// Find position after first colon
 		const charStart = 
 			text.lastIndexOf('character:', input.selectionStart);
@@ -880,7 +880,7 @@ function selectAutocomplete(index) {
 			`${text.substring(0, beforeOutfit)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeOutfit + item.value.length + suffix.length;
 		
-	} else if (autocompleteState.contextType === 'character-part') {
+	} else if (context.type === 'character-part') {
 		// Find position after second colon
 		const charStart = 
 			text.lastIndexOf('character:', input.selectionStart);
@@ -901,7 +901,7 @@ function selectAutocomplete(index) {
 			`${text.substring(0, beforePart)}${item.value}${suffix}${after}`;
 		newCursorPos = beforePart + item.value.length + suffix.length;
 		
-	} else if (autocompleteState.contextType === 'tagpreset') {
+	} else if (context.type === 'tagpreset') {
 		const beforeTag = 
 			text.lastIndexOf('tag:', input.selectionStart) + 4;
 		
@@ -917,7 +917,7 @@ function selectAutocomplete(index) {
 		newText = 
 			`${text.substring(0, beforeTag)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeTag + item.value.length + suffix.length;
-	} else if (autocompleteState.contextType === 'wildcard') {
+	} else if (context.type === 'wildcard') {
 		const beforeWildcard = 
 			text.lastIndexOf('wildcard:', input.selectionStart) + 9;
 
@@ -932,7 +932,7 @@ function selectAutocomplete(index) {
 		newText = 
 			`${text.substring(0, beforeWildcard)}${item.value}${suffix}${after}`;
 		newCursorPos = beforeWildcard + item.value.length + suffix.length;
-	} else if (autocompleteState.contextType === 'artist') {
+	} else if (context.type === 'artist') {
 		// Prepend @ to the completed value, replacing from context.start
 		// which covers the original @ the user typed.
 		const tag = '@' + item.value
